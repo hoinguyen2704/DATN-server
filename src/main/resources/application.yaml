@@ -1,3 +1,57 @@
 spring:
   application:
-    name: server
+    name: hozitech-server
+  config:
+    import: optional:file:.env.dev[.properties]
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: ${JPA_SHOW_SQL:true}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  servlet:
+    multipart:
+      max-file-size: ${MAX_FILE_SIZE:50MB}
+      max-request-size: ${MAX_REQUEST_SIZE:100MB}
+
+  output:
+    ansi:
+      enabled: always
+
+server:
+  port: ${SERVER_PORT:8080}
+
+api:
+  prefix-client: /api/v1
+  prefix-admin: /admin/api/v1
+
+jwt:
+  secret-key: ${JWT_SECRET_KEY:default-secret-key}
+  access-expiration: ${JWT_ACCESS_EXPIRATION:86400} # 1 day
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800} # 7 days
+
+link:
+  frontend: ${URL_FRONTEND:http://localhost:3000}
+
+cloud:
+  aws:
+    access-key: ${AWS_ACCESS_KEY:}
+    secret-key: ${AWS_SECRET_KEY:}
+    region: ${AWS_REGION:ap-southeast-1}
+    bucket-name: ${AWS_BUCKET_NAME:}
+
+mail:
+  host: ${MAIL_HOST:smtp.gmail.com}
+  port: ${MAIL_PORT:587}
+  username: ${MAIL_USERNAME:}
+  password: ${MAIL_PASSWORD:}
