@@ -1,13 +1,16 @@
 package com.hoz.hozitech.application.specifications;
 
-import com.hoz.hozitech.domain.entities.User;
-import com.hoz.hozitech.domain.enums.RoleType;
-import jakarta.persistence.criteria.Predicate;
-import org.springframework.data.jpa.domain.Specification;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.List;
+
+import org.springframework.data.jpa.domain.Specification;
+
+import com.hoz.hozitech.domain.entities.Role_;
+import com.hoz.hozitech.domain.entities.User;
+import com.hoz.hozitech.domain.entities.User_;
+import com.hoz.hozitech.domain.enums.RoleType;
+
+import jakarta.persistence.criteria.Predicate;
 
 public class UserSpecification {
 
@@ -18,33 +21,33 @@ public class UserSpecification {
             LocalDateTime endDate,
             Boolean deleted) {
         return (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
+            java.util.List<Predicate> predicates = new ArrayList<>();
 
             if (deleted != null) {
-                predicates.add(cb.equal(root.get("deleted"), deleted));
+                predicates.add(cb.equal(root.get(User_.deleted), deleted));
             } else {
-                predicates.add(cb.isFalse(root.get("deleted")));
+                predicates.add(cb.isFalse(root.get(User_.deleted)));
             }
 
             if (keyword != null && !keyword.isBlank()) {
                 String pattern = "%" + keyword.toLowerCase() + "%";
                 predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("fullName")), pattern),
-                        cb.like(cb.lower(root.get("userName")), pattern),
-                        cb.like(cb.lower(root.get("email")), pattern),
-                        cb.like(root.get("phoneNumber"), pattern)));
+                        cb.like(cb.lower(root.get(User_.fullName)), pattern),
+                        cb.like(cb.lower(root.get(User_.userName)), pattern),
+                        cb.like(cb.lower(root.get(User_.email)), pattern),
+                        cb.like(root.get(User_.phoneNumber), pattern)));
             }
 
             if (roleType != null) {
-                predicates.add(cb.equal(root.get("role").get("id"), roleType));
+                predicates.add(cb.equal(root.get(User_.role).get(Role_.id), roleType));
             }
 
             if (startDate != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), startDate));
+                predicates.add(cb.greaterThanOrEqualTo(root.get(User_.createdAt), startDate));
             }
 
             if (endDate != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), endDate));
+                predicates.add(cb.lessThanOrEqualTo(root.get(User_.createdAt), endDate));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

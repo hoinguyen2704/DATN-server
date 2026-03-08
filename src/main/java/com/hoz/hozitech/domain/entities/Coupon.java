@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@lombok.experimental.SuperBuilder
 @Entity
 @Table(name = "coupons", uniqueConstraints = {
         @UniqueConstraint(columnNames = "code")

@@ -423,3 +423,8 @@ alter table tokens
 
 create index idx_token_user
     on tokens (user_id);
+
+```sql
+INSERT INTO roles (id, name) VALUES ('ADMIN', 'Administrator');
+INSERT INTO roles (id, name) VALUES ('USER', 'User');
+```

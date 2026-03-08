@@ -20,6 +20,7 @@ import java.util.UUID;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@lombok.experimental.SuperBuilder
 public abstract class AbstractAuditingEntity {
 
     @Id

@@ -10,5 +10,5 @@ public enum RoleType {
     USER("User"),
     SHIPPER("Shipper");
 
-    private final String displayName;
+    private final String roleName;
 }

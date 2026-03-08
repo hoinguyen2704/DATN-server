@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "java-architect": {
+      "source": "jeffallan/claude-skills",
+      "sourceType": "github",
+      "computedHash": "5f56e132a3df4603c7d8ef71cc5e25bc1ae822d2d8c4045ef356485699add169"
+    },
+    "springboot-patterns": {
+      "source": "affaan-m/everything-claude-code",
+      "sourceType": "github",
+      "computedHash": "bc422225a6b9f72cc69c45b2c4b8828d8a2c35c2fe2a893700932178f49e3900"
+    }
+  }
+}
