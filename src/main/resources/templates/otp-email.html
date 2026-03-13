@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>HoziTech - Mã Xác Thực</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
+<div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+    <h2 style="color: #333; text-align: center;">Yêu cầu Đặt Lại Mật Khẩu</h2>
+    <p style="color: #555; font-size: 16px;">Chào bạn,</p>
+    <p style="color: #555; font-size: 16px;">Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản HoziTech của bạn. Đây là mã xác thực OTP của bạn:</p>
+    <div style="text-align: center; margin: 30px 0;">
+        <span th:text="${otpCode}" style="display: inline-block; padding: 15px 30px; font-size: 24px; font-weight: bold; background-color: #007bff; color: #ffffff; border-radius: 5px; letter-spacing: 5px;">123456</span>
+    </div>
+    <p style="color: #555; font-size: 16px;">Mã này có hiệu lực trong vòng 5 phút.</p>
+    <p style="color: #555; font-size: 16px;">Nếu bạn không yêu cầu đặt lại mật khẩu, xin vui lòng bỏ qua email này.</p>
+    <hr style="border: 0; border-top: 1px solid #ddd; margin: 30px 0;">
+    <p style="color: #888; font-size: 14px; text-align: center;">Đội ngũ HoziTech Support</p>
+</div>
+</body>
+</html>

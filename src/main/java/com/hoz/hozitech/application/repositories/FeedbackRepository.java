@@ -13,7 +13,11 @@ public interface FeedbackRepository extends JpaRepository<Feedback, UUID> {
 
     Page<Feedback> findByProductId(UUID productId, Pageable pageable);
 
-    Page<Feedback> findByProductIdAndStar(UUID productId, Integer star, Pageable pageable);
+    Page<Feedback> findByProductIdAndRating(UUID productId, Integer rating, Pageable pageable);
+
+    Page<Feedback> findByProductIdAndStatus(UUID productId, String status, Pageable pageable);
+
+    Page<Feedback> findByStatus(String status, Pageable pageable);
 
     boolean existsByUserIdAndProductIdAndOrderId(UUID userId, UUID productId, UUID orderId);
 }

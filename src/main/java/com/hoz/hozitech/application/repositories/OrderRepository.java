@@ -17,13 +17,13 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
 
     Optional<Order> findByOrderNumber(String orderNumber);
 
-    List<Order> findByUserIdAndStatusOrderByCreatedAtDesc(UUID userId, OrderStatus status);
+    List<Order> findByUserIdAndOrderStatusOrderByCreatedAtDesc(UUID userId, OrderStatus orderStatus);
 
     List<Order> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
-    @Query("SELECT COUNT(o) FROM Order o WHERE o.status = :status")
-    long countByStatus(@Param("status") OrderStatus status);
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.orderStatus = :status")
+    long countByOrderStatus(@Param("status") OrderStatus status);
 
-    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o WHERE o.status = 'SHIPPED'")
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o WHERE o.orderStatus = 'SHIPPED'")
     java.math.BigDecimal getTotalRevenue();
 }

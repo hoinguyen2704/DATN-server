@@ -1,0 +1,300 @@
+package com.hoz.hozitech.application.services.impl;
+
+import com.hoz.hozitech.application.repositories.*;
+import com.hoz.hozitech.application.services.OrderService;
+import com.hoz.hozitech.application.specifications.OrderSpecification;
+import com.hoz.hozitech.domain.dtos.request.CheckoutRequest;
+import com.hoz.hozitech.domain.dtos.response.OrderResponse;
+import com.hoz.hozitech.domain.dtos.response.PageResponse;
+import com.hoz.hozitech.domain.entities.*;
+import com.hoz.hozitech.domain.enums.OrderStatus;
+import com.hoz.hozitech.domain.enums.PaymentMethod;
+import com.hoz.hozitech.domain.enums.PaymentStatus;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class OrderServiceImpl implements OrderService {
+
+    private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final UserRepository userRepository;
+    private final AddressRepository addressRepository;
+    private final ProductVariantRepository variantRepository;
+    private final CouponRepository couponRepository;
+    private final CartRepository cartRepository;
+
+    @Override
+    @Transactional
+    public OrderResponse checkout(UUID userId, CheckoutRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        Address address = addressRepository.findById(request.getAddressId())
+                .orElseThrow(() -> new IllegalArgumentException("Address not found"));
+
+        if (!address.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException("Address does not belong to user");
+        }
+
+        // Snapshot address as JSON
+        String addressJson = snapshotAddress(address);
+
+        // Build order items and calculate totals
+        List<OrderItem> orderItems = new ArrayList<>();
+        BigDecimal subtotal = BigDecimal.ZERO;
+
+        for (CheckoutRequest.CheckoutItem item : request.getItems()) {
+            ProductVariant variant = variantRepository.findById(item.getVariantId())
+                    .orElseThrow(() -> new IllegalArgumentException("Product variant not found: " + item.getVariantId()));
+
+            if (variant.getStock() < item.getQuantity()) {
+                throw new IllegalArgumentException("Not enough stock for: " + variant.getVariantName());
+            }
+
+            BigDecimal unitPrice = variant.getPrice();
+            BigDecimal itemSubtotal = unitPrice.multiply(BigDecimal.valueOf(item.getQuantity()));
+
+            OrderItem orderItem = OrderItem.builder()
+                    .productName(variant.getProduct().getName())
+                    .variantName(variant.getVariantName())
+                    .unitPrice(unitPrice)
+                    .quantity(item.getQuantity())
+                    .subtotal(itemSubtotal)
+                    .variant(variant)
+                    .build();
+
+            orderItems.add(orderItem);
+            subtotal = subtotal.add(itemSubtotal);
+
+            // Reduce stock
+            variant.setStock(variant.getStock() - item.getQuantity());
+            variantRepository.save(variant);
+        }
+
+        // Apply coupon
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        if (request.getCouponCode() != null && !request.getCouponCode().isBlank()) {
+            Coupon coupon = couponRepository.findByCode(request.getCouponCode())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid coupon code"));
+
+            if (!"ACTIVE".equalsIgnoreCase(coupon.getStatus())) {
+                throw new IllegalArgumentException("Coupon is not active");
+            }
+            if (coupon.getEndDate() != null && coupon.getEndDate().isBefore(LocalDateTime.now())) {
+                throw new IllegalArgumentException("Coupon has expired");
+            }
+            if (coupon.getUsageLimit() != null && coupon.getUsedCount() >= coupon.getUsageLimit()) {
+                throw new IllegalArgumentException("Coupon usage limit exceeded");
+            }
+            if (coupon.getMinOrderValue() != null && subtotal.compareTo(coupon.getMinOrderValue()) < 0) {
+                throw new IllegalArgumentException("Order does not meet minimum value for coupon");
+            }
+
+            if ("PERCENTAGE".equalsIgnoreCase(coupon.getDiscountType())) {
+                discountAmount = subtotal.multiply(coupon.getDiscountValue()).divide(BigDecimal.valueOf(100));
+                if (coupon.getMaxDiscountAmount() != null && discountAmount.compareTo(coupon.getMaxDiscountAmount()) > 0) {
+                    discountAmount = coupon.getMaxDiscountAmount();
+                }
+            } else {
+                discountAmount = coupon.getDiscountValue();
+            }
+
+            coupon.setUsedCount(coupon.getUsedCount() + 1);
+            couponRepository.save(coupon);
+        }
+
+        BigDecimal shippingFee = BigDecimal.ZERO; // Can be calculated based on address later
+        BigDecimal totalAmount = subtotal.add(shippingFee).subtract(discountAmount);
+        if (totalAmount.compareTo(BigDecimal.ZERO) < 0) totalAmount = BigDecimal.ZERO;
+
+        PaymentMethod paymentMethod = PaymentMethod.valueOf(request.getPaymentMethod().toUpperCase());
+
+        Order order = Order.builder()
+                .orderNumber(generateOrderNumber())
+                .shippingAddressJson(addressJson)
+                .note(request.getNote())
+                .orderStatus(OrderStatus.PENDING)
+                .subtotal(subtotal)
+                .shippingFee(shippingFee)
+                .discountAmount(discountAmount)
+                .totalAmount(totalAmount)
+                .paymentMethod(paymentMethod)
+                .paymentStatus(paymentMethod == PaymentMethod.COD ? PaymentStatus.PENDING : PaymentStatus.PENDING)
+                .user(user)
+                .couponCode(request.getCouponCode())
+                .orderItems(new ArrayList<>())
+                .build();
+
+        // Link order items
+        for (OrderItem item : orderItems) {
+            item.setOrder(order);
+            order.getOrderItems().add(item);
+        }
+
+        Order savedOrder = orderRepository.save(order);
+
+        // Clear cart items after successful checkout
+        cartRepository.deleteAllByUserId(userId);
+
+        OrderResponse response = mapToResponse(savedOrder);
+
+        // Generate payment URL for online payments
+        if (paymentMethod != PaymentMethod.COD) {
+            response.setPaymentUrl("https://payment.hozitech.com/pay/" + savedOrder.getOrderNumber());
+        }
+
+        return response;
+    }
+
+    @Override
+    public OrderResponse getOrderByNumber(String orderNumber, UUID userId) {
+        Order order = orderRepository.findByOrderNumber(orderNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+
+        if (!order.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException("Order does not belong to user");
+        }
+
+        return mapToResponse(order);
+    }
+
+    @Override
+    public PageResponse<OrderResponse> getMyOrders(UUID userId, String status, int page, int size) {
+        var pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
+
+        OrderStatus orderStatus = null;
+        if (status != null && !status.isBlank()) {
+            orderStatus = OrderStatus.valueOf(status.toUpperCase());
+        }
+
+        Specification<Order> spec = OrderSpecification.filter(userId, orderStatus, null, null, null);
+        Page<Order> orders = orderRepository.findAll(spec, pageable);
+        return PageResponse.of(orders.map(this::mapToResponse));
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse cancelOrder(UUID userId, UUID orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+
+        if (!order.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException("Order does not belong to user");
+        }
+
+        if (order.getOrderStatus() != OrderStatus.PENDING) {
+            throw new IllegalArgumentException("Only pending orders can be cancelled");
+        }
+
+        order.setOrderStatus(OrderStatus.CANCELLED);
+
+        // Restore stock
+        for (OrderItem item : order.getOrderItems()) {
+            ProductVariant variant = item.getVariant();
+            variant.setStock(variant.getStock() + item.getQuantity());
+            variantRepository.save(variant);
+        }
+
+        return mapToResponse(orderRepository.save(order));
+    }
+
+    @Override
+    public PageResponse<OrderResponse> getAllOrders(String status, String keyword, int page, int size) {
+        var pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
+
+        OrderStatus orderStatus = null;
+        if (status != null && !status.isBlank()) {
+            orderStatus = OrderStatus.valueOf(status.toUpperCase());
+        }
+
+        Specification<Order> spec = OrderSpecification.filter(null, orderStatus, null, null, keyword);
+        Page<Order> orders = orderRepository.findAll(spec, pageable);
+        return PageResponse.of(orders.map(this::mapToResponse));
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse updateOrderStatus(UUID orderId, String status) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+
+        OrderStatus newStatus = OrderStatus.valueOf(status.toUpperCase());
+        order.setOrderStatus(newStatus);
+
+        if (newStatus == OrderStatus.SHIPPED) {
+            order.setPaymentStatus(PaymentStatus.COMPLETED);
+        }
+
+        return mapToResponse(orderRepository.save(order));
+    }
+
+    // --- Private helpers ---
+
+    private OrderResponse mapToResponse(Order order) {
+        List<OrderResponse.OrderItemResponse> items = order.getOrderItems().stream()
+                .map(item -> OrderResponse.OrderItemResponse.builder()
+                        .id(item.getId())
+                        .variantId(item.getVariant() != null ? item.getVariant().getId() : null)
+                        .productName(item.getProductName())
+                        .variantName(item.getVariantName())
+                        .unitPrice(item.getUnitPrice())
+                        .quantity(item.getQuantity())
+                        .subtotal(item.getSubtotal())
+                        .build())
+                .collect(Collectors.toList());
+
+        return OrderResponse.builder()
+                .id(order.getId())
+                .orderNumber(order.getOrderNumber())
+                .orderStatus(order.getOrderStatus().name())
+                .paymentMethod(order.getPaymentMethod().name())
+                .paymentStatus(order.getPaymentStatus().name())
+                .subtotal(order.getSubtotal())
+                .shippingFee(order.getShippingFee())
+                .discountAmount(order.getDiscountAmount())
+                .totalAmount(order.getTotalAmount())
+                .couponCode(order.getCouponCode())
+                .note(order.getNote())
+                .shippingAddress(order.getShippingAddressJson())
+                .createdAt(order.getCreatedAt())
+                .items(items)
+                .build();
+    }
+
+    private String generateOrderNumber() {
+        String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String random = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        return "ORD-" + date + "-" + random;
+    }
+
+    private String snapshotAddress(Address address) {
+        return "{" +
+                "\"fullName\":\"" + escapeJson(address.getFullName()) + "\"," +
+                "\"phoneNumber\":\"" + escapeJson(address.getPhoneNumber()) + "\"," +
+                "\"province\":\"" + escapeJson(address.getProvince()) + "\"," +
+                "\"district\":\"" + escapeJson(address.getDistrict()) + "\"," +
+                "\"ward\":\"" + escapeJson(address.getWard()) + "\"," +
+                "\"detailAddress\":\"" + escapeJson(address.getDetailAddress()) + "\"" +
+                "}";
+    }
+
+    private String escapeJson(String value) {
+        if (value == null) return "";
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+}
