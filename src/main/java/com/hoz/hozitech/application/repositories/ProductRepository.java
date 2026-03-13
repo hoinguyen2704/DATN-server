@@ -19,7 +19,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID>, JpaSpec
 
     boolean existsByName(String name);
 
-    @Query("SELECT AVG(f.star) FROM Feedback f WHERE f.product.id = :productId")
+    @Query("SELECT AVG(f.rating) FROM Feedback f WHERE f.product.id = :productId")
     Double getAverageRating(@Param("productId") UUID productId);
 
     @Query("SELECT COUNT(f) FROM Feedback f WHERE f.product.id = :productId")

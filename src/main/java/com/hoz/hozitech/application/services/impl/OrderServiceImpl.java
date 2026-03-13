@@ -1,17 +1,13 @@
 package com.hoz.hozitech.application.services.impl;
 
-import com.hoz.hozitech.application.repositories.*;
-import com.hoz.hozitech.application.services.OrderService;
-import com.hoz.hozitech.application.specifications.OrderSpecification;
-import com.hoz.hozitech.domain.dtos.request.CheckoutRequest;
-import com.hoz.hozitech.domain.dtos.response.OrderResponse;
-import com.hoz.hozitech.domain.dtos.response.PageResponse;
-import com.hoz.hozitech.domain.entities.*;
-import com.hoz.hozitech.domain.enums.OrderStatus;
-import com.hoz.hozitech.domain.enums.PaymentMethod;
-import com.hoz.hozitech.domain.enums.PaymentStatus;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -19,11 +15,31 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.stream.Collectors;
+import com.hoz.hozitech.application.repositories.AddressRepository;
+import com.hoz.hozitech.application.repositories.CartRepository;
+import com.hoz.hozitech.application.repositories.CouponRepository;
+import com.hoz.hozitech.application.repositories.OrderItemRepository;
+import com.hoz.hozitech.application.repositories.OrderRepository;
+import com.hoz.hozitech.application.repositories.ProductVariantRepository;
+import com.hoz.hozitech.application.repositories.UserRepository;
+import com.hoz.hozitech.application.services.FlashSaleService;
+import com.hoz.hozitech.application.services.OrderService;
+import com.hoz.hozitech.application.specifications.OrderSpecification;
+import com.hoz.hozitech.domain.dtos.request.CheckoutRequest;
+import com.hoz.hozitech.domain.dtos.response.OrderResponse;
+import com.hoz.hozitech.domain.dtos.response.PageResponse;
+import com.hoz.hozitech.domain.entities.Address;
+import com.hoz.hozitech.domain.entities.Coupon;
+import com.hoz.hozitech.domain.entities.Order;
+import com.hoz.hozitech.domain.entities.OrderItem;
+import com.hoz.hozitech.domain.entities.ProductVariant;
+import com.hoz.hozitech.domain.entities.User;
+import com.hoz.hozitech.domain.enums.OrderStatus;
+import com.hoz.hozitech.domain.enums.PaymentMethod;
+import com.hoz.hozitech.domain.enums.PaymentStatus;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -37,6 +53,7 @@ public class OrderServiceImpl implements OrderService {
     private final ProductVariantRepository variantRepository;
     private final CouponRepository couponRepository;
     private final CartRepository cartRepository;
+    private final FlashSaleService flashSaleService;
 
     @Override
     @Transactional
@@ -66,7 +83,10 @@ public class OrderServiceImpl implements OrderService {
                 throw new IllegalArgumentException("Not enough stock for: " + variant.getVariantName());
             }
 
-            BigDecimal unitPrice = variant.getPrice();
+            // Check Flash Sale first
+            BigDecimal flashPrice = flashSaleService.applyFlashSaleAndReduceStock(variant.getId(), item.getQuantity());
+            BigDecimal unitPrice = (flashPrice != null) ? flashPrice : variant.getPrice();
+            
             BigDecimal itemSubtotal = unitPrice.multiply(BigDecimal.valueOf(item.getQuantity()));
 
             OrderItem orderItem = OrderItem.builder()
@@ -81,7 +101,7 @@ public class OrderServiceImpl implements OrderService {
             orderItems.add(orderItem);
             subtotal = subtotal.add(itemSubtotal);
 
-            // Reduce stock
+            // Reduce base stock
             variant.setStock(variant.getStock() - item.getQuantity());
             variantRepository.save(variant);
         }

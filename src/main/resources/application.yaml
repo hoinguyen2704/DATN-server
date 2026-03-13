@@ -47,14 +47,14 @@ jwt:
 link:
   frontend: ${URL_FRONTEND:http://localhost:3000}
 
-cloud:
+spring.cloud:
   aws:
     access-key: ${AWS_ACCESS_KEY:}
     secret-key: ${AWS_SECRET_KEY:}
     region: ${AWS_REGION:ap-southeast-1}
     bucket-name: ${AWS_BUCKET_NAME:}
 
-mail:
+spring.mail:
   host: ${MAIL_HOST:smtp.gmail.com}
   port: ${MAIL_PORT:587}
   username: ${MAIL_USERNAME:}

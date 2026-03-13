@@ -1,0 +1,79 @@
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::staticFieldBase has been called by com.google.inject.internal.aop.HiddenClassDefiner (file:/usr/local/Cellar/maven/3.9.11/libexec/lib/guice-5.1.0-classes.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.inject.internal.aop.HiddenClassDefiner
+WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------------< com.hoz:Hozitech >--------------------------
+[INFO] Building server 0.0.1
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.3:run (default-cli) > test-compile @ Hozitech >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ Hozitech ---
+[INFO] Copying 1 resource from src/main/resources to target/classes
+[INFO] Copying 1 resource from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ Hozitech ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ Hozitech ---
+[INFO] skip non existing resourceDirectory /Users/hoinguyen/Documents/SpringFW/DATN_HN/server/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ Hozitech ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:4.0.3:run (default-cli) < test-compile @ Hozitech <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.3:run (default-cli) @ Hozitech ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+[32m :: Spring Boot :: [39m              [2m (v4.0.3)[0;39m
+
+[2m2026-03-13T23:22:26.072+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mcom.hoz.hozitech.ServerApplication      [0;39m [2m:[0;39m Starting ServerApplication using Java 25.0.1 with PID 18814 (/Users/hoinguyen/Documents/SpringFW/DATN_HN/server/target/classes started by hoinguyen in /Users/hoinguyen/Documents/SpringFW/DATN_HN/server)
+[2m2026-03-13T23:22:26.074+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mcom.hoz.hozitech.ServerApplication      [0;39m [2m:[0;39m No active profile set, falling back to 1 default profile: "default"
+[2m2026-03-13T23:22:26.129+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36m.e.DevToolsPropertyDefaultsPostProcessor[0;39m [2m:[0;39m Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+[2m2026-03-13T23:22:26.129+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36m.e.DevToolsPropertyDefaultsPostProcessor[0;39m [2m:[0;39m For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+[2m2026-03-13T23:22:27.915+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36m.s.d.r.c.RepositoryConfigurationDelegate[0;39m [2m:[0;39m Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+[2m2026-03-13T23:22:28.184+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36m.s.d.r.c.RepositoryConfigurationDelegate[0;39m [2m:[0;39m Finished Spring Data repository scanning in 256 ms. Found 24 JPA repository interfaces.
+[2m2026-03-13T23:22:29.324+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mo.s.boot.tomcat.TomcatWebServer         [0;39m [2m:[0;39m Tomcat initialized with port 8080 (http)
+[2m2026-03-13T23:22:29.340+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mo.apache.catalina.core.StandardService  [0;39m [2m:[0;39m Starting service [Tomcat]
+[2m2026-03-13T23:22:29.341+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mo.apache.catalina.core.StandardEngine   [0;39m [2m:[0;39m Starting Servlet engine: [Apache Tomcat/11.0.18]
+[2m2026-03-13T23:22:29.373+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mb.w.c.s.WebApplicationContextInitializer[0;39m [2m:[0;39m Root WebApplicationContext: initialization completed in 3243 ms
+[2m2026-03-13T23:22:29.600+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36morg.hibernate.orm.jpa                   [0;39m [2m:[0;39m HHH008540: Processing PersistenceUnitInfo [name: default]
+[2m2026-03-13T23:22:29.637+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36morg.hibernate.orm.core                  [0;39m [2m:[0;39m HHH000001: Hibernate ORM core version 7.2.4.Final
+[2m2026-03-13T23:22:30.019+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mo.s.o.j.p.SpringPersistenceUnitInfo     [0;39m [2m:[0;39m No LoadTimeWeaver setup: ignoring JPA class transformer
+[2m2026-03-13T23:22:30.043+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mcom.zaxxer.hikari.HikariDataSource      [0;39m [2m:[0;39m HikariPool-1 - Starting...
+[2m2026-03-13T23:22:30.221+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mcom.zaxxer.hikari.pool.HikariPool       [0;39m [2m:[0;39m HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@6a86abeb
+[2m2026-03-13T23:22:30.223+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mcom.zaxxer.hikari.HikariDataSource      [0;39m [2m:[0;39m HikariPool-1 - Start completed.
+[2m2026-03-13T23:22:30.253+07:00[0;39m [33m WARN[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36morg.hibernate.orm.deprecation           [0;39m [2m:[0;39m HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+[2m2026-03-13T23:22:30.278+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36morg.hibernate.orm.connections.pooling   [0;39m [2m:[0;39m HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://localhost:5432/hozitechdb]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 18.2
+	Default catalog/schema: hozitechdb/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+[2m2026-03-13T23:22:31.881+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36morg.hibernate.orm.core                  [0;39m [2m:[0;39m HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+[2m2026-03-13T23:22:32.490+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mj.LocalContainerEntityManagerFactoryBean[0;39m [2m:[0;39m Initialized JPA EntityManagerFactory for persistence unit 'default'
+[2m2026-03-13T23:22:32.677+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mo.s.d.j.r.query.QueryEnhancerFactories  [0;39m [2m:[0;39m Hibernate is in classpath; If applicable, HQL parser will be used.
+[2m2026-03-13T23:22:34.303+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36meAuthenticationProviderManagerConfigurer[0;39m [2m:[0;39m Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+[2m2026-03-13T23:22:34.303+07:00[0;39m [33m WARN[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mr$InitializeUserDetailsManagerConfigurer[0;39m [2m:[0;39m Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+[2m2026-03-13T23:22:35.553+07:00[0;39m [33m WARN[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mJpaBaseConfiguration$JpaWebConfiguration[0;39m [2m:[0;39m spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+[2m2026-03-13T23:22:36.334+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mo.s.b.a.e.web.EndpointLinksResolver     [0;39m [2m:[0;39m Exposing 1 endpoint beneath base path '/actuator'
+[2m2026-03-13T23:22:36.482+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mo.s.boot.tomcat.TomcatWebServer         [0;39m [2m:[0;39m Tomcat started on port 8080 (http) with context path '/'
+[2m2026-03-13T23:22:36.496+07:00[0;39m [32m INFO[0;39m [35m18814[0;39m [2m--- [hozitech-server] [  restartedMain] [0;39m[36mcom.hoz.hozitech.ServerApplication      [0;39m [2m:[0;39m Started ServerApplication in 10.813 seconds (process running for 11.23)

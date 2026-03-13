@@ -63,7 +63,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public List<CategoryResponse> getAllActiveCategories() {
-        return categoryRepository.findByActiveTrue().stream()
+        return categoryRepository.findByStatusTrue().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }

@@ -16,12 +16,12 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
 
     boolean existsBySlug(String slug);
 
-    List<Category> findByActiveTrue();
+    List<Category> findByStatusTrue();
 
-    List<Category> findByParentCategoryIsNullAndActiveTrue();
+    List<Category> findByParentCategoryIsNullAndStatusTrue();
 
-    List<Category> findByParentCategoryIdAndActiveTrue(UUID parentId);
+    List<Category> findByParentCategoryIdAndStatusTrue(UUID parentId);
 
-    @Query("SELECT c FROM Category c LEFT JOIN FETCH c.children WHERE c.parentCategory IS NULL AND c.active = true")
+    @Query("SELECT c FROM Category c LEFT JOIN FETCH c.children WHERE c.parentCategory IS NULL AND c.status = true")
     List<Category> findAllRootCategoriesWithChildren();
 }
