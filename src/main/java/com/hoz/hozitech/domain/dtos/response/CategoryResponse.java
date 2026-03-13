@@ -5,24 +5,23 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserResponse {
+public class CategoryResponse {
     private UUID id;
-    private String userName;
-    private String fullName;
-    private String phoneNumber;
-    private String email;
-    private LocalDate dateOfBirth;
-    private String gender;
-    private String avatarUrl;
-    private String status;
-    private String role;
+    private String name;
+    private String slug;
+    private String description;
+    private String imageUrl;
+    private Boolean active;
     private LocalDateTime createdAt;
+
+    // For Tree View
+    private List<CategoryResponse> children;
 }

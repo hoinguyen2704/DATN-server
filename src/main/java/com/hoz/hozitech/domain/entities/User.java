@@ -29,7 +29,7 @@ public class User extends AbstractAuditingEntity {
     private String userName;
 
     @JsonIgnore
-    @Column(name = "password", nullable = false, length = 255)
+    @Column(name = "password_hash", length = 255)
     private String password;
 
     @Column(name = "full_name", nullable = false, length = 100)
@@ -51,9 +51,11 @@ public class User extends AbstractAuditingEntity {
     @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
-    @Builder.Default
-    @Column(name = "deleted", nullable = false)
-    private Boolean deleted = Boolean.FALSE;
+    @Column(name = "auth_provider", length = 50)
+    private String authProvider;
+
+    @Column(name = "status", length = 50)
+    private String status;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id", nullable = false)

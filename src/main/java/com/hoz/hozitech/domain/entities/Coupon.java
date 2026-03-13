@@ -12,44 +12,44 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@lombok.experimental.SuperBuilder
+@Builder
 @Entity
-@Table(name = "coupons", uniqueConstraints = {
-        @UniqueConstraint(columnNames = "code")
+@Table(name = "coupons", indexes = {
+        @Index(name = "idx_coupon_code", columnList = "code", unique = true)
 })
 public class Coupon extends AbstractAuditingEntity {
 
-    @Column(name = "code", nullable = false, length = 50)
+    @Column(name = "code", nullable = false, length = 50, unique = true)
     private String code;
 
-    @Column(name = "description", length = 255)
-    private String description;
+    @Column(name = "discount_type", nullable = false, length = 50)
+    private String discountType; // PERCENTAGE, FIXED_AMOUNT
 
     @Column(name = "discount_value", precision = 15, scale = 2)
     private BigDecimal discountValue;
 
-    @Column(name = "discount_percent")
-    private Double discountPercent;
-
     @Column(name = "min_order_value", precision = 15, scale = 2)
     private BigDecimal minOrderValue;
 
-    @Column(name = "max_discount", precision = 15, scale = 2)
-    private BigDecimal maxDiscount;
+    @Column(name = "max_discount_amount", precision = 15, scale = 2)
+    private BigDecimal maxDiscountAmount;
 
     @Min(0)
-    @Column(name = "quantity", nullable = false)
-    private Integer quantity;
+    @Column(name = "usage_limit")
+    private Integer usageLimit;
 
     @Builder.Default
     @Min(0)
     @Column(name = "used_count", nullable = false)
     private Integer usedCount = 0;
 
-    @Column(name = "expiration_date", nullable = false)
-    private LocalDateTime expirationDate;
+    @Column(name = "start_date")
+    private LocalDateTime startDate;
+
+    @Column(name = "end_date")
+    private LocalDateTime endDate;
 
     @Builder.Default
-    @Column(name = "active", nullable = false)
-    private Boolean active = Boolean.TRUE;
+    @Column(name = "status", nullable = false, length = 50)
+    private String status = "ACTIVE";
 }

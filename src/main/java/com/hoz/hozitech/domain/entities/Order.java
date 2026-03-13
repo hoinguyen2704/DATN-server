@@ -27,22 +27,16 @@ public class Order extends AbstractAuditingEntity {
     @Column(name = "order_number", nullable = false, unique = true, length = 30)
     private String orderNumber;
 
-    @Column(name = "full_name", nullable = false, length = 100)
-    private String fullName;
-
-    @Column(name = "phone_number", nullable = false, length = 15)
-    private String phoneNumber;
-
-    @Column(name = "shipping_address", nullable = false, length = 500)
-    private String shippingAddress;
+    @Column(name = "shipping_address_json", columnDefinition = "jsonb")
+    private String shippingAddressJson;
 
     @Column(name = "note", length = 500)
     private String note;
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private OrderStatus status = OrderStatus.PENDING;
+    @Column(name = "order_status", nullable = false, length = 20)
+    private OrderStatus orderStatus = OrderStatus.PENDING;
 
     @Column(name = "subtotal", nullable = false, precision = 15, scale = 2)
     private BigDecimal subtotal;
@@ -62,27 +56,19 @@ public class Order extends AbstractAuditingEntity {
     @Column(name = "payment_method", nullable = false, length = 20)
     private PaymentMethod paymentMethod;
 
-    @Column(name = "tracking_number", length = 100)
-    private String trackingNumber;
-
-    @Column(name = "cancel_reason", length = 500)
-    private String cancelReason;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_status", nullable = false, length = 20)
+    private com.hoz.hozitech.domain.enums.PaymentStatus paymentStatus;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     @JsonIgnore
     private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "coupon_id")
-    private Coupon coupon;
+    @Column(name = "coupon_code", length = 50)
+    private String couponCode;
 
     @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<OrderDetail> orderDetails = new ArrayList<>();
-
-    @Builder.Default
-    @JsonIgnore
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
-    private List<Payment> payments = new ArrayList<>();
+    private List<OrderItem> orderItems = new ArrayList<>();
 }

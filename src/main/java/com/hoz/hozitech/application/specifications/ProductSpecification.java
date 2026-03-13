@@ -24,15 +24,15 @@ public class ProductSpecification {
         return (root, query, cb) -> {
             java.util.List<Predicate> predicates = new ArrayList<>();
 
-            // Default: not deleted
-            predicates.add(cb.isFalse(root.get(Product_.deleted)));
+            // Default: not archived
+            predicates.add(cb.notEqual(root.get("status"), "ARCHIVED"));
 
             if (keyword != null && !keyword.isBlank()) {
                 String pattern = "%" + keyword.toLowerCase() + "%";
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get(Product_.name)), pattern),
                         cb.like(cb.lower(root.get(Product_.description)), pattern),
-                        cb.like(cb.lower(root.get(Product_.brand)), pattern)));
+                        cb.like(cb.lower(root.get("brand").get("name")), pattern)));
             }
 
             if (categoryId != null) {
@@ -40,19 +40,19 @@ public class ProductSpecification {
             }
 
             if (brand != null && !brand.isBlank()) {
-                predicates.add(cb.equal(cb.lower(root.get(Product_.brand)), brand.toLowerCase()));
+                predicates.add(cb.equal(cb.lower(root.get("brand").get("slug")), brand.toLowerCase()));
             }
 
             if (minPrice != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get(Product_.basePrice), minPrice));
+                predicates.add(cb.greaterThanOrEqualTo(root.get("originPrice"), minPrice));
             }
 
             if (maxPrice != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get(Product_.basePrice), maxPrice));
+                predicates.add(cb.lessThanOrEqualTo(root.get("originPrice"), maxPrice));
             }
 
             if (active != null) {
-                predicates.add(cb.equal(root.get(Product_.active), active));
+                predicates.add(cb.equal(root.get("status"), active ? "ACTIVE" : "DRAFT"));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

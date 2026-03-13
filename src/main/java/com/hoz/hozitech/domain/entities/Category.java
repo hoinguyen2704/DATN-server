@@ -29,9 +29,12 @@ public class Category extends AbstractAuditingEntity {
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 
+    @Column(name = "sort_order")
+    private Integer sortOrder;
+
     @Builder.Default
-    @Column(name = "active", nullable = false)
-    private Boolean active = Boolean.TRUE;
+    @Column(name = "status", nullable = false)
+    private Boolean status = Boolean.TRUE;
 
     // Self-referencing for parent-child hierarchy
     @ManyToOne(fetch = FetchType.LAZY)

@@ -38,6 +38,7 @@ public class SecurityConfig {
             "/api/v1/auth/**",
             "/api/v1/products/**",
             "/api/v1/categories/**",
+            "/api/v1/brands/**",
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html"
@@ -48,9 +49,9 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(req -> req.requestMatchers(WHITE_LIST_URLS).permitAll() // Public endpoints
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN") // Admin only
-                        .anyRequest().authenticated() // Everything else requires authentication
+                .authorizeHttpRequests(req -> req.requestMatchers(WHITE_LIST_URLS).permitAll()
+                        .requestMatchers("/admin/api/v1/**").hasRole("ADMIN")
+                        .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
@@ -80,9 +81,11 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         // Adjust CORS policy for Frontend requirements
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("*")); // Should restrict to specific origins in PROD
+        configuration.setAllowedOriginPatterns(List.of("*")); // Should restrict to specific origins in PROD
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

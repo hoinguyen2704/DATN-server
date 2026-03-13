@@ -24,8 +24,14 @@ public class ProductVariant extends AbstractAuditingEntity {
     @Column(name = "sku", nullable = false, length = 50)
     private String sku;
 
-    @Column(name = "variant_name", nullable = false, length = 150)
+    @Column(name = "variant_name", nullable = false, length = 255)
     private String variantName;
+
+    @Column(name = "color", length = 50)
+    private String color;
+
+    @Column(name = "capacity", length = 50)
+    private String capacity;
 
     @Column(name = "price", nullable = false, precision = 15, scale = 2)
     private BigDecimal price;
@@ -35,11 +41,11 @@ public class ProductVariant extends AbstractAuditingEntity {
 
     @Builder.Default
     @Min(0)
-    @Column(name = "stock", nullable = false)
+    @Column(name = "stock_quantity", nullable = false)
     private Integer stock = 0;
 
     @Builder.Default
-    @Column(name = "active", nullable = false)
+    @Column(name = "status", nullable = false)
     private Boolean active = Boolean.TRUE;
 
     @JsonIgnore

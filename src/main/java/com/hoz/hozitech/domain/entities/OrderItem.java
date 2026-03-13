@@ -14,8 +14,8 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "order_details")
-public class OrderDetail extends AbstractAuditingEntity {
+@Table(name = "order_items")
+public class OrderItem extends AbstractAuditingEntity {
 
     @Column(name = "product_name", nullable = false, length = 250)
     private String productName;
@@ -30,8 +30,8 @@ public class OrderDetail extends AbstractAuditingEntity {
     @Column(name = "quantity", nullable = false)
     private Integer quantity;
 
-    @Column(name = "total_price", nullable = false, precision = 15, scale = 2)
-    private BigDecimal totalPrice;
+    @Column(name = "subtotal", nullable = false, precision = 15, scale = 2)
+    private BigDecimal subtotal;
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)

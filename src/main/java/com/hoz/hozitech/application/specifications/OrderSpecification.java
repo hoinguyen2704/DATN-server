@@ -28,7 +28,7 @@ public class OrderSpecification {
             }
 
             if (status != null) {
-                predicates.add(cb.equal(root.get(Order_.status), status));
+                predicates.add(cb.equal(root.get("orderStatus"), status));
             }
 
             if (startDate != null) {
@@ -42,9 +42,8 @@ public class OrderSpecification {
             if (keyword != null && !keyword.isBlank()) {
                 String pattern = "%" + keyword.toLowerCase() + "%";
                 predicates.add(cb.or(
-                        cb.like(cb.lower(root.get(Order_.orderNumber)), pattern),
-                        cb.like(cb.lower(root.get(Order_.fullName)), pattern),
-                        cb.like(root.get(Order_.phoneNumber), pattern)));
+                        cb.like(cb.lower(root.get("orderNumber")), pattern),
+                        cb.like(cb.lower(root.get("shippingAddressJson")), pattern)));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

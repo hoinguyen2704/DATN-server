@@ -14,19 +14,43 @@ import jakarta.persistence.criteria.Predicate;
 
 public class UserSpecification {
 
+    public static Specification<User> hasFullNameOrEmail(String keyword) {
+        return (root, query, cb) -> {
+            if (keyword == null || keyword.isBlank()) {
+                return cb.conjunction();
+            }
+            String pattern = "%" + keyword.toLowerCase() + "%";
+            return cb.or(
+                    cb.like(cb.lower(root.get(User_.fullName)), pattern),
+                    cb.like(cb.lower(root.get(User_.userName)), pattern),
+                    cb.like(cb.lower(root.get(User_.email)), pattern),
+                    cb.like(root.get(User_.phoneNumber), pattern));
+        };
+    }
+
+    public static Specification<User> hasRoleType(RoleType roleType) {
+        return (root, query, cb) -> {
+            if (roleType == null) {
+                return cb.conjunction();
+            }
+            return cb.equal(root.get(User_.role).get(Role_.id), roleType);
+        };
+    }
+
     public static Specification<User> filter(
             String keyword,
             RoleType roleType,
             LocalDateTime startDate,
             LocalDateTime endDate,
-            Boolean deleted) {
+            String status) {
         return (root, query, cb) -> {
             java.util.List<Predicate> predicates = new ArrayList<>();
 
-            if (deleted != null) {
-                predicates.add(cb.equal(root.get(User_.deleted), deleted));
+            if (status != null && !status.isBlank()) {
+                predicates.add(cb.equal(root.get("status"), status));
             } else {
-                predicates.add(cb.isFalse(root.get(User_.deleted)));
+                // optionally filter by active only if no status provided
+                predicates.add(cb.notEqual(root.get("status"), "LOCKED"));
             }
 
             if (keyword != null && !keyword.isBlank()) {

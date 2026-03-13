@@ -18,7 +18,7 @@ import java.util.List;
 @Table(name = "products", indexes = {
         @Index(name = "idx_product_slug", columnList = "slug"),
         @Index(name = "idx_product_category", columnList = "category_id"),
-        @Index(name = "idx_product_brand", columnList = "brand")
+        @Index(name = "idx_product_brand", columnList = "brand_id")
 })
 public class Product extends AbstractAuditingEntity {
 
@@ -31,22 +31,22 @@ public class Product extends AbstractAuditingEntity {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "brand", length = 100)
-    private String brand;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "brand_id")
+    private Brand brand;
 
-    @Column(name = "weight")
-    private Double weight;
+    @Column(name = "origin_price", nullable = false, precision = 15, scale = 2)
+    private BigDecimal originPrice;
 
-    @Column(name = "base_price", nullable = false, precision = 15, scale = 2)
-    private BigDecimal basePrice;
+    @Column(name = "specs_json", columnDefinition = "jsonb")
+    private String specsJson;
+
+    @Column(name = "status", length = 50)
+    private String status;
 
     @Builder.Default
-    @Column(name = "active", nullable = false)
-    private Boolean active = Boolean.TRUE;
-
-    @Builder.Default
-    @Column(name = "deleted", nullable = false)
-    private Boolean deleted = Boolean.FALSE;
+    @Column(name = "is_featured", nullable = false)
+    private Boolean isFeatured = Boolean.FALSE;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
