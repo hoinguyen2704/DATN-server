@@ -9,4 +9,6 @@ public interface WishlistService {
     void addProductToWishlist(UUID userId, UUID productId);
     void removeProductFromWishlist(UUID userId, UUID productId);
     PageResponse<WishlistResponse> getUserWishlist(UUID userId, int page, int size);
+    boolean isProductInWishlist(UUID userId, UUID productId);
+    long getWishlistCount(UUID userId);
 }

@@ -39,4 +39,20 @@ public class FeedbackController {
         return ResponseEntity.ok(ApiResponse.success("Feedback submitted successfully",
                 feedbackService.submitFeedback(userDetails.getUser().getId(), request)));
     }
+
+    @DeleteMapping("/{feedbackId}")
+    public ResponseEntity<ApiResponse<Void>> deleteFeedback(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID feedbackId) {
+        feedbackService.deleteFeedback(userDetails.getUser().getId(), feedbackId);
+        return ResponseEntity.ok(ApiResponse.success("Feedback deleted successfully"));
+    }
+
+    @GetMapping("/check/{productId}")
+    public ResponseEntity<ApiResponse<Boolean>> hasUserReviewedProduct(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID productId) {
+        return ResponseEntity.ok(ApiResponse.success("Check review status success",
+                feedbackService.hasUserReviewedProduct(userDetails.getUser().getId(), productId)));
+    }
 }

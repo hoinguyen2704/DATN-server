@@ -65,4 +65,12 @@ public class AuthController {
         AuthResponse response = authService.socialLogin(request);
         return ResponseEntity.ok(ApiResponse.success("Social login successful", response));
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal
+            com.hoz.hozitech.security.CustomUserDetails userDetails) {
+        authService.logout(userDetails.getUser().getId());
+        return ResponseEntity.ok(ApiResponse.success("Logout successful"));
+    }
 }

@@ -4,6 +4,7 @@ import com.hoz.hozitech.application.services.CategoryService;
 import com.hoz.hozitech.domain.dtos.request.CategoryRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.CategoryResponse;
+import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
 import jakarta.validation.Valid;
@@ -19,6 +20,15 @@ import java.util.UUID;
 public class AdminCategoryController {
 
     private final CategoryService categoryService;
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<PageResponse<CategoryResponse>>> getAdminCategories(
+            @RequestParam(required = false, defaultValue = "") String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.success("Fetch admin categories successfully",
+                categoryService.getAdminCategories(keyword, page, size)));
+    }
 
     @PostMapping
     public ResponseEntity<ApiResponse<CategoryResponse>> createCategory(@Valid @RequestBody CategoryRequest request) {

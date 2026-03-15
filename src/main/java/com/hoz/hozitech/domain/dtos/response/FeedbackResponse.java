@@ -28,4 +28,7 @@ public class FeedbackResponse {
     private String userAvatar;
     
     private UUID orderId;
+
+    private String adminReply;
+    private LocalDateTime repliedAt;
 }

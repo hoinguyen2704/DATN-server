@@ -2,6 +2,7 @@ package com.hoz.hozitech.application.services.impl;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -268,6 +269,14 @@ public class AuthServiceImpl implements AuthService {
             token.setRevoked(true);
         });
         tokenRepository.saveAll(validUserTokens);
+    }
+
+    @Override
+    @Transactional
+    public void logout(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        revokeAllUserTokens(user);
     }
 
     private AuthResponse buildAuthResponse(User user, String accessToken, String refreshToken) {

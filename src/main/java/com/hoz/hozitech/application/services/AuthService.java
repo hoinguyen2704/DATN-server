@@ -18,4 +18,6 @@ public interface AuthService {
     void resetPassword(String email, String otpCode, String newPassword);
 
     AuthResponse socialLogin(com.hoz.hozitech.domain.dtos.request.SocialLoginRequest request);
+
+    void logout(java.util.UUID userId);
 }

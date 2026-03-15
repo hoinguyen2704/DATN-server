@@ -43,6 +43,12 @@ public class Feedback extends AbstractAuditingEntity {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
+    @Column(name = "admin_reply", columnDefinition = "TEXT")
+    private String adminReply;
+
+    @Column(name = "replied_at")
+    private java.time.LocalDateTime repliedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")
     private Order order;

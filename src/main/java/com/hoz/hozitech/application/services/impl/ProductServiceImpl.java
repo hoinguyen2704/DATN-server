@@ -302,4 +302,40 @@ public class ProductServiceImpl implements ProductService {
         String slug = NONLATIN.matcher(normalized).replaceAll("");
         return slug.toLowerCase(Locale.ENGLISH).replaceAll("-{2,}", "-").replaceAll("^-|-$", "");
     }
+
+    @Override
+    public PageResponse<ProductResponse> getAdminProducts(String keyword, String status, int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page - 1, size, sort);
+
+        // For admin: no additional status filter, return all products matching keyword
+        Specification<Product> spec = ProductSpecification.filter(keyword, null, null, null, null, null, false);
+        Page<Product> products = productRepository.findAll(spec, pageable);
+        return PageResponse.of(products.map(this::mapToResponse));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductResponse> getFeaturedProducts(int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        return productRepository.findByStatusAndIsFeaturedTrue("ACTIVE", pageable)
+                .stream().map(this::mapToResponse).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductResponse> getNewArrivals(int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        return productRepository.findByStatusOrderByCreatedAtDesc("ACTIVE", pageable)
+                .stream().map(this::mapToResponse).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductResponse> getTopRatedProducts(int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        return productRepository.findTopRatedProducts(pageable)
+                .stream().map(this::mapToResponse).collect(Collectors.toList());
+    }
 }

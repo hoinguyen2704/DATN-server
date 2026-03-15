@@ -4,6 +4,7 @@ import com.hoz.hozitech.application.services.BrandService;
 import com.hoz.hozitech.domain.dtos.request.BrandRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.BrandResponse;
+import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
 import jakarta.validation.Valid;
@@ -18,6 +19,15 @@ import java.util.UUID;
 public class AdminBrandController {
 
     private final BrandService brandService;
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<PageResponse<BrandResponse>>> getAdminBrands(
+            @RequestParam(required = false, defaultValue = "") String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.success("Fetch admin brands successfully",
+                brandService.getAdminBrands(keyword, page, size)));
+    }
 
     @PostMapping
     public ResponseEntity<ApiResponse<BrandResponse>> createBrand(@Valid @RequestBody BrandRequest request) {

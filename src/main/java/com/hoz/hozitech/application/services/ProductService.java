@@ -17,6 +17,8 @@ public interface ProductService {
     ProductResponse getProductById(UUID id);
 
     // Admin API
+    PageResponse<ProductResponse> getAdminProducts(String keyword, String status, int page, int size, String sortBy, String sortDir);
+
     ProductResponse createProduct(ProductRequest request);
 
     ProductResponse updateProduct(UUID id, ProductRequest request);
@@ -24,4 +26,11 @@ public interface ProductService {
     void deleteProduct(UUID id);
 
     ProductResponse toggleProductStatus(UUID id);
+
+    // Homepage API
+    java.util.List<ProductResponse> getFeaturedProducts(int limit);
+
+    java.util.List<ProductResponse> getNewArrivals(int limit);
+
+    java.util.List<ProductResponse> getTopRatedProducts(int limit);
 }

@@ -100,6 +100,33 @@ public class FeedbackServiceImpl implements FeedbackService {
         return mapToResponse(feedbackRepository.save(feedback));
     }
 
+    @Override
+    @Transactional
+    public void deleteFeedback(UUID userId, UUID feedbackId) {
+        Feedback feedback = feedbackRepository.findById(feedbackId)
+                .orElseThrow(() -> new IllegalArgumentException("Feedback not found"));
+        if (!feedback.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException("You can only delete your own feedback");
+        }
+        feedbackRepository.delete(feedback);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean hasUserReviewedProduct(UUID userId, UUID productId) {
+        return feedbackRepository.existsByUserIdAndProductId(userId, productId);
+    }
+
+    @Override
+    @Transactional
+    public FeedbackResponse adminReplyFeedback(UUID feedbackId, String replyContent) {
+        Feedback feedback = feedbackRepository.findById(feedbackId)
+                .orElseThrow(() -> new IllegalArgumentException("Feedback not found"));
+        feedback.setAdminReply(replyContent);
+        feedback.setRepliedAt(java.time.LocalDateTime.now());
+        return mapToResponse(feedbackRepository.save(feedback));
+    }
+
     private FeedbackResponse mapToResponse(Feedback feedback) {
         return FeedbackResponse.builder()
                 .id(feedback.getId())
@@ -114,6 +141,8 @@ public class FeedbackServiceImpl implements FeedbackService {
                 .userName(feedback.getUser().getFullName() != null ? feedback.getUser().getFullName() : feedback.getUser().getUserName())
                 .userAvatar(feedback.getUser().getAvatarUrl())
                 .orderId(feedback.getOrder() != null ? feedback.getOrder().getId() : null)
+                .adminReply(feedback.getAdminReply())
+                .repliedAt(feedback.getRepliedAt())
                 .build();
     }
 }

@@ -76,7 +76,6 @@ public class WishlistServiceImpl implements WishlistService {
     private WishlistResponse mapToResponse(Wishlist wishlist) {
         Product product = wishlist.getProduct();
         
-        // Find main thumbnail or use first variant image
         String thumbnailUrl = null;
         if (product.getImages() != null && !product.getImages().isEmpty()) {
             thumbnailUrl = product.getImages().stream()
@@ -104,5 +103,17 @@ public class WishlistServiceImpl implements WishlistService {
                 .productThumbnailUrl(thumbnailUrl)
                 .addedAt(wishlist.getCreatedAt())
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isProductInWishlist(UUID userId, UUID productId) {
+        return wishlistRepository.existsByUserIdAndProductId(userId, productId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long getWishlistCount(UUID userId) {
+        return wishlistRepository.countByUserId(userId);
     }
 }

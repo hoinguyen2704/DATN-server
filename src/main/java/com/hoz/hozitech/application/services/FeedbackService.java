@@ -11,9 +11,15 @@ public interface FeedbackService {
     PageResponse<FeedbackResponse> getFeedbacksByProduct(UUID productId, int page, int size);
     
     FeedbackResponse submitFeedback(UUID userId, FeedbackRequest request);
+
+    void deleteFeedback(UUID userId, UUID feedbackId);
+
+    boolean hasUserReviewedProduct(UUID userId, UUID productId);
     
     // Admin
     PageResponse<FeedbackResponse> getAllFeedbacks(String status, UUID productId, int page, int size);
     
     FeedbackResponse updateFeedbackStatus(UUID id, String status);
+
+    FeedbackResponse adminReplyFeedback(UUID feedbackId, String replyContent);
 }

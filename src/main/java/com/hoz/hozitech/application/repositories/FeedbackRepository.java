@@ -25,6 +25,8 @@ public interface FeedbackRepository extends JpaRepository<Feedback, UUID> {
 
     boolean existsByUserIdAndProductIdAndOrderId(UUID userId, UUID productId, UUID orderId);
 
+    boolean existsByUserIdAndProductId(UUID userId, UUID productId);
+
     // --- Dashboard Statistics ---
 
     @Query("SELECT COUNT(f) FROM Feedback f WHERE f.createdAt >= :from AND f.createdAt <= :to")

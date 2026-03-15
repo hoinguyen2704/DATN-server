@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestAPI("${api.prefix-client}/products")
 @RequiredArgsConstructor
 public class ProductController {
@@ -33,5 +35,26 @@ public class ProductController {
     public ResponseEntity<ApiResponse<ProductResponse>> getProductBySlug(@PathVariable String slug) {
         return ResponseEntity
                 .ok(ApiResponse.success("Fetch product detail successfully", productService.getProductBySlug(slug)));
+    }
+
+    @GetMapping("/featured")
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> getFeaturedProducts(
+            @RequestParam(defaultValue = "8") int limit) {
+        return ResponseEntity.ok(ApiResponse.success("Fetch featured products successfully",
+                productService.getFeaturedProducts(limit)));
+    }
+
+    @GetMapping("/new-arrivals")
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> getNewArrivals(
+            @RequestParam(defaultValue = "8") int limit) {
+        return ResponseEntity.ok(ApiResponse.success("Fetch new arrivals successfully",
+                productService.getNewArrivals(limit)));
+    }
+
+    @GetMapping("/top-rated")
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> getTopRatedProducts(
+            @RequestParam(defaultValue = "8") int limit) {
+        return ResponseEntity.ok(ApiResponse.success("Fetch top rated products successfully",
+                productService.getTopRatedProducts(limit)));
     }
 }

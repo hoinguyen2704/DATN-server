@@ -45,4 +45,19 @@ public class WishlistController {
         wishlistService.removeProductFromWishlist(userDetails.getUser().getId(), productId);
         return ResponseEntity.ok(ApiResponse.success("Product removed from wishlist successfully"));
     }
+
+    @GetMapping("/check/{productId}")
+    public ResponseEntity<ApiResponse<Boolean>> isProductInWishlist(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID productId) {
+        return ResponseEntity.ok(ApiResponse.success("Check wishlist success",
+                wishlistService.isProductInWishlist(userDetails.getUser().getId(), productId)));
+    }
+
+    @GetMapping("/count")
+    public ResponseEntity<ApiResponse<Long>> getWishlistCount(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success("Wishlist count retrieved",
+                wishlistService.getWishlistCount(userDetails.getUser().getId())));
+    }
 }
