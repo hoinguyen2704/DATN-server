@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -22,6 +24,8 @@ import com.hoz.hozitech.application.repositories.OrderItemRepository;
 import com.hoz.hozitech.application.repositories.OrderRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
+import com.hoz.hozitech.application.constant.MailTemplate;
+import com.hoz.hozitech.application.services.EmailService;
 import com.hoz.hozitech.application.services.FlashSaleService;
 import com.hoz.hozitech.application.services.OrderService;
 import com.hoz.hozitech.application.specifications.OrderSpecification;
@@ -54,6 +58,10 @@ public class OrderServiceImpl implements OrderService {
     private final CouponRepository couponRepository;
     private final CartRepository cartRepository;
     private final FlashSaleService flashSaleService;
+    private final EmailService emailService;
+
+    @org.springframework.beans.factory.annotation.Value("${link.frontend:http://localhost:3000}")
+    private String frontendUrl;
 
     @Override
     @Transactional
@@ -178,6 +186,9 @@ public class OrderServiceImpl implements OrderService {
             response.setPaymentUrl("https://payment.hozitech.com/pay/" + savedOrder.getOrderNumber());
         }
 
+        // Send order created email
+        sendOrderCreatedEmail(savedOrder, user, address);
+
         return response;
     }
 
@@ -260,7 +271,14 @@ public class OrderServiceImpl implements OrderService {
             order.setPaymentStatus(PaymentStatus.COMPLETED);
         }
 
-        return mapToResponse(orderRepository.save(order));
+        Order updatedOrder = orderRepository.save(order);
+
+        // Send shipped email notification
+        if (newStatus == OrderStatus.SHIPPED) {
+            sendOrderShippedEmail(updatedOrder);
+        }
+
+        return mapToResponse(updatedOrder);
     }
 
     // --- Private helpers ---
@@ -316,5 +334,79 @@ public class OrderServiceImpl implements OrderService {
     private String escapeJson(String value) {
         if (value == null) return "";
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    // --- Email helpers ---
+
+    private void sendOrderCreatedEmail(Order order, User user, Address address) {
+        try {
+            String customerEmail = user.getEmail();
+            if (customerEmail == null || customerEmail.isBlank()) return;
+
+            Map<String, Object> variables = new HashMap<>();
+            variables.put("CUSTOMER_NAME", user.getFullName());
+            variables.put("ORDER_NUMBER", order.getOrderNumber());
+            variables.put("ORDER_DATE", order.getCreatedAt() != null
+                    ? order.getCreatedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                    : LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+            variables.put("CUSTOMER_FULL_NAME", address.getFullName());
+            variables.put("CUSTOMER_PHONE", address.getPhoneNumber());
+            variables.put("CUSTOMER_ADDRESS", buildFullAddress(address));
+            variables.put("ORDER_ITEMS", order.getOrderItems());
+            variables.put("ORDER_SUBTOTAL", formatPrice(order.getSubtotal()));
+            variables.put("ORDER_DISCOUNT_AMOUNT",
+                    order.getDiscountAmount() != null && order.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0
+                            ? formatPrice(order.getDiscountAmount()) : null);
+            variables.put("ORDER_COUPON_CODE", order.getCouponCode());
+            variables.put("ORDER_TOTAL", formatPrice(order.getTotalAmount()));
+            variables.put("ORDER_LINK", frontendUrl + "/order/detail/" + order.getOrderNumber());
+
+            emailService.sendTemplateMail(customerEmail,
+                    "Đơn hàng " + order.getOrderNumber() + " đã tạo thành công - HoziTech",
+                    MailTemplate.ORDER_CREATED, variables);
+        } catch (Exception e) {
+            log.error("Failed to send order created email for order {}", order.getOrderNumber(), e);
+        }
+    }
+
+    private void sendOrderShippedEmail(Order order) {
+        try {
+            User user = order.getUser();
+            String customerEmail = user.getEmail();
+            if (customerEmail == null || customerEmail.isBlank()) return;
+
+            Map<String, Object> variables = new HashMap<>();
+            variables.put("CUSTOMER_NAME", user.getFullName());
+            variables.put("ORDER_NUMBER", order.getOrderNumber());
+            variables.put("SHIPPED_DATE", LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+            variables.put("ORDER_ITEMS", order.getOrderItems());
+            variables.put("ORDER_SUBTOTAL", formatPrice(order.getSubtotal()));
+            variables.put("ORDER_DISCOUNT_AMOUNT",
+                    order.getDiscountAmount() != null && order.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0
+                            ? formatPrice(order.getDiscountAmount()) : null);
+            variables.put("ORDER_COUPON_CODE", order.getCouponCode());
+            variables.put("ORDER_TOTAL", formatPrice(order.getTotalAmount()));
+            variables.put("ORDER_LINK", frontendUrl + "/order/detail/" + order.getOrderNumber());
+
+            emailService.sendTemplateMail(customerEmail,
+                    "Đơn hàng " + order.getOrderNumber() + " đã giao thành công - HoziTech",
+                    MailTemplate.ORDER_SHIPPED, variables);
+        } catch (Exception e) {
+            log.error("Failed to send order shipped email for order {}", order.getOrderNumber(), e);
+        }
+    }
+
+    private String buildFullAddress(Address address) {
+        StringBuilder sb = new StringBuilder();
+        if (address.getDetailAddress() != null) sb.append(address.getDetailAddress());
+        if (address.getWard() != null) sb.append(", ").append(address.getWard());
+        if (address.getDistrict() != null) sb.append(", ").append(address.getDistrict());
+        if (address.getProvince() != null) sb.append(", ").append(address.getProvince());
+        return sb.toString();
+    }
+
+    private String formatPrice(BigDecimal price) {
+        if (price == null) return "0";
+        return String.format("%,.0f", price);
     }
 }

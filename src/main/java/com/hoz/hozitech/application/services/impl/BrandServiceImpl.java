@@ -45,6 +45,13 @@ public class BrandServiceImpl implements BrandService {
     }
 
     @Override
+    public BrandResponse getBrandById(UUID id) {
+        Brand brand = brandRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Brand not found with id: " + id));
+        return mapToResponse(brand);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public PageResponse<BrandResponse> getAdminBrands(String keyword, int page, int size) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());

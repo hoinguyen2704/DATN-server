@@ -14,6 +14,8 @@ public interface BrandService {
 
     BrandResponse getBrandBySlug(String slug);
 
+    BrandResponse getBrandById(UUID id);
+
     // Admin
     PageResponse<BrandResponse> getAdminBrands(String keyword, int page, int size);
 

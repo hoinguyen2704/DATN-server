@@ -19,7 +19,7 @@ import java.util.List;
 @Entity
 @Table(name = "orders", indexes = {
         @Index(name = "idx_order_user", columnList = "user_id"),
-        @Index(name = "idx_order_status", columnList = "status"),
+        @Index(name = "idx_order_status", columnList = "order_status"),
         @Index(name = "idx_order_number", columnList = "order_number")
 })
 public class Order extends AbstractAuditingEntity {

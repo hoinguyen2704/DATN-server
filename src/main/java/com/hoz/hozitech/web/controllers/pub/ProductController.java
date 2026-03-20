@@ -37,6 +37,13 @@ public class ProductController {
                 .ok(ApiResponse.success("Fetch product detail successfully", productService.getProductBySlug(slug)));
     }
 
+    @GetMapping("/id/{id}")
+    public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable java.util.UUID id) {
+        return ResponseEntity
+                .ok(ApiResponse.success("Fetch product detail successfully", productService.getProductById(id)));
+    }
+
+
     @GetMapping("/featured")
     public ResponseEntity<ApiResponse<List<ProductResponse>>> getFeaturedProducts(
             @RequestParam(defaultValue = "8") int limit) {

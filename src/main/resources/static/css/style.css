@@ -1,0 +1,19 @@
+:root {
+    --color-primary: #007bff;
+    --color-primary-hover: #4696ff;
+    --color-primary-focus: #0138ff;
+    --color-primary-opacity: rgba(59, 144, 255, 0.2);
+    --color-white: #ffff;
+    --color-text: #27272a;
+    --color-greyish: #ccc;
+    --color-grey: #929292;
+    --color-border: #ddd;
+    --color-box-shadow: rgba(23, 27, 42, 0.24);
+    --color-outline: rgb(153, 202, 255);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}

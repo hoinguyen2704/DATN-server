@@ -14,6 +14,8 @@ public interface CategoryService {
 
     CategoryResponse getCategoryBySlug(String slug);
 
+    CategoryResponse getCategoryById(UUID id);
+
     List<CategoryResponse> getAllActiveCategories();
 
     // Admin operations

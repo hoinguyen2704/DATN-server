@@ -12,8 +12,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class LoginRequest {
 
-    @NotBlank(message = "Username or Email is required")
-    private String username; // FE can send either username or email in this field
+    @NotBlank(message = "Email is required")
+    private String email; // FE sends email for login
 
     @NotBlank(message = "Password is required")
     private String password;

@@ -25,4 +25,9 @@ public class BrandController {
     public ResponseEntity<ApiResponse<BrandResponse>> getBrandBySlug(@PathVariable String slug) {
         return ResponseEntity.ok(ApiResponse.success("Fetch brand successfully", brandService.getBrandBySlug(slug)));
     }
+
+    @GetMapping("/id/{id}")
+    public ResponseEntity<ApiResponse<BrandResponse>> getBrandById(@PathVariable java.util.UUID id) {
+        return ResponseEntity.ok(ApiResponse.success("Fetch brand successfully", brandService.getBrandById(id)));
+    }
 }

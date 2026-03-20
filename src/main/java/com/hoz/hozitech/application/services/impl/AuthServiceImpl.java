@@ -33,7 +33,6 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import org.springframework.beans.factory.annotation.Value;
 
-import lombok.RequiredArgsConstructor;
 
 import lombok.RequiredArgsConstructor;
 
@@ -93,11 +92,11 @@ public class AuthServiceImpl implements AuthService {
     public AuthResponse login(LoginRequest request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
+                        request.getEmail(),
                         request.getPassword()));
 
-        User user = userRepository.findByEmailOrUserName(request.getUsername(), request.getUsername())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid email/username or password"));
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
 
         CustomUserDetails userDetails = new CustomUserDetails(user);
         String accessToken = jwtService.generateToken(userDetails);

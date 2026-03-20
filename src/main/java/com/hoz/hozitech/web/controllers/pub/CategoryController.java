@@ -28,4 +28,10 @@ public class CategoryController {
         return ResponseEntity
                 .ok(ApiResponse.success("Fetch category detail successfully", categoryService.getCategoryBySlug(slug)));
     }
+
+    @GetMapping("/id/{id}")
+    public ResponseEntity<ApiResponse<CategoryResponse>> getCategoryById(@PathVariable java.util.UUID id) {
+        return ResponseEntity
+                .ok(ApiResponse.success("Fetch category detail successfully", categoryService.getCategoryById(id)));
+    }
 }

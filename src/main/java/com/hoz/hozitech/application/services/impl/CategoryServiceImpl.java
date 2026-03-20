@@ -62,6 +62,13 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    public CategoryResponse getCategoryById(UUID id) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Category not found with id: " + id));
+        return mapToResponse(category);
+    }
+
+    @Override
     public List<CategoryResponse> getAllActiveCategories() {
         return categoryRepository.findByStatusTrue().stream()
                 .map(this::mapToResponse)
