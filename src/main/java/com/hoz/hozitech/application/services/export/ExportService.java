@@ -1,0 +1,12 @@
+package com.hoz.hozitech.application.services.export;
+
+import java.time.LocalDateTime;
+
+public interface ExportService {
+
+    byte[] exportOrdersToExcel(String status, String keyword, LocalDateTime from, LocalDateTime to);
+
+    byte[] exportUsersToExcel(String keyword, String role);
+
+    byte[] exportFeedbacksToExcel(String status, java.util.UUID productId);
+}

@@ -2,7 +2,7 @@ package com.hoz.hozitech.web.controllers.admin;
 
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
-import com.hoz.hozitech.application.services.CouponService;
+import com.hoz.hozitech.application.services.coupon.CouponService;
 import com.hoz.hozitech.domain.dtos.request.CouponRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.CouponResponse;
@@ -25,7 +25,7 @@ public class AdminCouponController {
     public ResponseEntity<ApiResponse<PageResponse<CouponResponse>>> getAllCoupons(
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success("Fetch coupons successfully", couponService.getAllCoupons(keyword, page, size)));
     }
 

@@ -1,7 +1,7 @@
 package com.hoz.hozitech.web.controllers.pub;
 
 import com.hoz.hozitech.web.base.RestAPI;
-import com.hoz.hozitech.application.services.CouponService;
+import com.hoz.hozitech.application.services.coupon.CouponService;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.CouponResponse;
 import lombok.RequiredArgsConstructor;

@@ -1,8 +1,8 @@
 package com.hoz.hozitech.web.controllers.pub;
 
 import com.hoz.hozitech.web.base.RestAPI;
-import com.hoz.hozitech.application.services.ArticleService;
-import com.hoz.hozitech.application.services.BannerService;
+import com.hoz.hozitech.application.services.article.ArticleService;
+import com.hoz.hozitech.application.services.banner.BannerService;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.ArticleResponse;
 import com.hoz.hozitech.domain.dtos.response.BannerResponse;

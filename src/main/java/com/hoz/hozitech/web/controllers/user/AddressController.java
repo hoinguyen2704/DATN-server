@@ -1,8 +1,8 @@
 package com.hoz.hozitech.web.controllers.user;
 
 import com.hoz.hozitech.web.base.RestAPI;
-import com.hoz.hozitech.web.base.RoleUser;
-import com.hoz.hozitech.application.services.AddressService;
+import org.springframework.security.access.prepost.PreAuthorize;
+import com.hoz.hozitech.application.services.address.AddressService;
 import com.hoz.hozitech.domain.dtos.request.AddressRequest;
 import com.hoz.hozitech.domain.dtos.response.AddressResponse;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestAPI("${api.prefix-client}/addresses")
-@RoleUser
+@PreAuthorize("isAuthenticated()")
 @RequiredArgsConstructor
 public class AddressController {
 

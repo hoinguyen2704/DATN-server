@@ -2,8 +2,8 @@ package com.hoz.hozitech.web.controllers.admin;
 
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
-import com.hoz.hozitech.application.services.ArticleService;
-import com.hoz.hozitech.application.services.BannerService;
+import com.hoz.hozitech.application.services.article.ArticleService;
+import com.hoz.hozitech.application.services.banner.BannerService;
 import com.hoz.hozitech.security.CustomUserDetails;
 import com.hoz.hozitech.domain.dtos.request.ArticleRequest;
 import com.hoz.hozitech.domain.dtos.request.BannerRequest;
@@ -58,7 +58,7 @@ public class AdminCmsController {
     @GetMapping("/articles")
     public ResponseEntity<ApiResponse<PageResponse<ArticleResponse>>> getAllArticles(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success("All Articles retrieved successfully", articleService.getAdminArticles(page, size)));
     }
 

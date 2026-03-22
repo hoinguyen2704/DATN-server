@@ -1,6 +1,6 @@
 package com.hoz.hozitech.web.controllers.admin;
 
-import com.hoz.hozitech.application.services.BrandService;
+import com.hoz.hozitech.application.services.brand.BrandService;
 import com.hoz.hozitech.domain.dtos.request.BrandRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.BrandResponse;
@@ -24,7 +24,7 @@ public class AdminBrandController {
     public ResponseEntity<ApiResponse<PageResponse<BrandResponse>>> getAdminBrands(
             @RequestParam(required = false, defaultValue = "") String keyword,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success("Fetch admin brands successfully",
                 brandService.getAdminBrands(keyword, page, size)));
     }

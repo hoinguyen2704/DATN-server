@@ -1,8 +1,8 @@
 package com.hoz.hozitech.web.controllers.user;
 
-import com.hoz.hozitech.application.services.WishlistService;
+import com.hoz.hozitech.application.services.wishlist.WishlistService;
 import com.hoz.hozitech.web.base.RestAPI;
-import com.hoz.hozitech.web.base.RoleUser;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.hoz.hozitech.security.CustomUserDetails;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestAPI("${api.prefix-client}/wishlists")
-@RoleUser
+@PreAuthorize("isAuthenticated()")
 @RequiredArgsConstructor
 public class WishlistController {
 

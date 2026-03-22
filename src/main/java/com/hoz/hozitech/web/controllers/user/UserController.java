@@ -1,8 +1,8 @@
 package com.hoz.hozitech.web.controllers.user;
 
-import com.hoz.hozitech.application.services.UserService;
+import com.hoz.hozitech.application.services.user.UserService;
 import com.hoz.hozitech.web.base.RestAPI;
-import com.hoz.hozitech.web.base.RoleUser;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.hoz.hozitech.domain.dtos.request.ChangePasswordRequest;
 import com.hoz.hozitech.domain.dtos.request.UpdateUserRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
@@ -14,11 +14,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestAPI("${api.prefix-client}/users")
-@RoleUser
+@PreAuthorize("isAuthenticated()")
 @RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
+    private final com.hoz.hozitech.application.services.storage.FileStorageService fileStorageService;
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser() {
@@ -38,8 +39,7 @@ public class UserController {
 
     @PostMapping("/me/avatar")
     public ResponseEntity<ApiResponse<UserResponse>> uploadAvatar(@RequestParam("file") MultipartFile file) {
-        // TODO: Integrate Cloudinary/S3 in the future. For now assume URL is generated.
-        String dummyUrl = "https://example.com/images/" + file.getOriginalFilename();
-        return ResponseEntity.ok(ApiResponse.success("Avatar uploaded successfully", userService.uploadAvatar(dummyUrl)));
+        String avatarUrl = fileStorageService.uploadFile(file, "avatars");
+        return ResponseEntity.ok(ApiResponse.success("Avatar uploaded successfully", userService.uploadAvatar(avatarUrl)));
     }
 }

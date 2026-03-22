@@ -1,8 +1,8 @@
 package com.hoz.hozitech.web.controllers.user;
 
-import com.hoz.hozitech.application.services.OrderService;
+import com.hoz.hozitech.application.services.order.OrderService;
 import com.hoz.hozitech.web.base.RestAPI;
-import com.hoz.hozitech.web.base.RoleUser;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.hoz.hozitech.security.CustomUserDetails;
 import com.hoz.hozitech.domain.dtos.request.CheckoutRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestAPI("${api.prefix-client}/orders")
-@RoleUser
+@PreAuthorize("isAuthenticated()")
 @RequiredArgsConstructor
 public class OrderController {
 

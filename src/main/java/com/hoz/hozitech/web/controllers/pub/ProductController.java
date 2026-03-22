@@ -1,7 +1,7 @@
 package com.hoz.hozitech.web.controllers.pub;
 
 import com.hoz.hozitech.web.base.RestAPI;
-import com.hoz.hozitech.application.services.ProductService;
+import com.hoz.hozitech.application.services.product.ProductService;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.ProductResponse;

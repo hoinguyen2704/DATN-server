@@ -1,7 +1,7 @@
 package com.hoz.hozitech.web.controllers.pub;
 
 import com.hoz.hozitech.web.base.RestAPI;
-import com.hoz.hozitech.application.services.CategoryService;
+import com.hoz.hozitech.application.services.category.CategoryService;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.CategoryResponse;
 import lombok.RequiredArgsConstructor;

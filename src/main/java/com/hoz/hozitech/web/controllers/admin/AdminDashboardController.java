@@ -2,7 +2,7 @@ package com.hoz.hozitech.web.controllers.admin;
 
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
-import com.hoz.hozitech.application.services.DashboardService;
+import com.hoz.hozitech.application.services.dashboard.DashboardService;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.DashboardStatsResponse;
 import lombok.RequiredArgsConstructor;

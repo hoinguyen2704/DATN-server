@@ -1,6 +1,6 @@
 package com.hoz.hozitech.web.controllers.admin;
 
-import com.hoz.hozitech.application.services.CategoryService;
+import com.hoz.hozitech.application.services.category.CategoryService;
 import com.hoz.hozitech.domain.dtos.request.CategoryRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.CategoryResponse;
@@ -25,7 +25,7 @@ public class AdminCategoryController {
     public ResponseEntity<ApiResponse<PageResponse<CategoryResponse>>> getAdminCategories(
             @RequestParam(required = false, defaultValue = "") String keyword,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success("Fetch admin categories successfully",
                 categoryService.getAdminCategories(keyword, page, size)));
     }

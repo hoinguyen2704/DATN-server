@@ -34,6 +34,11 @@ spring:
     ansi:
       enabled: always
 
+  data:
+    web:
+      pageable:
+        default-page-size: 20
+
 server:
   port: ${SERVER_PORT:8080}
 
@@ -44,7 +49,7 @@ api:
   prefix-admin: admin/api/v1
 
 jwt:
-  secret-key: ${JWT_SECRET_KEY:default-secret-key}
+  secret-key: ${JWT_SECRET_KEY}
   # 1 day
   access-expiration: ${JWT_ACCESS_EXPIRATION:86400}
   # 7 days

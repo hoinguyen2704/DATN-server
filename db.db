@@ -1,430 +1,496 @@
--- we don't know how to generate root <with-no-name> (class Root) :(
+-- comment on database postgres is 'default administrative connection database';
 
-comment on database postgres is 'default administrative connection database';
+grant connect, create, temporary on database hozitech_db to dev;
 
-grant connect, create, temporary on database hozitechdb to dev;
-
-create table categories
-(
-    id          uuid         not null
-        primary key,
-    created_at  timestamp(6) not null,
-    created_by  varchar(255),
-    updated_at  timestamp(6),
-    updated_by  varchar(255),
-    active      boolean      not null,
-    description text,
-    image_url   varchar(500),
-    name        varchar(100) not null,
-    slug        varchar(150) not null
-        constraint ukoul14ho7bctbefv8jywp5v3i2
-            unique,
-    parent_id   uuid
-        constraint fksaok720gsu4u2wrgbk10b5n8d
-            references categories
+CREATE TABLE public.banners (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  image_url VARCHAR(1000) NOT NULL,
+  is_active BOOLEAN NOT NULL,
+  sort_order INTEGER NOT NULL,
+  target_url VARCHAR(1000),
+  title VARCHAR(255)
 );
 
-alter table categories
-    owner to dev;
+ALTER TABLE public.banners owner TO dev;
 
-create table coupons
-(
-    id               uuid         not null
-        primary key,
-    created_at       timestamp(6) not null,
-    created_by       varchar(255),
-    updated_at       timestamp(6),
-    updated_by       varchar(255),
-    active           boolean      not null,
-    code             varchar(50)  not null
-        constraint ukeplt0kkm9yf2of2lnx6c1oy9b
-            unique,
-    description      varchar(255),
-    discount_percent double precision,
-    discount_value   numeric(15, 2),
-    expiration_date  timestamp(6) not null,
-    max_discount     numeric(15, 2),
-    min_order_value  numeric(15, 2),
-    quantity         integer      not null
-        constraint coupons_quantity_check
-            check (quantity >= 0),
-    used_count       integer      not null
-        constraint coupons_used_count_check
-            check (used_count >= 0)
+CREATE TABLE public.brands (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  logo_url VARCHAR(500),
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) NOT NULL CONSTRAINT idx_brand_slug UNIQUE
 );
 
-alter table coupons
-    owner to dev;
+ALTER TABLE public.brands owner TO dev;
 
-create table products
-(
-    id          uuid           not null
-        primary key,
-    created_at  timestamp(6)   not null,
-    created_by  varchar(255),
-    updated_at  timestamp(6),
-    updated_by  varchar(255),
-    active      boolean        not null,
-    base_price  numeric(15, 2) not null,
-    brand       varchar(100),
-    deleted     boolean        not null,
-    description text,
-    name        varchar(250)   not null,
-    slug        varchar(300)   not null
-        constraint ukostq1ec3toafnjok09y9l7dox
-            unique,
-    weight      double precision,
-    category_id uuid           not null
-        constraint fkog2rp4qthbtt2lfyhfo32lsw9
-            references categories
+CREATE TABLE public.categories (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  description TEXT,
+  image_url VARCHAR(500),
+  name VARCHAR(100) NOT NULL,
+  slug VARCHAR(150) NOT NULL CONSTRAINT ukoul14ho7bctbefv8jywp5v3i2 UNIQUE,
+  sort_order INTEGER,
+  status BOOLEAN NOT NULL,
+  parent_id uuid CONSTRAINT fksaok720gsu4u2wrgbk10b5n8d REFERENCES public.categories
 );
 
-alter table products
-    owner to dev;
+ALTER TABLE public.categories owner TO dev;
 
-create table product_images
-(
-    id         uuid         not null
-        primary key,
-    created_at timestamp(6) not null,
-    created_by varchar(255),
-    updated_at timestamp(6),
-    updated_by varchar(255),
-    alt_text   varchar(255),
-    image_url  varchar(500) not null,
-    is_primary boolean      not null,
-    sort_order integer      not null,
-    product_id uuid         not null
-        constraint fkqnq71xsohugpqwf3c9gxmsuy
-            references products
+CREATE TABLE public.coupons (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  code VARCHAR(50) NOT NULL CONSTRAINT idx_coupon_code UNIQUE,
+  discount_type VARCHAR(50) NOT NULL,
+  discount_value NUMERIC(15, 2),
+  end_date TIMESTAMP(6),
+  max_discount_amount NUMERIC(15, 2),
+  min_order_value NUMERIC(15, 2),
+  start_date TIMESTAMP(6),
+  status VARCHAR(50) NOT NULL,
+  usage_limit INTEGER CONSTRAINT coupons_usage_limit_check CHECK (usage_limit >= 0),
+  used_count INTEGER NOT NULL CONSTRAINT coupons_used_count_check CHECK (used_count >= 0)
 );
 
-alter table product_images
-    owner to dev;
+ALTER TABLE public.coupons owner TO dev;
 
-create table product_variants
-(
-    id               uuid           not null
-        primary key,
-    created_at       timestamp(6)   not null,
-    created_by       varchar(255),
-    updated_at       timestamp(6),
-    updated_by       varchar(255),
-    active           boolean        not null,
-    compare_at_price numeric(15, 2),
-    price            numeric(15, 2) not null,
-    sku              varchar(50)    not null
-        constraint ukq935p2d1pbjm39n0063ghnfgn
-            unique,
-    stock            integer        not null
-        constraint product_variants_stock_check
-            check (stock >= 0),
-    variant_name     varchar(150)   not null,
-    product_id       uuid           not null
-        constraint fkosqitn4s405cynmhb87lkvuau
-            references products
+CREATE TABLE public.flash_sales (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  description TEXT,
+  end_time TIMESTAMP(6) NOT NULL,
+  name VARCHAR(200) NOT NULL,
+  start_time TIMESTAMP(6) NOT NULL,
+  status VARCHAR(20) NOT NULL
 );
 
-alter table product_variants
-    owner to dev;
+ALTER TABLE public.flash_sales owner TO dev;
 
-create index idx_product_slug
-    on products (slug);
-
-create index idx_product_category
-    on products (category_id);
-
-create index idx_product_brand
-    on products (brand);
-
-create table roles
-(
-    id        varchar(50) not null
-        primary key
-        constraint roles_id_check
-            check ((id)::text = ANY
-                   ((ARRAY ['ADMIN'::character varying, 'USER'::character varying, 'SHIPPER'::character varying])::text[])),
-    role_name varchar(50) not null
+CREATE TABLE public.otp_tokens (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  email VARCHAR(150) NOT NULL,
+  expires_at TIMESTAMP(6) NOT NULL,
+  is_used BOOLEAN NOT NULL,
+  otp_code VARCHAR(10) NOT NULL
 );
 
-alter table roles
-    owner to dev;
+ALTER TABLE public.otp_tokens owner TO dev;
 
-create table users
-(
-    id            uuid         not null
-        primary key,
-    created_at    timestamp(6) not null,
-    created_by    varchar(255),
-    updated_at    timestamp(6),
-    updated_by    varchar(255),
-    avatar_url    varchar(500),
-    date_of_birth date,
-    deleted       boolean      not null,
-    email         varchar(150) not null
-        constraint uk6dotkott2kjsp8vw4d0m25fb7
-            unique,
-    full_name     varchar(100) not null,
-    gender        varchar(10),
-    password      varchar(255) not null,
-    phone_number  varchar(15)
-        constraint uk9q63snka3mdh91as4io72espi
-            unique,
-    user_name     varchar(50)  not null
-        constraint ukk8d0f2n7n88w1a16yhua64onx
-            unique,
-    role_id       varchar(50)  not null
-        constraint fkp56c1712k691lhsyewcssf40f
-            references roles
+CREATE INDEX idx_otp_email ON public.otp_tokens (email);
+
+CREATE TABLE public.products (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  description TEXT,
+  is_featured BOOLEAN NOT NULL,
+  name VARCHAR(250) NOT NULL,
+  origin_price NUMERIC(15, 2) NOT NULL,
+  slug VARCHAR(300) NOT NULL CONSTRAINT ukostq1ec3toafnjok09y9l7dox UNIQUE,
+  specs_json JSONB,
+  status VARCHAR(50),
+  brand_id uuid CONSTRAINT fka3a4mpsfdf4d2y6r8ra3sc8mv REFERENCES public.brands,
+  category_id uuid NOT NULL CONSTRAINT fkog2rp4qthbtt2lfyhfo32lsw9 REFERENCES public.categories
 );
 
-alter table users
-    owner to dev;
+ALTER TABLE public.products owner TO dev;
 
-create table addresses
-(
-    id             uuid         not null
-        primary key,
-    created_at     timestamp(6) not null,
-    created_by     varchar(255),
-    updated_at     timestamp(6),
-    updated_by     varchar(255),
-    detail_address varchar(255) not null,
-    district       varchar(100) not null,
-    full_name      varchar(100) not null,
-    is_default     boolean      not null,
-    phone_number   varchar(15)  not null,
-    province       varchar(100) not null,
-    ward           varchar(100) not null,
-    user_id        uuid         not null
-        constraint fk1fa36y2oqhao3wgg2rw1pi459
-            references users
+CREATE TABLE public.product_variants (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  status BOOLEAN NOT NULL,
+  capacity VARCHAR(50),
+  color VARCHAR(50),
+  compare_at_price NUMERIC(15, 2),
+  price NUMERIC(15, 2) NOT NULL,
+  sku VARCHAR(50) NOT NULL CONSTRAINT ukq935p2d1pbjm39n0063ghnfgn UNIQUE,
+  stock_quantity INTEGER NOT NULL CONSTRAINT product_variants_stock_quantity_check CHECK (stock_quantity >= 0),
+  variant_name VARCHAR(255) NOT NULL,
+  product_id uuid NOT NULL CONSTRAINT fkosqitn4s405cynmhb87lkvuau REFERENCES public.products
 );
 
-alter table addresses
-    owner to dev;
+ALTER TABLE public.product_variants owner TO dev;
 
-create table carts
-(
-    id         uuid         not null
-        primary key,
-    created_at timestamp(6) not null,
-    created_by varchar(255),
-    updated_at timestamp(6),
-    updated_by varchar(255),
-    quantity   integer      not null
-        constraint carts_quantity_check
-            check (quantity >= 1),
-    user_id    uuid         not null
-        constraint fkb5o626f86h46m4s7ms6ginnop
-            references users,
-    variant_id uuid         not null
-        constraint fkjampd70fsaueu2sxjmxep7nf7
-            references product_variants,
-    constraint uk1ong1mrcmrpmh4mfqx7n85nxb
-        unique (user_id, variant_id)
+CREATE TABLE public.flash_sale_items (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  flash_price NUMERIC(15, 2) NOT NULL,
+  flash_stock INTEGER NOT NULL CONSTRAINT flash_sale_items_flash_stock_check CHECK (flash_stock >= 0),
+  sold_count INTEGER NOT NULL CONSTRAINT flash_sale_items_sold_count_check CHECK (sold_count >= 0),
+  flash_sale_id uuid NOT NULL CONSTRAINT fkmr5agn0eu29xqqog30yspa3e3 REFERENCES public.flash_sales,
+  variant_id uuid NOT NULL CONSTRAINT fk86yyoqeiisx1rsodorhrao4bt REFERENCES public.product_variants,
+  CONSTRAINT uklwt8dokmghq1nn0xksm9ck217 UNIQUE (flash_sale_id, variant_id)
 );
 
-alter table carts
-    owner to dev;
+ALTER TABLE public.flash_sale_items owner TO dev;
 
-create table orders
-(
-    id               uuid           not null
-        primary key,
-    created_at       timestamp(6)   not null,
-    created_by       varchar(255),
-    updated_at       timestamp(6),
-    updated_by       varchar(255),
-    cancel_reason    varchar(500),
-    discount_amount  numeric(15, 2) not null,
-    full_name        varchar(100)   not null,
-    note             varchar(500),
-    order_number     varchar(30)    not null
-        constraint uknthkiu7pgmnqnu86i2jyoe2v7
-            unique,
-    payment_method   varchar(20)    not null
-        constraint orders_payment_method_check
-            check ((payment_method)::text = ANY
-                   ((ARRAY ['COD'::character varying, 'VNPAY'::character varying, 'MOMO'::character varying, 'BANK_TRANSFER'::character varying])::text[])),
-    phone_number     varchar(15)    not null,
-    shipping_address varchar(500)   not null,
-    shipping_fee     numeric(15, 2) not null,
-    status           varchar(20)    not null
-        constraint orders_status_check
-            check ((status)::text = ANY
-                   ((ARRAY ['PENDING'::character varying, 'CONFIRMED'::character varying, 'PROCESSING'::character varying, 'SHIPPING'::character varying, 'SHIPPED'::character varying, 'CANCELLED'::character varying, 'RETURNED'::character varying])::text[])),
-    subtotal         numeric(15, 2) not null,
-    total_amount     numeric(15, 2) not null,
-    tracking_number  varchar(100),
-    coupon_id        uuid
-        constraint fkn1d1gkxckw648m2n2d5gx0yx5
-            references coupons,
-    user_id          uuid           not null
-        constraint fk32ql8ubntj5uh44ph9659tiih
-            references users
+CREATE TABLE public.product_images (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  alt_text VARCHAR(255),
+  image_url VARCHAR(500) NOT NULL,
+  is_primary BOOLEAN NOT NULL,
+  sort_order INTEGER NOT NULL,
+  product_id uuid NOT NULL CONSTRAINT fkqnq71xsohugpqwf3c9gxmsuy REFERENCES public.products,
+  variant_id uuid CONSTRAINT fkqnqjv00ocaxfmu2k6b99ycdad REFERENCES public.product_variants
 );
 
-alter table orders
-    owner to dev;
+ALTER TABLE public.product_images owner TO dev;
 
-create table feedbacks
-(
-    id         uuid         not null
-        primary key,
-    created_at timestamp(6) not null,
-    created_by varchar(255),
-    updated_at timestamp(6),
-    updated_by varchar(255),
-    content    text,
-    image_urls text,
-    replied_at timestamp(6),
-    reply      text,
-    star       integer      not null
-        constraint feedbacks_star_check
-            check ((star <= 5) AND (star >= 1)),
-    order_id   uuid
-        constraint fkbdhoov2mv332ks2m84owt5tv3
-            references orders,
-    product_id uuid         not null
-        constraint fkti2ywtwc29ys1i591rmmaveyc
-            references products,
-    user_id    uuid         not null
-        constraint fk312drfl5lquu37mu4trk8jkwx
-            references users
+CREATE INDEX idx_product_slug ON public.products (slug);
+
+CREATE INDEX idx_product_category ON public.products (category_id);
+
+CREATE INDEX idx_product_brand ON public.products (brand_id);
+
+CREATE TABLE public.roles (
+  id VARCHAR(50) NOT NULL PRIMARY KEY CONSTRAINT roles_id_check CHECK (
+    (id)::TEXT = ANY (
+      (
+        ARRAY[
+          'ADMIN'::CHARACTER VARYING,
+          'USER'::CHARACTER VARYING,
+          'SHIPPER'::CHARACTER VARYING
+        ]
+      )::TEXT[]
+    )
+  ),
+  role_name VARCHAR(50) NOT NULL
 );
 
-alter table feedbacks
-    owner to dev;
+ALTER TABLE public.roles owner TO dev;
 
-create index idx_feedback_product
-    on feedbacks (product_id);
-
-create index idx_feedback_user
-    on feedbacks (user_id);
-
-create table notifications
-(
-    id         uuid         not null
-        primary key,
-    created_at timestamp(6) not null,
-    created_by varchar(255),
-    updated_at timestamp(6),
-    updated_by varchar(255),
-    content    text         not null,
-    is_read    boolean      not null,
-    title      varchar(200) not null,
-    type       varchar(50),
-    order_id   uuid
-        constraint fk6og1jgdhfyqm6mk8v6a1qxias
-            references orders,
-    user_id    uuid         not null
-        constraint fk9y21adhxn0ayjhfocscqox7bh
-            references users
+CREATE TABLE public.system_configs (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  config_key VARCHAR(100) NOT NULL CONSTRAINT idx_config_key UNIQUE,
+  config_value VARCHAR(500),
+  description VARCHAR(255)
 );
 
-alter table notifications
-    owner to dev;
+ALTER TABLE public.system_configs owner TO dev;
 
-create index idx_notification_user
-    on notifications (user_id);
-
-create index idx_notification_read
-    on notifications (is_read);
-
-create table order_details
-(
-    id           uuid           not null
-        primary key,
-    created_at   timestamp(6)   not null,
-    created_by   varchar(255),
-    updated_at   timestamp(6),
-    updated_by   varchar(255),
-    product_name varchar(250)   not null,
-    quantity     integer        not null
-        constraint order_details_quantity_check
-            check (quantity >= 1),
-    total_price  numeric(15, 2) not null,
-    unit_price   numeric(15, 2) not null,
-    variant_name varchar(150),
-    order_id     uuid           not null
-        constraint fkjyu2qbqt8gnvno9oe9j2s2ldk
-            references orders,
-    variant_id   uuid           not null
-        constraint fk63mqrfva3vf2gx2sublm4m51w
-            references product_variants
+CREATE TABLE public.users (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  auth_provider VARCHAR(50),
+  avatar_url VARCHAR(500),
+  date_of_birth date,
+  email VARCHAR(150) NOT NULL CONSTRAINT uk6dotkott2kjsp8vw4d0m25fb7 UNIQUE,
+  full_name VARCHAR(100) NOT NULL,
+  gender VARCHAR(10),
+  password_hash VARCHAR(255),
+  phone_number VARCHAR(15) CONSTRAINT uk9q63snka3mdh91as4io72espi UNIQUE,
+  status VARCHAR(50),
+  user_name VARCHAR(50) NOT NULL CONSTRAINT ukk8d0f2n7n88w1a16yhua64onx UNIQUE,
+  role_id VARCHAR(50) NOT NULL CONSTRAINT fkp56c1712k691lhsyewcssf40f REFERENCES public.roles
 );
 
-alter table order_details
-    owner to dev;
+ALTER TABLE public.users owner TO dev;
 
-create index idx_order_user
-    on orders (user_id);
-
-create index idx_order_status
-    on orders (status);
-
-create index idx_order_number
-    on orders (order_number);
-
-create table payments
-(
-    id             uuid           not null
-        primary key,
-    created_at     timestamp(6)   not null,
-    created_by     varchar(255),
-    updated_at     timestamp(6),
-    updated_by     varchar(255),
-    amount         numeric(15, 2) not null,
-    method         varchar(20)    not null
-        constraint payments_method_check
-            check ((method)::text = ANY
-                   ((ARRAY ['COD'::character varying, 'VNPAY'::character varying, 'MOMO'::character varying, 'BANK_TRANSFER'::character varying])::text[])),
-    note           varchar(500),
-    paid_at        timestamp(6),
-    status         varchar(20)    not null
-        constraint payments_status_check
-            check ((status)::text = ANY
-                   ((ARRAY ['PENDING'::character varying, 'COMPLETED'::character varying, 'FAILED'::character varying, 'REFUNDED'::character varying])::text[])),
-    transaction_id varchar(100),
-    order_id       uuid           not null
-        constraint fk81gagumt0r8y3rmudcgpbk42l
-            references orders
+CREATE TABLE public.addresses (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  detail_address VARCHAR(255) NOT NULL,
+  district VARCHAR(100) NOT NULL,
+  full_name VARCHAR(100) NOT NULL,
+  is_default BOOLEAN NOT NULL,
+  phone_number VARCHAR(15) NOT NULL,
+  province VARCHAR(100) NOT NULL,
+  ward VARCHAR(100) NOT NULL,
+  user_id uuid NOT NULL CONSTRAINT fk1fa36y2oqhao3wgg2rw1pi459 REFERENCES public.users
 );
 
-alter table payments
-    owner to dev;
+ALTER TABLE public.addresses owner TO dev;
 
-create index idx_payment_order
-    on payments (order_id);
-
-create index idx_payment_transaction
-    on payments (transaction_id);
-
-create table tokens
-(
-    id              uuid         not null
-        primary key,
-    created_at      timestamp(6) not null,
-    expiration_date timestamp(6) not null,
-    expired         boolean      not null,
-    revoked         boolean      not null,
-    token           varchar(500) not null
-        constraint ukna3v9f8s7ucnj16tylrs822qj
-            unique,
-    token_type      varchar(50)  not null,
-    user_id         uuid         not null
-        constraint fk2dylsfo39lgjyqml2tbe0b0ss
-            references users
+CREATE TABLE public.articles (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  content TEXT NOT NULL,
+  is_published BOOLEAN NOT NULL,
+  slug VARCHAR(500) NOT NULL CONSTRAINT idx_article_slug UNIQUE,
+  thumbnail_url VARCHAR(1000),
+  title VARCHAR(500) NOT NULL,
+  author_id uuid NOT NULL CONSTRAINT fke02fs2ut6qqoabfhj325wcjul REFERENCES public.users
 );
 
-alter table tokens
-    owner to dev;
+ALTER TABLE public.articles owner TO dev;
 
-create index idx_token_user
-    on tokens (user_id);
+CREATE TABLE public.carts (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  quantity INTEGER NOT NULL CONSTRAINT carts_quantity_check CHECK (quantity >= 1),
+  user_id uuid NOT NULL CONSTRAINT fkb5o626f86h46m4s7ms6ginnop REFERENCES public.users,
+  variant_id uuid NOT NULL CONSTRAINT fkjampd70fsaueu2sxjmxep7nf7 REFERENCES public.product_variants,
+  CONSTRAINT uk1ong1mrcmrpmh4mfqx7n85nxb UNIQUE (user_id, variant_id)
+);
+
+ALTER TABLE public.carts owner TO dev;
+
+CREATE TABLE public.orders (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  coupon_code VARCHAR(50),
+  discount_amount NUMERIC(15, 2) NOT NULL,
+  note VARCHAR(500),
+  order_number VARCHAR(30) NOT NULL CONSTRAINT uknthkiu7pgmnqnu86i2jyoe2v7 UNIQUE,
+  order_status VARCHAR(20) NOT NULL CONSTRAINT orders_order_status_check CHECK (
+    (order_status)::TEXT = ANY (
+      (
+        ARRAY[
+          'PENDING'::CHARACTER VARYING,
+          'CONFIRMED'::CHARACTER VARYING,
+          'PROCESSING'::CHARACTER VARYING,
+          'SHIPPING'::CHARACTER VARYING,
+          'SHIPPED'::CHARACTER VARYING,
+          'CANCELLED'::CHARACTER VARYING,
+          'RETURNED'::CHARACTER VARYING
+        ]
+      )::TEXT[]
+    )
+  ),
+  payment_method VARCHAR(20) NOT NULL CONSTRAINT orders_payment_method_check CHECK (
+    (payment_method)::TEXT = ANY (
+      (
+        ARRAY[
+          'COD'::CHARACTER VARYING,
+          'VNPAY'::CHARACTER VARYING,
+          'MOMO'::CHARACTER VARYING,
+          'BANK_TRANSFER'::CHARACTER VARYING
+        ]
+      )::TEXT[]
+    )
+  ),
+  payment_status VARCHAR(20) NOT NULL CONSTRAINT orders_payment_status_check CHECK (
+    (payment_status)::TEXT = ANY (
+      (
+        ARRAY[
+          'PENDING'::CHARACTER VARYING,
+          'COMPLETED'::CHARACTER VARYING,
+          'FAILED'::CHARACTER VARYING,
+          'REFUNDED'::CHARACTER VARYING
+        ]
+      )::TEXT[]
+    )
+  ),
+  shipping_address_json JSONB,
+  shipping_fee NUMERIC(15, 2) NOT NULL,
+  subtotal NUMERIC(15, 2) NOT NULL,
+  total_amount NUMERIC(15, 2) NOT NULL,
+  user_id uuid NOT NULL CONSTRAINT fk32ql8ubntj5uh44ph9659tiih REFERENCES public.users
+);
+
+ALTER TABLE public.orders owner TO dev;
+
+CREATE TABLE public.feedbacks (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  admin_reply TEXT,
+  content TEXT,
+  images_json JSONB,
+  rating INTEGER NOT NULL CONSTRAINT feedbacks_rating_check CHECK (
+    (rating <= 5)
+    AND (rating >= 1)
+  ),
+  replied_at TIMESTAMP(6),
+  status VARCHAR(50) NOT NULL,
+  order_id uuid CONSTRAINT fkbdhoov2mv332ks2m84owt5tv3 REFERENCES public.orders,
+  product_id uuid NOT NULL CONSTRAINT fkti2ywtwc29ys1i591rmmaveyc REFERENCES public.products,
+  user_id uuid NOT NULL CONSTRAINT fk312drfl5lquu37mu4trk8jkwx REFERENCES public.users
+);
+
+ALTER TABLE public.feedbacks owner TO dev;
+
+CREATE INDEX idx_feedback_product ON public.feedbacks (product_id);
+
+CREATE INDEX idx_feedback_user ON public.feedbacks (user_id);
+
+CREATE TABLE public.notifications (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  content TEXT NOT NULL,
+  is_read BOOLEAN NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  type VARCHAR(50),
+  order_id uuid CONSTRAINT fk6og1jgdhfyqm6mk8v6a1qxias REFERENCES public.orders,
+  user_id uuid NOT NULL CONSTRAINT fk9y21adhxn0ayjhfocscqox7bh REFERENCES public.users
+);
+
+ALTER TABLE public.notifications owner TO dev;
+
+CREATE INDEX idx_notification_user ON public.notifications (user_id);
+
+CREATE INDEX idx_notification_read ON public.notifications (is_read);
+
+CREATE TABLE public.order_items (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  product_name VARCHAR(250) NOT NULL,
+  quantity INTEGER NOT NULL CONSTRAINT order_items_quantity_check CHECK (quantity >= 1),
+  subtotal NUMERIC(15, 2) NOT NULL,
+  unit_price NUMERIC(15, 2) NOT NULL,
+  variant_name VARCHAR(150),
+  order_id uuid NOT NULL CONSTRAINT fkbioxgbv59vetrxe0ejfubep1w REFERENCES public.orders,
+  variant_id uuid NOT NULL CONSTRAINT fkemq71edpbn9wsxnxncfn1algp REFERENCES public.product_variants
+);
+
+ALTER TABLE public.order_items owner TO dev;
+
+CREATE TABLE public.order_status_history (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  description VARCHAR(255),
+  status VARCHAR(20) NOT NULL CONSTRAINT order_status_history_status_check CHECK (
+    (status)::TEXT = ANY (
+      (
+        ARRAY[
+          'PENDING'::CHARACTER VARYING,
+          'CONFIRMED'::CHARACTER VARYING,
+          'PROCESSING'::CHARACTER VARYING,
+          'SHIPPING'::CHARACTER VARYING,
+          'SHIPPED'::CHARACTER VARYING,
+          'CANCELLED'::CHARACTER VARYING,
+          'RETURNED'::CHARACTER VARYING
+        ]
+      )::TEXT[]
+    )
+  ),
+  order_id uuid NOT NULL CONSTRAINT fknmcbg3mmbt8wfva97ra40nmp3 REFERENCES public.orders
+);
+
+ALTER TABLE public.order_status_history owner TO dev;
+
+CREATE INDEX idx_order_history_order_id ON public.order_status_history (order_id);
+
+CREATE INDEX idx_order_user ON public.orders (user_id);
+
+CREATE INDEX idx_order_status ON public.orders (order_status);
+
+CREATE INDEX idx_order_number ON public.orders (order_number);
+
+CREATE TABLE public.tickets (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  status VARCHAR(50) NOT NULL,
+  subject VARCHAR(255) NOT NULL,
+  ticket_number VARCHAR(50) NOT NULL CONSTRAINT idx_ticket_number UNIQUE,
+  user_id uuid NOT NULL CONSTRAINT fk4eqsebpimnjen0q46ja6fl2hl REFERENCES public.users
+);
+
+ALTER TABLE public.tickets owner TO dev;
+
+CREATE TABLE public.ticket_messages (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  attachments_json JSONB,
+  content TEXT NOT NULL,
+  sender_type VARCHAR(50) NOT NULL,
+  ticket_id uuid NOT NULL CONSTRAINT fk8c9vw45c3j5m6arnwp4c3iaby REFERENCES public.tickets
+);
+
+ALTER TABLE public.ticket_messages owner TO dev;
+
+CREATE INDEX idx_ticket_message_ticket ON public.ticket_messages (ticket_id);
+
+CREATE INDEX idx_ticket_user ON public.tickets (user_id);
+
+CREATE TABLE public.tokens (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  expiration_date TIMESTAMP(6) NOT NULL,
+  expired BOOLEAN NOT NULL,
+  revoked BOOLEAN NOT NULL,
+  token VARCHAR(500) NOT NULL CONSTRAINT ukna3v9f8s7ucnj16tylrs822qj UNIQUE,
+  token_type VARCHAR(50) NOT NULL,
+  user_id uuid NOT NULL CONSTRAINT fk2dylsfo39lgjyqml2tbe0b0ss REFERENCES public.users
+);
+
+ALTER TABLE public.tokens owner TO dev;
+
+CREATE INDEX idx_token_user ON public.tokens (user_id);
+
+CREATE TABLE public.wishlists (
+  id uuid NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP(6) NOT NULL,
+  created_by VARCHAR(255),
+  updated_at TIMESTAMP(6),
+  updated_by VARCHAR(255),
+  product_id uuid NOT NULL CONSTRAINT fkl7ao98u2bm8nijc1rv4jobcrx REFERENCES public.products,
+  user_id uuid NOT NULL CONSTRAINT fk330pyw2el06fn5g28ypyljt16 REFERENCES public.users,
+  CONSTRAINT uk_user_product_wishlist UNIQUE (user_id, product_id)
+);
+
+ALTER TABLE public.wishlists owner TO dev;
 
 ```sql
-INSERT INTO roles (id, name) VALUES ('ADMIN', 'Administrator');
-INSERT INTO roles (id, name) VALUES ('USER', 'User');
+INSERT INTO roles (id, role_name) VALUES ('ADMIN', 'Administrator');
+INSERT INTO roles (id, role_name) VALUES ('USER', 'User');
+INSERT INTO roles (id, role_name) VALUES ('SHIPPER', 'Shipper');
 ```

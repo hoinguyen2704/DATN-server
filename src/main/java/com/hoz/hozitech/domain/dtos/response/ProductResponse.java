@@ -19,6 +19,7 @@ public class ProductResponse {
     private String name;
     private String slug;
     private String description;
+    private UUID brandId;
     private String brandName;
     private CategoryResponse category; // Brief info or full category hierarchy depending on mapping
     private BigDecimal originPrice;
@@ -34,5 +35,6 @@ public class ProductResponse {
     private Boolean outOfStock;
 
     // Complex mapping
+    private List<ProductImageResponse> images;
     private List<ProductVariantResponse> variants;
 }

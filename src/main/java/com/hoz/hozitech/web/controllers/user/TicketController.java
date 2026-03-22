@@ -1,8 +1,8 @@
 package com.hoz.hozitech.web.controllers.user;
 
-import com.hoz.hozitech.application.services.TicketService;
+import com.hoz.hozitech.application.services.ticket.TicketService;
 import com.hoz.hozitech.web.base.RestAPI;
-import com.hoz.hozitech.web.base.RoleUser;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.hoz.hozitech.security.CustomUserDetails;
 import com.hoz.hozitech.domain.dtos.request.TicketMessageRequest;
 import com.hoz.hozitech.domain.dtos.request.TicketRequest;
@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestAPI("${api.prefix-client}/tickets")
-@RoleUser
+@PreAuthorize("isAuthenticated()")
 @RequiredArgsConstructor
 public class TicketController {
 

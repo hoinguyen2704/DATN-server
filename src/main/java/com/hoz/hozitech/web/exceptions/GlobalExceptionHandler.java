@@ -12,6 +12,10 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.hoz.hozitech.config.exceptions.ConflictException;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.config.exceptions.NotFoundException;
+import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +23,38 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNotFoundException(NotFoundException ex) {
+        log.warn("NotFoundException: {}", ex.getDevMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error(ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage()));
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConflictException(ConflictException ex) {
+        log.warn("ConflictException: {}", ex.getDevMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage()));
+    }
+
+    @ExceptionHandler(InvalidParamException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidParamException(InvalidParamException ex) {
+        log.warn("InvalidParamException: {}", ex.getDevMessage());
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponse.error(ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage()));
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnauthorizedException(UnauthorizedException ex) {
+        log.warn("UnauthorizedException: {}", ex.getDevMessage());
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage()));
+    }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
@@ -46,7 +82,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error("Access denied"));
+                .body(ApiResponse.error("Bạn không có quyền truy cập vào chức năng này"));
     }
 
     @ExceptionHandler(BadCredentialsException.class)
@@ -60,6 +96,7 @@ public class GlobalExceptionHandler {
         log.error("Unexpected error: ", ex);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Internal server error"));
+                .body(ApiResponse.error("Đã có lỗi xảy ra!"));
     }
 }
+

@@ -2,8 +2,8 @@ package com.hoz.hozitech.web.controllers.admin;
 
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
-import com.hoz.hozitech.application.services.ExportService;
-import com.hoz.hozitech.application.services.UserService;
+import com.hoz.hozitech.application.services.export.ExportService;
+import com.hoz.hozitech.application.services.user.UserService;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.UserResponse;
@@ -28,7 +28,7 @@ public class AdminUserController {
             @RequestParam(required = false, defaultValue = "") String keyword,
             @RequestParam(required = false) String role,
             @RequestParam(required = false, defaultValue = "1") int page,
-            @RequestParam(required = false, defaultValue = "10") int size,
+            @RequestParam(required = false, defaultValue = "20") int size,
             @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
             @RequestParam(required = false, defaultValue = "DESC") String sortDir
     ) {

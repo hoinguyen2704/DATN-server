@@ -2,7 +2,7 @@ package com.hoz.hozitech.web.controllers.admin;
 
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
-import com.hoz.hozitech.application.services.SystemConfigService;
+import com.hoz.hozitech.application.services.systemconfig.SystemConfigService;
 import com.hoz.hozitech.domain.dtos.request.SystemConfigRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -24,7 +24,7 @@ public class AdminSystemConfigController {
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<SystemConfigResponse>>> getAllConfigs(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success("Fetch system configs successfully", systemConfigService.getAllConfigs(page, size)));
     }
 

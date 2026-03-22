@@ -1,7 +1,7 @@
 package com.hoz.hozitech.web.controllers.pub;
 
 import com.hoz.hozitech.web.base.RestAPI;
-import com.hoz.hozitech.application.services.FlashSaleService;
+import com.hoz.hozitech.application.services.flashsale.FlashSaleService;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.FlashSaleResponse;
 import lombok.RequiredArgsConstructor;

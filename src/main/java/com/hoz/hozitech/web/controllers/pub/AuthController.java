@@ -1,7 +1,7 @@
 package com.hoz.hozitech.web.controllers.pub;
 
 import com.hoz.hozitech.web.base.RestAPI;
-import com.hoz.hozitech.application.services.AuthService;
+import com.hoz.hozitech.application.services.auth.AuthService;
 import com.hoz.hozitech.domain.dtos.request.LoginRequest;
 import com.hoz.hozitech.domain.dtos.request.RegisterRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;

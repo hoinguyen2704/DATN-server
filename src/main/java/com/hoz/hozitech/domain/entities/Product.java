@@ -1,5 +1,7 @@
 package com.hoz.hozitech.domain.entities;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hoz.hozitech.domain.entities.base.AbstractAuditingEntity;
 import jakarta.persistence.*;
@@ -38,6 +40,7 @@ public class Product extends AbstractAuditingEntity {
     @Column(name = "origin_price", nullable = false, precision = 15, scale = 2)
     private BigDecimal originPrice;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "specs_json", columnDefinition = "jsonb")
     private String specsJson;
 

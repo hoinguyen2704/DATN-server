@@ -2,7 +2,7 @@ package com.hoz.hozitech.web.controllers.admin;
 
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
-import com.hoz.hozitech.application.services.TicketService;
+import com.hoz.hozitech.application.services.ticket.TicketService;
 import com.hoz.hozitech.domain.dtos.request.TicketMessageRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -26,7 +26,7 @@ public class AdminTicketController {
     public ResponseEntity<ApiResponse<PageResponse<TicketResponse>>> getAllTickets(
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success("Fetch tickets successfully", ticketService.getAllTickets(status, page, size)));
     }
 
