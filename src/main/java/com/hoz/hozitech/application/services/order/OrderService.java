@@ -13,6 +13,8 @@ public interface OrderService {
 
     OrderResponse getOrderByNumber(String orderNumber, UUID userId);
 
+    OrderResponse getOrderByNumberForAdmin(String orderNumber);
+
     PageResponse<OrderResponse> getMyOrders(UUID userId, String status, int page, int size);
 
     OrderResponse cancelOrder(UUID userId, UUID orderId);

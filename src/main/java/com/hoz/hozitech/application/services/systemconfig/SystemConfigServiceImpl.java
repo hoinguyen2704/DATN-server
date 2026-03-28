@@ -1,14 +1,13 @@
 package com.hoz.hozitech.application.services.systemconfig;
 
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.SystemConfigRepository;
-import com.hoz.hozitech.application.services.systemconfig.SystemConfigService;
 import com.hoz.hozitech.domain.dtos.request.SystemConfigRequest;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.SystemConfigResponse;
 import com.hoz.hozitech.domain.entities.SystemConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -24,7 +23,7 @@ public class SystemConfigServiceImpl implements SystemConfigService {
 
     @Override
     public PageResponse<SystemConfigResponse> getAllConfigs(int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("configKey").ascending());
+        Pageable pageable = PaginationConstant.of(page, size, Sort.by("configKey").ascending());
         Page<SystemConfig> configs = systemConfigRepository.findAll(pageable);
         return PageResponse.of(configs.map(this::mapToResponse));
     }

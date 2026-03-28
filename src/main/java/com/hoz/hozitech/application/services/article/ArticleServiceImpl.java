@@ -1,8 +1,8 @@
 package com.hoz.hozitech.application.services.article;
 
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.ArticleRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
-import com.hoz.hozitech.application.services.article.ArticleService;
 import com.hoz.hozitech.domain.dtos.request.ArticleRequest;
 import com.hoz.hozitech.domain.dtos.response.ArticleResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -10,7 +10,6 @@ import com.hoz.hozitech.domain.entities.Article;
 import com.hoz.hozitech.domain.entities.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -30,7 +29,7 @@ public class ArticleServiceImpl implements ArticleService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<ArticleResponse> getPublicArticles(int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PaginationConstant.of(page, size);
         Page<Article> articlePage = articleRepository.findByIsPublishedTrue(pageable);
         return mapToPageResponse(articlePage);
     }
@@ -46,7 +45,7 @@ public class ArticleServiceImpl implements ArticleService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<ArticleResponse> getAdminArticles(int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PaginationConstant.of(page, size);
         Page<Article> articlePage = articleRepository.findAll(pageable);
         return mapToPageResponse(articlePage);
     }

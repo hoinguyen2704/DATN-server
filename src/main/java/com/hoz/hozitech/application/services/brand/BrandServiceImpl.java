@@ -1,14 +1,13 @@
 package com.hoz.hozitech.application.services.brand;
 
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.BrandRepository;
-import com.hoz.hozitech.application.services.brand.BrandService;
 import com.hoz.hozitech.domain.dtos.request.BrandRequest;
 import com.hoz.hozitech.domain.dtos.response.BrandResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.entities.Brand;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -54,7 +53,7 @@ public class BrandServiceImpl implements BrandService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<BrandResponse> getAdminBrands(String keyword, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
+        Pageable pageable = PaginationConstant.of(page, size);
         Page<Brand> brands;
         if (keyword != null && !keyword.isBlank()) {
             brands = brandRepository.findByNameContainingIgnoreCase(keyword, pageable);

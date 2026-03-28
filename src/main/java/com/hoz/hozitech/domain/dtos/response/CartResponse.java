@@ -22,4 +22,5 @@ public class CartResponse {
     private Integer quantity;
     private BigDecimal subtotal;
     private Integer stockQuantity;
+    private String productSlug;
 }

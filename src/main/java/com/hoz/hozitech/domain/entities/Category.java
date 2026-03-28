@@ -50,4 +50,9 @@ public class Category extends AbstractAuditingEntity {
     @JsonIgnore
     @OneToMany(mappedBy = "category")
     private List<Product> products = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sortOrder ASC")
+    private List<CategorySpecMapping> specMappings = new ArrayList<>();
 }

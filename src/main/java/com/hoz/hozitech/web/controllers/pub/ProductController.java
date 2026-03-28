@@ -1,5 +1,6 @@
 package com.hoz.hozitech.web.controllers.pub;
 
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.application.services.product.ProductService;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
@@ -22,8 +23,8 @@ public class ProductController {
             @RequestParam(required = false, defaultValue = "") String keyword,
             @RequestParam(required = false) String categorySlug,
             @RequestParam(required = false) String brand,
-            @RequestParam(required = false, defaultValue = "1") int page,
-            @RequestParam(required = false, defaultValue = "12") int size,
+            @RequestParam(required = false, defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
+            @RequestParam(required = false, defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size,
             @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
             @RequestParam(required = false, defaultValue = "DESC") String sortDir) {
         PageResponse<ProductResponse> products = productService.searchProducts(

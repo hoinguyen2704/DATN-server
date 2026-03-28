@@ -1,5 +1,6 @@
 package com.hoz.hozitech.web.controllers.user;
 
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.notification.NotificationService;
 import com.hoz.hozitech.web.base.RestAPI;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,8 +26,8 @@ public class NotificationController {
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<NotificationResponse>>> getMyNotifications(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
+            @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
         
         return ResponseEntity.ok(ApiResponse.success("Fetch notifications successfully", 
                 notificationService.getMyNotifications(userDetails.getUser().getId(), page, size)));

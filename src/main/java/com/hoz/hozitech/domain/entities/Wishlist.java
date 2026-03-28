@@ -3,6 +3,8 @@ package com.hoz.hozitech.domain.entities;
 import com.hoz.hozitech.domain.entities.base.AbstractAuditingEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 @Getter
 @Setter
@@ -21,5 +23,6 @@ public class Wishlist extends AbstractAuditingEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Product product;
 }

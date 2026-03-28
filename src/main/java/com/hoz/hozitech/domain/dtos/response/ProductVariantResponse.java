@@ -20,6 +20,8 @@ public class ProductVariantResponse {
     private String sku;
     private String storageCapacity;
     private BigDecimal price;
+    private BigDecimal compareAtPrice;
     private Integer stockQuantity;
+    private Boolean active;
     private List<ProductImageResponse> images;
 }

@@ -5,6 +5,8 @@ import com.hoz.hozitech.domain.entities.base.AbstractAuditingEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 @Getter
 @Setter
@@ -28,5 +30,6 @@ public class Cart extends AbstractAuditingEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "variant_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private ProductVariant variant;
 }

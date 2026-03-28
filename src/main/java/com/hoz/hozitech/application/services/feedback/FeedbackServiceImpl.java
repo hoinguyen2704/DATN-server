@@ -1,10 +1,11 @@
 package com.hoz.hozitech.application.services.feedback;
 
+import com.hoz.hozitech.application.constant.StatusConstant;
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.FeedbackRepository;
 import com.hoz.hozitech.application.repositories.OrderRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
-import com.hoz.hozitech.application.services.feedback.FeedbackService;
 import com.hoz.hozitech.domain.dtos.request.FeedbackRequest;
 import com.hoz.hozitech.domain.dtos.response.FeedbackResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -14,7 +15,6 @@ import com.hoz.hozitech.domain.entities.Product;
 import com.hoz.hozitech.domain.entities.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -33,9 +33,9 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     public PageResponse<FeedbackResponse> getFeedbacksByProduct(UUID productId, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
+        Pageable pageable = PaginationConstant.of(page, size);
         // For public view, only show APPROVED feedbacks
-        Page<Feedback> feedbacks = feedbackRepository.findByProductIdAndStatus(productId, "APPROVED", pageable);
+        Page<Feedback> feedbacks = feedbackRepository.findByProductIdAndStatus(productId, StatusConstant.FEEDBACK_APPROVED, pageable);
         return PageResponse.of(feedbacks.map(this::mapToResponse));
     }
 
@@ -63,7 +63,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                 .rating(request.getRating())
                 .content(request.getContent())
                 .imagesJson(request.getImagesJson())
-                .status("APPROVED") // Auto-approve for now, or could default to PENDING
+                .status(StatusConstant.FEEDBACK_APPROVED) // Auto-approve for now, or could default to PENDING
                 .user(user)
                 .product(product)
                 .order(order)
@@ -74,7 +74,7 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     public PageResponse<FeedbackResponse> getAllFeedbacks(String status, UUID productId, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
+        Pageable pageable = PaginationConstant.of(page, size);
 
         Page<Feedback> feedbacks;
         if (productId != null && status != null && !status.isBlank()) {

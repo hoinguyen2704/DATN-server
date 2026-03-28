@@ -1,5 +1,6 @@
 package com.hoz.hozitech.web.controllers.admin;
 
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
 import com.hoz.hozitech.application.services.flashsale.FlashSaleService;
@@ -28,8 +29,8 @@ public class AdminFlashSaleController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<FlashSaleResponse>>> getAll(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
+            @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
         return ResponseEntity.ok(ApiResponse.success("Flash sales fetched", flashSaleService.getAllFlashSales(page, size)));
     }
 

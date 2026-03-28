@@ -1,5 +1,6 @@
 package com.hoz.hozitech.web.controllers.user;
 
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.ticket.TicketService;
 import com.hoz.hozitech.web.base.RestAPI;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,8 +28,8 @@ public class TicketController {
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<TicketResponse>>> getMyTickets(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
+            @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
         return ResponseEntity.ok(ApiResponse.success("Fetch tickets successfully", 
                 ticketService.getMyTickets(userDetails.getUser().getId(), page, size)));
     }

@@ -1,9 +1,10 @@
 package com.hoz.hozitech.application.services.ticket;
 
+import com.hoz.hozitech.application.constant.StatusConstant;
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.TicketMessageRepository;
 import com.hoz.hozitech.application.repositories.TicketRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
-import com.hoz.hozitech.application.services.ticket.TicketService;
 import com.hoz.hozitech.domain.dtos.request.TicketMessageRequest;
 import com.hoz.hozitech.domain.dtos.request.TicketRequest;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -14,7 +15,6 @@ import com.hoz.hozitech.domain.entities.TicketMessage;
 import com.hoz.hozitech.domain.entities.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -33,7 +33,7 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     public PageResponse<TicketResponse> getMyTickets(UUID userId, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
+        Pageable pageable = PaginationConstant.of(page, size);
         Page<Ticket> tickets = ticketRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
         return PageResponse.of(tickets.map(this::mapToResponse));
     }
@@ -47,7 +47,7 @@ public class TicketServiceImpl implements TicketService {
         Ticket ticket = Ticket.builder()
                 .ticketNumber(generateTicketNumber())
                 .subject(request.getSubject())
-                .status("OPEN")
+                .status(StatusConstant.TICKET_OPEN)
                 .user(user)
                 .build();
 
@@ -100,7 +100,7 @@ public class TicketServiceImpl implements TicketService {
         ticketMessageRepository.save(reply);
         
         // Optionally update ticket status
-        ticket.setStatus("OPEN");
+        ticket.setStatus(StatusConstant.TICKET_OPEN);
         ticketRepository.save(ticket);
         ticket.getMessages().add(reply);
 
@@ -109,7 +109,7 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     public PageResponse<TicketResponse> getAllTickets(String status, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
+        Pageable pageable = PaginationConstant.of(page, size);
         Page<Ticket> tickets;
         if (status != null && !status.isBlank()) {
             tickets = ticketRepository.findByStatusOrderByCreatedAtDesc(status.toUpperCase(), pageable);

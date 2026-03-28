@@ -1,5 +1,7 @@
 package com.hoz.hozitech.application.services.order;
 
+import com.hoz.hozitech.application.constant.StatusConstant;
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -11,7 +13,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -20,14 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 import com.hoz.hozitech.application.repositories.AddressRepository;
 import com.hoz.hozitech.application.repositories.CartRepository;
 import com.hoz.hozitech.application.repositories.CouponRepository;
-import com.hoz.hozitech.application.repositories.OrderItemRepository;
 import com.hoz.hozitech.application.repositories.OrderRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.constant.MailTemplate;
 import com.hoz.hozitech.application.services.email.EmailService;
 import com.hoz.hozitech.application.services.flashsale.FlashSaleService;
-import com.hoz.hozitech.application.services.order.OrderService;
 import com.hoz.hozitech.application.specifications.OrderSpecification;
 import com.hoz.hozitech.domain.dtos.request.CheckoutRequest;
 import com.hoz.hozitech.domain.dtos.response.OrderResponse;
@@ -51,7 +50,6 @@ import lombok.extern.slf4j.Slf4j;
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
-    private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
     private final AddressRepository addressRepository;
     private final ProductVariantRepository variantRepository;
@@ -120,7 +118,7 @@ public class OrderServiceImpl implements OrderService {
             Coupon coupon = couponRepository.findByCode(request.getCouponCode())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid coupon code"));
 
-            if (!"ACTIVE".equalsIgnoreCase(coupon.getStatus())) {
+            if (!StatusConstant.PRODUCT_ACTIVE.equalsIgnoreCase(coupon.getStatus())) {
                 throw new IllegalArgumentException("Coupon is not active");
             }
             if (coupon.getEndDate() != null && coupon.getEndDate().isBefore(LocalDateTime.now())) {
@@ -133,7 +131,7 @@ public class OrderServiceImpl implements OrderService {
                 throw new IllegalArgumentException("Order does not meet minimum value for coupon");
             }
 
-            if ("PERCENTAGE".equalsIgnoreCase(coupon.getDiscountType())) {
+            if (StatusConstant.DISCOUNT_PERCENTAGE.equalsIgnoreCase(coupon.getDiscountType())) {
                 discountAmount = subtotal.multiply(coupon.getDiscountValue()).divide(BigDecimal.valueOf(100));
                 if (coupon.getMaxDiscountAmount() != null && discountAmount.compareTo(coupon.getMaxDiscountAmount()) > 0) {
                     discountAmount = coupon.getMaxDiscountAmount();
@@ -205,8 +203,16 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public OrderResponse getOrderByNumberForAdmin(String orderNumber) {
+        Order order = orderRepository.findByOrderNumber(orderNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+        return mapToResponse(order);
+    }
+
+    @Override
     public PageResponse<OrderResponse> getMyOrders(UUID userId, String status, int page, int size) {
-        var pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
+        var pageable = PaginationConstant.of(page, size);
 
         OrderStatus orderStatus = null;
         if (status != null && !status.isBlank()) {
@@ -246,7 +252,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public PageResponse<OrderResponse> getAllOrders(String status, String keyword, int page, int size) {
-        var pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
+        var pageable = PaginationConstant.of(page, size);
 
         OrderStatus orderStatus = null;
         if (status != null && !status.isBlank()) {
@@ -296,6 +302,15 @@ public class OrderServiceImpl implements OrderService {
                         .build())
                 .collect(Collectors.toList());
 
+        // Extract customer info from user
+        User user = order.getUser();
+        String customerName = user != null ? user.getFullName() : null;
+        String customerEmail = user != null ? user.getEmail() : null;
+        String customerPhone = user != null ? user.getPhoneNumber() : null;
+
+        // Format shipping address from JSON to readable string
+        String formattedAddress = formatShippingAddress(order.getShippingAddressJson());
+
         return OrderResponse.builder()
                 .id(order.getId())
                 .orderNumber(order.getOrderNumber())
@@ -308,10 +323,47 @@ public class OrderServiceImpl implements OrderService {
                 .totalAmount(order.getTotalAmount())
                 .couponCode(order.getCouponCode())
                 .note(order.getNote())
-                .shippingAddress(order.getShippingAddressJson())
+                .shippingAddress(formattedAddress)
+                .customerName(customerName)
+                .customerEmail(customerEmail)
+                .customerPhone(customerPhone)
                 .createdAt(order.getCreatedAt())
                 .items(items)
                 .build();
+    }
+
+    private String formatShippingAddress(String addressJson) {
+        if (addressJson == null || addressJson.isBlank()) return "";
+        try {
+            // Simple JSON parsing without Jackson dependency
+            String fullName = extractJsonField(addressJson, "fullName");
+            String phone = extractJsonField(addressJson, "phoneNumber");
+            String detail = extractJsonField(addressJson, "detailAddress");
+            String ward = extractJsonField(addressJson, "ward");
+            String district = extractJsonField(addressJson, "district");
+            String province = extractJsonField(addressJson, "province");
+
+            StringBuilder sb = new StringBuilder();
+            if (!fullName.isEmpty()) sb.append(fullName);
+            if (!phone.isEmpty()) sb.append(" - ").append(phone);
+            if (!detail.isEmpty()) sb.append(", ").append(detail);
+            if (!ward.isEmpty()) sb.append(", ").append(ward);
+            if (!district.isEmpty()) sb.append(", ").append(district);
+            if (!province.isEmpty()) sb.append(", ").append(province);
+            return sb.toString();
+        } catch (Exception e) {
+            return addressJson; // Fallback to raw JSON
+        }
+    }
+
+    private String extractJsonField(String json, String field) {
+        String pattern = "\"" + field + "\":\"";
+        int start = json.indexOf(pattern);
+        if (start < 0) return "";
+        start += pattern.length();
+        int end = json.indexOf("\"", start);
+        if (end < 0) return "";
+        return json.substring(start, end).replace("\\\"", "\"").replace("\\\\", "\\");
     }
 
     private String generateOrderNumber() {

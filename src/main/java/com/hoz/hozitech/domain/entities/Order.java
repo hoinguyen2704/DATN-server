@@ -5,6 +5,8 @@ import com.hoz.hozitech.domain.entities.base.AbstractAuditingEntity;
 import com.hoz.hozitech.domain.enums.OrderStatus;
 import com.hoz.hozitech.domain.enums.PaymentMethod;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -27,6 +29,7 @@ public class Order extends AbstractAuditingEntity {
     @Column(name = "order_number", nullable = false, unique = true, length = 30)
     private String orderNumber;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "shipping_address_json", columnDefinition = "jsonb")
     private String shippingAddressJson;
 

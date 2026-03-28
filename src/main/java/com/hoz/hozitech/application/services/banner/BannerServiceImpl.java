@@ -1,7 +1,6 @@
 package com.hoz.hozitech.application.services.banner;
 
 import com.hoz.hozitech.application.repositories.BannerRepository;
-import com.hoz.hozitech.application.services.banner.BannerService;
 import com.hoz.hozitech.domain.dtos.request.BannerRequest;
 import com.hoz.hozitech.domain.dtos.response.BannerResponse;
 import com.hoz.hozitech.domain.entities.Banner;

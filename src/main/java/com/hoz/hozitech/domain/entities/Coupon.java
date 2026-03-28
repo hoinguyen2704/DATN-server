@@ -7,6 +7,8 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -52,4 +54,24 @@ public class Coupon extends AbstractAuditingEntity {
     @Builder.Default
     @Column(name = "status", nullable = false, length = 50)
     private String status = "ACTIVE";
+
+    // ─── NEW: Visibility ─────────────────────────────────────────
+    @Builder.Default
+    @Column(name = "is_public", nullable = false)
+    private Boolean isPublic = false;
+
+    // ─── NEW: Apply scope ────────────────────────────────────────
+    @Builder.Default
+    @Column(name = "apply_type", nullable = false, length = 30)
+    private String applyType = "ALL"; // ALL | SPECIFIC_PRODUCTS
+
+    // ─── NEW: Applicable products (only when applyType = SPECIFIC_PRODUCTS)
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "coupon_applicable_products",
+            joinColumns = @JoinColumn(name = "coupon_id"),
+            inverseJoinColumns = @JoinColumn(name = "product_id")
+    )
+    @Builder.Default
+    private List<Product> applicableProducts = new ArrayList<>();
 }

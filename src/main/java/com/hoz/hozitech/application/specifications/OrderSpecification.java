@@ -43,7 +43,7 @@ public class OrderSpecification {
                 String pattern = "%" + keyword.toLowerCase() + "%";
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("orderNumber")), pattern),
-                        cb.like(cb.lower(root.get("shippingAddressJson")), pattern)));
+                        cb.like(cb.lower(cb.function("text", String.class, root.get("shippingAddressJson"))), pattern)));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

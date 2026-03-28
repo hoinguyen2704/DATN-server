@@ -10,6 +10,8 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -38,4 +40,9 @@ public class CouponRequest {
 
     private LocalDateTime startDate;
     private LocalDateTime endDate;
+
+    // ─── NEW ─────────────────────────────────────────
+    private Boolean isPublic;          // true = hiển thị trên storefront
+    private String applyType;          // ALL | SPECIFIC_PRODUCTS
+    private List<UUID> applicableProductIds; // danh sách SP áp dụng
 }

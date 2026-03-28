@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -25,4 +26,21 @@ public class CouponResponse {
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private String status;
+
+    // ─── NEW ─────────────────────────────────────────
+    private Boolean isPublic;
+    private String applyType;
+    private List<ApplicableProductInfo> applicableProducts;
+    private Boolean saved; // user đã lưu voucher này chưa (chỉ dùng ở public API)
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class ApplicableProductInfo {
+        private UUID id;
+        private String name;
+        private String slug;
+        private String mainImageUrl;
+    }
 }

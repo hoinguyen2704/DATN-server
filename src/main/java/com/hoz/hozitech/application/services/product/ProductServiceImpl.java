@@ -1,9 +1,10 @@
 package com.hoz.hozitech.application.services.product;
 
+import com.hoz.hozitech.application.constant.StatusConstant;
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.BrandRepository;
 import com.hoz.hozitech.application.repositories.CategoryRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
-import com.hoz.hozitech.application.services.product.ProductService;
 import com.hoz.hozitech.application.specifications.ProductSpecification;
 import com.hoz.hozitech.domain.dtos.request.ProductImageRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductRequest;
@@ -49,10 +50,23 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<ProductResponse> searchProducts(String keyword, String categorySlug, String brand, int page, int size, String sortBy, String sortDir) {
-        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(sortBy).ascending()
-                : Sort.by(sortBy).descending();
+        
+        Sort sort;
+        if ("popular".equalsIgnoreCase(sortBy)) {
+            sort = Sort.by(
+                Sort.Order.desc("hasStock"),
+                Sort.Order.desc("totalSold"),
+                Sort.Order.desc("createdAt")
+            );
+        } else {
+            Sort.Direction direction = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.Direction.ASC : Sort.Direction.DESC;
+            sort = Sort.by(
+                Sort.Order.desc("hasStock"),
+                new Sort.Order(direction, sortBy)
+            );
+        }
 
-        Pageable pageable = PageRequest.of(page - 1, size, sort);
+        Pageable pageable = PaginationConstant.of(page, size, sort);
 
         UUID categoryId = null;
         if (categorySlug != null && !categorySlug.isBlank()) {
@@ -109,7 +123,7 @@ public class ProductServiceImpl implements ProductService {
                 .brand(brand)
                 .originPrice(request.getOriginPrice())
                 .specsJson(request.getSpecsJson())
-                .status(request.getStatus() != null ? request.getStatus() : "ACTIVE")
+                .status(request.getStatus() != null ? request.getStatus() : StatusConstant.PRODUCT_ACTIVE)
                 .isFeatured(request.getIsFeatured() != null ? request.getIsFeatured() : false)
                 .category(category)
                 .variants(new ArrayList<>())
@@ -221,6 +235,17 @@ public class ProductServiceImpl implements ProductService {
     public void deleteProduct(UUID id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+
+        // Preemptively wipe carts containing any variants of this product to bypass strict postgres FK restrictions
+        entityManager.createNativeQuery("DELETE FROM carts WHERE variant_id IN (SELECT id FROM product_variants WHERE product_id = :pid)")
+                .setParameter("pid", id)
+                .executeUpdate();
+
+        // Also purge any wishlist containing this product
+        entityManager.createNativeQuery("DELETE FROM wishlists WHERE product_id = :pid")
+                .setParameter("pid", id)
+                .executeUpdate();
+
         productRepository.delete(product);
     }
 
@@ -230,10 +255,10 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found"));
         
-        if ("ACTIVE".equalsIgnoreCase(product.getStatus())) {
-            product.setStatus("DRAFT");
+        if (StatusConstant.PRODUCT_ACTIVE.equalsIgnoreCase(product.getStatus())) {
+            product.setStatus(StatusConstant.PRODUCT_DRAFT);
         } else {
-            product.setStatus("ACTIVE");
+            product.setStatus(StatusConstant.PRODUCT_ACTIVE);
         }
         return mapToDetailedResponse(productRepository.save(product));
     }
@@ -246,6 +271,12 @@ public class ProductServiceImpl implements ProductService {
                 .orElse(product.getImages().isEmpty() ? null : product.getImages().get(0).getImageUrl());
 
         int totalStock = product.getVariants().stream().mapToInt(ProductVariant::getStock).sum();
+
+        java.math.BigDecimal lowestPrice = product.getVariants().stream()
+                .map(ProductVariant::getPrice)
+                .filter(java.util.Objects::nonNull)
+                .min(java.math.BigDecimal::compareTo)
+                .orElse(product.getOriginPrice());
 
         return ProductResponse.builder()
                 .id(product.getId())
@@ -260,6 +291,7 @@ public class ProductServiceImpl implements ProductService {
                         .slug(product.getCategory().getSlug())
                         .build() : null)
                 .originPrice(product.getOriginPrice())
+                .lowestPrice(lowestPrice)
                 .status(product.getStatus())
                 .isFeatured(product.getIsFeatured())
                 .specsJson(product.getSpecsJson())
@@ -290,7 +322,9 @@ public class ProductServiceImpl implements ProductService {
                     .color(vName.contains("-") ? vName.split("-")[0].trim() : null)
                     .storageCapacity(vName.contains("-") && vName.split("-").length > 1 ? vName.split("-")[1].trim() : null)
                     .price(v.getPrice())
+                    .compareAtPrice(v.getCompareAtPrice())
                     .stockQuantity(v.getStock())
+                    .active(v.getActive())
                     .images(vImages)
                     .build();
         }).collect(Collectors.toList());
@@ -324,12 +358,12 @@ public class ProductServiceImpl implements ProductService {
     public PageResponse<ProductResponse> getAdminProducts(String keyword, java.util.UUID categoryId, String status, int page, int size, String sortBy, String sortDir) {
         Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(sortBy).ascending()
                 : Sort.by(sortBy).descending();
-        Pageable pageable = PageRequest.of(page - 1, size, sort);
+        Pageable pageable = PaginationConstant.of(page, size, sort);
 
         // Map status param to Boolean: null = all, ACTIVE = true, INACTIVE/DRAFT = false
         Boolean active = null;
         if (status != null && !status.isBlank()) {
-            active = "ACTIVE".equalsIgnoreCase(status);
+            active = StatusConstant.PRODUCT_ACTIVE.equalsIgnoreCase(status);
         }
 
         Specification<Product> spec = ProductSpecification.filter(keyword, categoryId, null, null, null, null, active);
@@ -341,7 +375,7 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(readOnly = true)
     public List<ProductResponse> getFeaturedProducts(int limit) {
         Pageable pageable = PageRequest.of(0, limit);
-        return productRepository.findByStatusAndIsFeaturedTrue("ACTIVE", pageable)
+        return productRepository.findByStatusAndIsFeaturedTrue(StatusConstant.PRODUCT_ACTIVE, pageable)
                 .stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
@@ -349,7 +383,7 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(readOnly = true)
     public List<ProductResponse> getNewArrivals(int limit) {
         Pageable pageable = PageRequest.of(0, limit);
-        return productRepository.findByStatusOrderByCreatedAtDesc("ACTIVE", pageable)
+        return productRepository.findByStatusOrderByCreatedAtDesc(StatusConstant.PRODUCT_ACTIVE, pageable)
                 .stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 

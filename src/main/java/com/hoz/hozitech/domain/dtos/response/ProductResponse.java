@@ -23,6 +23,7 @@ public class ProductResponse {
     private String brandName;
     private CategoryResponse category; // Brief info or full category hierarchy depending on mapping
     private BigDecimal originPrice;
+    private BigDecimal lowestPrice;
     private Double averageRating;
     private Integer totalReviews;
     private String status;

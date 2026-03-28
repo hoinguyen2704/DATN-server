@@ -24,4 +24,18 @@ public class CategoryResponse {
 
     // For Tree View
     private List<CategoryResponse> children;
+
+    // Spec templates for this category
+    private List<SpecTemplateResponse> specTemplates;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SpecTemplateResponse {
+        private UUID id;
+        private String specKey;
+        private String hint;
+        private Integer sortOrder;
+    }
 }

@@ -1,5 +1,6 @@
 package com.hoz.hozitech.web.controllers.user;
 
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.feedback.FeedbackService;
 import com.hoz.hozitech.web.base.RestAPI;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,8 +27,8 @@ public class FeedbackController {
     @GetMapping("/product/{productId}")
     public ResponseEntity<ApiResponse<PageResponse<FeedbackResponse>>> getProductFeedbacks(
             @PathVariable UUID productId,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
+            @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
         return ResponseEntity.ok(ApiResponse.success("Fetch product feedbacks successfully",
                 feedbackService.getFeedbacksByProduct(productId, page, size)));
     }

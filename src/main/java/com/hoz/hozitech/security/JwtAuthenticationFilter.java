@@ -1,5 +1,6 @@
 package com.hoz.hozitech.security;
 
+import com.hoz.hozitech.application.constant.SecurityConstant;
 import java.io.IOException;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -30,17 +31,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @Nonnull HttpServletResponse response,
             @Nonnull FilterChain filterChain) throws ServletException, IOException {
 
-        final String authHeader = request.getHeader("Authorization");
+        final String authHeader = request.getHeader(SecurityConstant.HEADER_AUTHORIZATION);
         final String jwt;
         final String userEmailOrName;
 
         // Skip filtering if there's no Bearer token
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        if (authHeader == null || !authHeader.startsWith(SecurityConstant.TOKEN_PREFIX)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        jwt = authHeader.substring(7);
+        jwt = authHeader.substring(SecurityConstant.TOKEN_PREFIX.length());
 
         try {
             userEmailOrName = jwtTokenProvider.extractUsername(jwt);

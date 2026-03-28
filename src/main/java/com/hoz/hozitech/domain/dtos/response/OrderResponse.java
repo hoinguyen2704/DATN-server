@@ -30,6 +30,11 @@ public class OrderResponse {
     private LocalDateTime createdAt;
     private String paymentUrl; // For online payment redirect
 
+    // Customer info (mapped from Order.user)
+    private String customerName;
+    private String customerEmail;
+    private String customerPhone;
+
     private List<OrderItemResponse> items;
 
     @Data

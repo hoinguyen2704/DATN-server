@@ -3,7 +3,7 @@ package com.hoz.hozitech.application.services.cart;
 import com.hoz.hozitech.application.repositories.CartRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
-import com.hoz.hozitech.application.services.cart.CartService;
+
 import com.hoz.hozitech.domain.dtos.request.CartRequest;
 import com.hoz.hozitech.domain.dtos.response.CartResponse;
 import com.hoz.hozitech.domain.entities.Cart;
@@ -127,6 +127,7 @@ public class CartServiceImpl implements CartService {
                 .id(cart.getId())
                 .variantId(variant.getId())
                 .productName(variant.getProduct().getName())
+                .productSlug(variant.getProduct().getSlug())
                 .variantName(variant.getVariantName())
                 .imageUrl(imageUrl)
                 .price(variant.getPrice())

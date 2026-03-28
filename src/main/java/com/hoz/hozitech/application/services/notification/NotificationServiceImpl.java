@@ -1,13 +1,12 @@
 package com.hoz.hozitech.application.services.notification;
 
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.NotificationRepository;
-import com.hoz.hozitech.application.services.notification.NotificationService;
 import com.hoz.hozitech.domain.dtos.response.NotificationResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.entities.Notification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -23,7 +22,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public PageResponse<NotificationResponse> getMyNotifications(UUID userId, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
+        Pageable pageable = PaginationConstant.of(page, size);
         Page<Notification> notifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
         return PageResponse.of(notifications.map(this::mapToResponse));
     }

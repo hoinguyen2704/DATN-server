@@ -22,6 +22,10 @@ public final class StatusConstant {
     public static final String DISCOUNT_PERCENTAGE = "PERCENTAGE";
     public static final String DISCOUNT_FIXED = "FIXED_AMOUNT";
 
+    // ─── Coupon Apply Type ───
+    public static final String COUPON_APPLY_ALL = "ALL";
+    public static final String COUPON_APPLY_SPECIFIC = "SPECIFIC_PRODUCTS";
+
     // ─── Flash Sale Status ───
     public static final String FLASH_SCHEDULED = "SCHEDULED";
     public static final String FLASH_ACTIVE = "ACTIVE";

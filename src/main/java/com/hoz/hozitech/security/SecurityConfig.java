@@ -1,5 +1,6 @@
 package com.hoz.hozitech.security;
 
+import com.hoz.hozitech.application.constant.SecurityConstant;
 import java.util.List;
 
 import org.springframework.context.annotation.Bean;
@@ -39,6 +40,9 @@ public class SecurityConfig {
             "/api/v1/products/**",
             "/api/v1/categories/**",
             "/api/v1/brands/**",
+            "/api/v1/coupons/public",
+            "/api/v1/coupons/validate",
+            "/api/v1/coupons/{code}",
             "/uploads/**",
             "/v3/api-docs/**",
             "/swagger-ui/**",
@@ -84,7 +88,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(List.of("*")); // Should restrict to specific origins in PROD
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With"));
+        configuration.setAllowedHeaders(List.of(SecurityConstant.HEADER_AUTHORIZATION, SecurityConstant.HEADER_CONTENT_TYPE, SecurityConstant.HEADER_ACCEPT, SecurityConstant.HEADER_X_REQUESTED_WITH));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

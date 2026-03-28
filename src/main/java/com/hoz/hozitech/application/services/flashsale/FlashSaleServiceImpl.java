@@ -1,9 +1,10 @@
 package com.hoz.hozitech.application.services.flashsale;
 
+import com.hoz.hozitech.application.constant.StatusConstant;
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.FlashSaleItemRepository;
 import com.hoz.hozitech.application.repositories.FlashSaleRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
-import com.hoz.hozitech.application.services.flashsale.FlashSaleService;
 import com.hoz.hozitech.domain.dtos.request.FlashSaleRequest;
 import com.hoz.hozitech.domain.dtos.response.FlashSaleResponse;
 import com.hoz.hozitech.domain.dtos.response.FlashSaleResponse.FlashSaleItemResponse;
@@ -13,8 +14,6 @@ import com.hoz.hozitech.domain.entities.FlashSaleItem;
 import com.hoz.hozitech.domain.entities.ProductVariant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,7 +38,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                 .description(request.getDescription())
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
-                .status("SCHEDULED")
+                .status(StatusConstant.FLASH_SCHEDULED)
                 .build();
 
         flashSale = flashSaleRepository.save(flashSale);
@@ -115,7 +114,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Transactional(readOnly = true)
     public PageResponse<FlashSaleResponse> getAllFlashSales(int page, int size) {
         Page<FlashSale> pageResult = flashSaleRepository.findAllByOrderByCreatedAtDesc(
-                PageRequest.of(page - 1, size));
+                PaginationConstant.of(page, size));
         Page<FlashSaleResponse> mapped = pageResult.map(this::toResponse);
         return PageResponse.of(mapped);
     }

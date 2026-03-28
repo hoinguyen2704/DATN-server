@@ -1,14 +1,16 @@
 package com.hoz.hozitech.application.services.category;
 
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.CategoryRepository;
-import com.hoz.hozitech.application.services.category.CategoryService;
+import com.hoz.hozitech.application.repositories.SpecAttributeRepository;
 import com.hoz.hozitech.domain.dtos.request.CategoryRequest;
 import com.hoz.hozitech.domain.dtos.response.CategoryResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.entities.Category;
+import com.hoz.hozitech.domain.entities.CategorySpecMapping;
+import com.hoz.hozitech.domain.entities.SpecAttribute;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ import java.util.stream.Collectors;
 public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final SpecAttributeRepository specAttributeRepository;
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
     private static final Pattern WHITE_SPACE = Pattern.compile("[\\s]");
 
@@ -78,7 +81,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<CategoryResponse> getAdminCategories(String keyword, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
+        Pageable pageable = PaginationConstant.of(page, size);
         Page<Category> categories;
         if (keyword != null && !keyword.isBlank()) {
             categories = categoryRepository.findByNameContainingIgnoreCase(keyword, pageable);
@@ -110,6 +113,8 @@ public class CategoryServiceImpl implements CategoryService {
                 .status(request.getActive() != null ? request.getActive() : true)
                 .parentCategory(parent)
                 .build();
+
+        applySpecTemplates(category, request.getSpecTemplates());
 
         return mapToResponse(categoryRepository.save(category));
     }
@@ -144,6 +149,8 @@ public class CategoryServiceImpl implements CategoryService {
             category.setSlug(newSlug);
         }
 
+        applySpecTemplates(category, request.getSpecTemplates());
+
         return mapToResponse(categoryRepository.save(category));
     }
 
@@ -169,6 +176,17 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     private CategoryResponse mapToResponse(Category category) {
+        List<CategoryResponse.SpecTemplateResponse> templates = category.getSpecMappings() != null
+                ? category.getSpecMappings().stream()
+                    .map(m -> CategoryResponse.SpecTemplateResponse.builder()
+                            .id(m.getId())
+                            .specKey(m.getSpecAttribute().getName())
+                            .hint(m.getEffectiveHint())
+                            .sortOrder(m.getSortOrder())
+                            .build())
+                    .collect(Collectors.toList())
+                : new java.util.ArrayList<>();
+
         return CategoryResponse.builder()
                 .id(category.getId())
                 .name(category.getName())
@@ -178,7 +196,34 @@ public class CategoryServiceImpl implements CategoryService {
                 .active(category.getStatus())
                 .createdAt(category.getCreatedAt())
                 .children(new java.util.ArrayList<>())
+                .specTemplates(templates)
                 .build();
+    }
+
+    private void applySpecTemplates(Category category, List<CategoryRequest.SpecTemplateItem> items) {
+        category.getSpecMappings().clear();
+        if (items != null) {
+            for (int i = 0; i < items.size(); i++) {
+                CategoryRequest.SpecTemplateItem item = items.get(i);
+
+                // Find or create the SpecAttribute (shared across categories)
+                SpecAttribute attr = specAttributeRepository.findByName(item.getSpecKey())
+                        .orElseGet(() -> specAttributeRepository.save(
+                                SpecAttribute.builder()
+                                        .name(item.getSpecKey())
+                                        .defaultHint(item.getHint())
+                                        .build()
+                        ));
+
+                CategorySpecMapping mapping = CategorySpecMapping.builder()
+                        .category(category)
+                        .specAttribute(attr)
+                        .customHint(item.getHint())
+                        .sortOrder(item.getSortOrder() != null ? item.getSortOrder() : i)
+                        .build();
+                category.getSpecMappings().add(mapping);
+            }
+        }
     }
 
     private String toSlug(String input) {

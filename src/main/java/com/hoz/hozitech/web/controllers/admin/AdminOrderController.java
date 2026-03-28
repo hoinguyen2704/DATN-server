@@ -1,5 +1,6 @@
 package com.hoz.hozitech.web.controllers.admin;
 
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
 import com.hoz.hozitech.application.services.export.ExportService;
@@ -30,8 +31,8 @@ public class AdminOrderController {
     public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getAllOrders(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
+            @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_LARGE_STR) int size) {
         return ResponseEntity.ok(ApiResponse.success("Orders fetched",
                 orderService.getAllOrders(status, keyword, page, size)));
     }
@@ -42,6 +43,12 @@ public class AdminOrderController {
             @RequestBody Map<String, String> body) {
         return ResponseEntity.ok(ApiResponse.success("Order status updated",
                 orderService.updateOrderStatus(orderId, body.get("status"))));
+    }
+
+    @GetMapping("/{orderNumber}")
+    public ResponseEntity<ApiResponse<OrderResponse>> getOrderByNumber(@PathVariable String orderNumber) {
+        return ResponseEntity.ok(ApiResponse.success("Order fetched",
+                orderService.getOrderByNumberForAdmin(orderNumber)));
     }
 
     @GetMapping("/export")

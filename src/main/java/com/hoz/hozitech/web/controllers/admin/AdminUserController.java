@@ -1,5 +1,6 @@
 package com.hoz.hozitech.web.controllers.admin;
 
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
 import com.hoz.hozitech.application.services.export.ExportService;
@@ -27,8 +28,8 @@ public class AdminUserController {
     public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getUsers(
             @RequestParam(required = false, defaultValue = "") String keyword,
             @RequestParam(required = false) String role,
-            @RequestParam(required = false, defaultValue = "1") int page,
-            @RequestParam(required = false, defaultValue = "20") int size,
+            @RequestParam(required = false, defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
+            @RequestParam(required = false, defaultValue = PaginationConstant.PAGE_SIZE_LARGE_STR) int size,
             @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
             @RequestParam(required = false, defaultValue = "DESC") String sortDir
     ) {

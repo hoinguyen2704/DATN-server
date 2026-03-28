@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -23,4 +24,15 @@ public class CategoryRequest {
     private UUID parentId;
 
     private Boolean active;
+
+    private List<SpecTemplateItem> specTemplates;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SpecTemplateItem {
+        private String specKey;
+        private String hint;
+        private Integer sortOrder;
+    }
 }

@@ -1,9 +1,9 @@
 package com.hoz.hozitech.application.services.wishlist;
 
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.repositories.WishlistRepository;
-import com.hoz.hozitech.application.services.wishlist.WishlistService;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.WishlistResponse;
 import com.hoz.hozitech.domain.entities.Product;
@@ -11,7 +11,6 @@ import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.entities.Wishlist;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -61,7 +60,7 @@ public class WishlistServiceImpl implements WishlistService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<WishlistResponse> getUserWishlist(UUID userId, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PaginationConstant.of(page, size);
         Page<Wishlist> wishlistPage = wishlistRepository.findByUserId(userId, pageable);
 
         return PageResponse.<WishlistResponse>builder()

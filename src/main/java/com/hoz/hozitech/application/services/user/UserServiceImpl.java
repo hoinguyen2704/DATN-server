@@ -1,7 +1,8 @@
 package com.hoz.hozitech.application.services.user;
 
+import com.hoz.hozitech.application.constant.StatusConstant;
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.UserRepository;
-import com.hoz.hozitech.application.services.user.UserService;
 import com.hoz.hozitech.application.specifications.UserSpecification;
 import com.hoz.hozitech.domain.dtos.request.ChangePasswordRequest;
 import com.hoz.hozitech.domain.dtos.request.UpdateUserRequest;
@@ -11,7 +12,6 @@ import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.enums.RoleType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -91,7 +91,7 @@ public class UserServiceImpl implements UserService {
                 : Sort.by(sortBy).descending();
 
         // page - 1 because Spring Data JPA is 0-indexed
-        Pageable pageable = PageRequest.of(page - 1, size, sort);
+        Pageable pageable = PaginationConstant.of(page, size, sort);
 
         Specification<User> spec = Specification.where(UserSpecification.hasFullNameOrEmail(keyword));
 
@@ -126,10 +126,10 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("Cannot lock an admin account");
         }
 
-        if ("ACTIVE".equalsIgnoreCase(user.getStatus())) {
+        if (StatusConstant.PRODUCT_ACTIVE.equalsIgnoreCase(user.getStatus())) {
             user.setStatus("LOCKED");
         } else {
-            user.setStatus("ACTIVE");
+            user.setStatus(StatusConstant.PRODUCT_ACTIVE);
         }
         return mapToResponse(userRepository.save(user));
     }

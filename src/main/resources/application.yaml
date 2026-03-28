@@ -50,10 +50,10 @@ api:
 
 jwt:
   secret-key: ${JWT_SECRET_KEY}
-  # 1 day
-  access-expiration: ${JWT_ACCESS_EXPIRATION:86400}
   # 7 days
-  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800}
+  access-expiration: ${JWT_ACCESS_EXPIRATION:604800}
+  # 30 days
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:2592000}
 
 link:
   frontend: ${URL_FRONTEND:http://localhost:3000}
@@ -70,3 +70,10 @@ spring.mail:
   port: ${MAIL_PORT:587}
   username: ${MAIL_USERNAME:}
   password: ${MAIL_PASSWORD:}
+  properties:
+    mail:
+      smtp:
+        auth: true
+        starttls:
+          enable: true
+          required: true

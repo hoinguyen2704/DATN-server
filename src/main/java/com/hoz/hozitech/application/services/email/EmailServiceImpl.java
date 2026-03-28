@@ -1,6 +1,5 @@
 package com.hoz.hozitech.application.services.email;
 
-import com.hoz.hozitech.application.services.email.EmailService;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;

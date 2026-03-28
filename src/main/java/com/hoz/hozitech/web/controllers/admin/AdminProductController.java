@@ -1,5 +1,6 @@
 package com.hoz.hozitech.web.controllers.admin;
 
+import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
 import com.hoz.hozitech.application.services.product.ProductService;
@@ -35,8 +36,8 @@ public class AdminProductController {
             @RequestParam(required = false, defaultValue = "") String keyword,
             @RequestParam(required = false) UUID categoryId,
             @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
+            @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_LARGE_STR) int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDir) {
         return ResponseEntity.ok(ApiResponse.success("Fetch admin products successfully",

@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @RestAPI("${api.prefix-client}/coupons")
 @RequiredArgsConstructor
@@ -21,5 +22,20 @@ public class CouponController {
             @RequestParam String code,
             @RequestParam(defaultValue = "0") BigDecimal orderAmount) {
         return ResponseEntity.ok(ApiResponse.success("Coupon is valid", couponService.validateCoupon(code, orderAmount)));
+    }
+
+    @GetMapping("/{code}")
+    public ResponseEntity<ApiResponse<CouponResponse>> getCouponByCode(@PathVariable String code) {
+        return ResponseEntity.ok(ApiResponse.success("Success", couponService.getCouponByCode(code)));
+    }
+
+    /**
+     * Public vouchers - hiển thị trên storefront cho tất cả mọi người.
+     * Nếu user đã đăng nhập, truyền thêm userId để check "đã lưu chưa".
+     */
+    @GetMapping("/public")
+    public ResponseEntity<ApiResponse<List<CouponResponse>>> getPublicCoupons() {
+        // Không cần auth, truyền userId = null
+        return ResponseEntity.ok(ApiResponse.success("Public coupons", couponService.getPublicCoupons(null)));
     }
 }
