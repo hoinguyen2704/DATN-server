@@ -42,7 +42,10 @@ public class DashboardServiceImpl implements DashboardService {
                 .totalCustomers(userRepository.count())
                 .newCustomers(userRepository.countNewCustomers(from, to))
                 .productsSold(orderItemRepository.sumProductsSoldByDateRange(from, to))
-                .cancelledOrders(orderRepository.countOrdersByStatusAndDateRange(OrderStatus.CANCELLED, from, to))
+                .cancelledOrders(
+                        orderRepository.countOrdersByStatusAndDateRange(OrderStatus.CANCELLED, from, to)
+                        + orderRepository.countOrdersByPaymentStatusAndDateRange(com.hoz.hozitech.domain.enums.PaymentStatus.FAILED, from, to)
+                )
                 .returnedOrders(orderRepository.countOrdersByStatusAndDateRange(OrderStatus.RETURNED, from, to))
                 .totalFeedbacks(feedbackRepository.count())
                 .newFeedbacks(feedbackRepository.countNewFeedbacks(from, to))
@@ -153,7 +156,10 @@ public class DashboardServiceImpl implements DashboardService {
                 from = today.atStartOfDay();
                 break;
             case "WEEK":
-                from = today.minusDays(6).atStartOfDay();
+                // Thứ 2 đầu tuần → Chủ Nhật cuối tuần
+                LocalDate monday = today.with(java.time.DayOfWeek.MONDAY);
+                from = monday.atStartOfDay();
+                to = monday.plusDays(6).atTime(LocalTime.MAX);
                 break;
             case "YEAR":
                 from = today.with(TemporalAdjusters.firstDayOfYear()).atStartOfDay();

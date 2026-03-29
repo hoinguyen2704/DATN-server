@@ -42,4 +42,20 @@ public class AdminDashboardController {
 
         return new ResponseEntity<>(excelBytes, headers, HttpStatus.OK);
     }
+
+    @GetMapping("/report-pdf")
+    public ResponseEntity<byte[]> exportDashboardReportPdf(
+            @RequestParam(value = "type", defaultValue = "orders") String type,
+            @RequestParam(value = "period", defaultValue = "MONTH") String period) {
+        byte[] pdfBytes = exportService.exportDashboardReportPdf(type, period);
+
+        String filename = "report_" + type + "_" + LocalDate.now() + ".pdf";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
+        headers.setContentLength(pdfBytes.length);
+
+        return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+    }
 }

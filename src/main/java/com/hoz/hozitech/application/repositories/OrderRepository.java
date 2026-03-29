@@ -51,6 +51,9 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
             "GROUP BY EXTRACT(MONTH FROM o.createdAt) ORDER BY month")
     List<Object[]> findRevenueGroupedByMonth(@Param("year") int year);
 
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.paymentStatus = :payStatus AND o.createdAt >= :from AND o.createdAt <= :to")
+    long countOrdersByPaymentStatusAndDateRange(@Param("payStatus") com.hoz.hozitech.domain.enums.PaymentStatus payStatus, @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
     @Query("SELECT o FROM Order o JOIN FETCH o.user ORDER BY o.createdAt DESC")
     List<Order> findRecentOrders(Pageable pageable);
 

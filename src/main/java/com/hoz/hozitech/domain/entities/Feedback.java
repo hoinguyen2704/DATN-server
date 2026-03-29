@@ -27,6 +27,7 @@ public class Feedback extends AbstractAuditingEntity {
     @Column(name = "content", columnDefinition = "TEXT")
     private String content;
 
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "images_json", columnDefinition = "jsonb")
     private String imagesJson;
 
