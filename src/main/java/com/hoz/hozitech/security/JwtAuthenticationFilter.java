@@ -1,7 +1,9 @@
 package com.hoz.hozitech.security;
 
+import com.hoz.hozitech.application.repositories.TokenRepository;
 import com.hoz.hozitech.application.constant.SecurityConstant;
 import java.io.IOException;
+import java.time.LocalDateTime;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,6 +26,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsService userDetailsService;
+    private final TokenRepository tokenRepository;
 
     @Override
     protected void doFilterInternal(
@@ -59,7 +62,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
 
                 // If token is valid, set the security context
-                if (jwtTokenProvider.isTokenValid(jwt, userDetails)) {
+                if (jwtTokenProvider.isTokenValid(jwt, userDetails) && isTokenActive(jwt)) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
                             null,
@@ -69,11 +72,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().print("{\"error\": \"" + e.getMessage() + "\"}");
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isTokenActive(String jwt) {
+        return tokenRepository.findByToken(jwt)
+                .filter(token -> !Boolean.TRUE.equals(token.getExpired()))
+                .filter(token -> !Boolean.TRUE.equals(token.getRevoked()))
+                .filter(token -> token.getExpirationDate() == null || token.getExpirationDate().isAfter(LocalDateTime.now()))
+                .isPresent();
     }
 }

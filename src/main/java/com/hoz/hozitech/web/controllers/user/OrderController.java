@@ -44,10 +44,11 @@ public class OrderController {
     public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getMyOrders(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
         return ResponseEntity.ok(ApiResponse.success("Orders fetched",
-                orderService.getMyOrders(userDetails.getUser().getId(), status, page, size)));
+                orderService.getMyOrders(userDetails.getUser().getId(), status, keyword, page, size)));
     }
 
     @PatchMapping("/{orderId}/cancel")

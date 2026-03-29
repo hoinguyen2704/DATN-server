@@ -52,6 +52,12 @@ public class AuthServiceImpl implements AuthService {
     @Value("${spring.security.oauth2.client.registration.google.client-id:dummy}")
     private String googleClientId;
 
+    @Value("${jwt.access-expiration:604800}")
+    private long accessTokenExpirationSeconds;
+
+    @Value("${jwt.refresh-expiration:2592000}")
+    private long refreshTokenExpirationSeconds;
+
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -82,7 +88,8 @@ public class AuthServiceImpl implements AuthService {
         String accessToken = jwtService.generateToken(userDetails);
         String refreshToken = jwtService.generateRefreshToken(userDetails);
 
-        saveUserToken(savedUser, accessToken);
+        saveUserToken(savedUser, accessToken, "ACCESS", accessTokenExpirationSeconds);
+        saveUserToken(savedUser, refreshToken, "REFRESH", refreshTokenExpirationSeconds);
 
         return buildAuthResponse(savedUser, accessToken, refreshToken);
     }
@@ -103,7 +110,8 @@ public class AuthServiceImpl implements AuthService {
         String refreshToken = jwtService.generateRefreshToken(userDetails);
 
         revokeAllUserTokens(user);
-        saveUserToken(user, accessToken);
+        saveUserToken(user, accessToken, "ACCESS", accessTokenExpirationSeconds);
+        saveUserToken(user, refreshToken, "REFRESH", refreshTokenExpirationSeconds);
 
         return buildAuthResponse(user, accessToken, refreshToken);
     }
@@ -116,12 +124,27 @@ public class AuthServiceImpl implements AuthService {
                     .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
             CustomUserDetails userDetails = new CustomUserDetails(user);
+            Token refreshTokenEntity = tokenRepository.findByToken(refreshToken)
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
+
+            if (!refreshTokenEntity.getUser().getId().equals(user.getId())) {
+                throw new IllegalArgumentException("Invalid refresh token");
+            }
+
+            if (Boolean.TRUE.equals(refreshTokenEntity.getExpired())
+                    || Boolean.TRUE.equals(refreshTokenEntity.getRevoked())
+                    || refreshTokenEntity.getExpirationDate() == null
+                    || refreshTokenEntity.getExpirationDate().isBefore(LocalDateTime.now())) {
+                throw new IllegalArgumentException("Invalid refresh token");
+            }
 
             if (jwtService.isTokenValid(refreshToken, userDetails)) {
                 String accessToken = jwtService.generateToken(userDetails);
+                String newRefreshToken = jwtService.generateRefreshToken(userDetails);
                 revokeAllUserTokens(user);
-                saveUserToken(user, accessToken);
-                return buildAuthResponse(user, accessToken, refreshToken);
+                saveUserToken(user, accessToken, "ACCESS", accessTokenExpirationSeconds);
+                saveUserToken(user, newRefreshToken, "REFRESH", refreshTokenExpirationSeconds);
+                return buildAuthResponse(user, accessToken, newRefreshToken);
             }
         }
         throw new IllegalArgumentException("Invalid refresh token");
@@ -238,19 +261,19 @@ public class AuthServiceImpl implements AuthService {
         String refreshToken = jwtService.generateRefreshToken(userDetails);
 
         revokeAllUserTokens(user);
-        saveUserToken(user, accessToken);
+        saveUserToken(user, accessToken, "ACCESS", accessTokenExpirationSeconds);
+        saveUserToken(user, refreshToken, "REFRESH", refreshTokenExpirationSeconds);
 
         return buildAuthResponse(user, accessToken, refreshToken);
     }
 
-    private void saveUserToken(User user, String jwtToken) {
-        // Find 7 days limit from issue date
-        LocalDateTime expireDate = LocalDateTime.now().plusDays(7);
+    private void saveUserToken(User user, String jwtToken, String tokenType, long ttlSeconds) {
+        LocalDateTime expireDate = LocalDateTime.now().plusSeconds(ttlSeconds);
 
         var token = Token.builder()
                 .user(user)
                 .token(jwtToken)
-                .tokenType("BEARER")
+                .tokenType(tokenType)
                 .expired(false)
                 .revoked(false)
                 .expirationDate(expireDate)

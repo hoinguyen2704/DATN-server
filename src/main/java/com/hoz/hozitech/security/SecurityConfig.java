@@ -1,8 +1,10 @@
 package com.hoz.hozitech.security;
 
 import com.hoz.hozitech.application.constant.SecurityConstant;
+import java.util.Arrays;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -34,15 +36,24 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final UserDetailsService userDetailsService;
 
+    @Value("${security.cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173}")
+    private String allowedOrigins;
+
     // Defines which endpoints are public
     private static final String[] WHITE_LIST_URLS = {
-            "/api/v1/auth/**",
+            "/api/v1/auth/register",
+            "/api/v1/auth/login",
+            "/api/v1/auth/refresh-token",
+            "/api/v1/auth/forgot-password",
+            "/api/v1/auth/verify-otp",
+            "/api/v1/auth/reset-password",
+            "/api/v1/auth/social-login",
             "/api/v1/products/**",
             "/api/v1/categories/**",
             "/api/v1/brands/**",
-            "/api/v1/coupons/public",
-            "/api/v1/coupons/validate",
-            "/api/v1/coupons/{code}",
+            "/api/v1/coupons/**",
+            "/api/v1/flash-sales/**",
+            "/api/v1/cms/**",
             "/uploads/**",
             "/v3/api-docs/**",
             "/swagger-ui/**",
@@ -84,9 +95,13 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        // Adjust CORS policy for Frontend requirements
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*")); // Should restrict to specific origins in PROD
+        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of(SecurityConstant.HEADER_AUTHORIZATION, SecurityConstant.HEADER_CONTENT_TYPE, SecurityConstant.HEADER_ACCEPT, SecurityConstant.HEADER_X_REQUESTED_WITH));
         configuration.setAllowCredentials(true);

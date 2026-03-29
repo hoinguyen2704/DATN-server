@@ -210,7 +210,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public PageResponse<OrderResponse> getMyOrders(UUID userId, String status, int page, int size) {
+    public PageResponse<OrderResponse> getMyOrders(UUID userId, String status, String keyword, int page, int size) {
         var pageable = PaginationConstant.of(page, size);
 
         OrderStatus orderStatus = null;
@@ -218,7 +218,7 @@ public class OrderServiceImpl implements OrderService {
             orderStatus = OrderStatus.valueOf(status.toUpperCase());
         }
 
-        Specification<Order> spec = OrderSpecification.filter(userId, orderStatus, null, null, null);
+        Specification<Order> spec = OrderSpecification.filter(userId, orderStatus, null, null, keyword);
         Page<Order> orders = orderRepository.findAll(spec, pageable);
         return PageResponse.of(orders.map(this::mapToResponse));
     }
@@ -293,6 +293,9 @@ public class OrderServiceImpl implements OrderService {
                 .map(item -> OrderResponse.OrderItemResponse.builder()
                         .id(item.getId())
                         .variantId(item.getVariant() != null ? item.getVariant().getId() : null)
+                        .productId(item.getVariant() != null && item.getVariant().getProduct() != null
+                                ? item.getVariant().getProduct().getId()
+                                : null)
                         .productName(item.getProductName())
                         .variantName(item.getVariantName())
                         .unitPrice(item.getUnitPrice())

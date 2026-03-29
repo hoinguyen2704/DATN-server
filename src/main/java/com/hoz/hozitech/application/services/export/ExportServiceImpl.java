@@ -10,6 +10,7 @@ import com.hoz.hozitech.domain.entities.OrderItem;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.dtos.response.DashboardStatsResponse;
 import com.hoz.hozitech.domain.enums.OrderStatus;
+import com.hoz.hozitech.domain.enums.PaymentStatus;
 import com.lowagie.text.Chunk;
 import com.lowagie.text.Document;
 import com.lowagie.text.Element;
@@ -166,7 +167,7 @@ public class ExportServiceImpl implements ExportService {
             payCell.setPaddingBottom(10);
             payCell.addElement(new Paragraph("THANH TOÁN & GIAO HÀNG", new Font(baseFont, 9, Font.BOLD, Color.GRAY)));
             payCell.addElement(new Paragraph("Phương thức: " + order.getPaymentMethod().name(), normalFont));
-            String payStatus = order.getPaymentStatus().name().equals("PAID") ? "Đã thanh toán" : "Chưa thu tiền";
+            String payStatus = order.getPaymentStatus() == PaymentStatus.COMPLETED ? "Đã thanh toán" : "Chưa thu tiền";
             payCell.addElement(new Paragraph("Trạng thái: " + payStatus, normalFont));
             if (order.getCouponCode() != null && !order.getCouponCode().isEmpty()) {
                 payCell.addElement(new Paragraph("Mã giảm giá: " + order.getCouponCode(), boldFont));
