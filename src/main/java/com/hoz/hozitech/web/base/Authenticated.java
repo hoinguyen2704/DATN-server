@@ -8,10 +8,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Cho phép tất cả user đã đăng nhập (ADMIN, USER, SHIPPER) truy cập.
- *
- * <p>Thay vì viết: @PreAuthorize("isAuthenticated()")
- * <br>Chỉ cần viết: @Authenticated
+ * Cho phép tất cả user đã đăng nhập (ADMIN, USER) truy cập.
  */
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)

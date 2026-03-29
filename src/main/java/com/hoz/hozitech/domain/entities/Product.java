@@ -1,5 +1,6 @@
 package com.hoz.hozitech.domain.entities;
 
+import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -69,9 +70,12 @@ public class Product extends AbstractAuditingEntity {
     private List<Feedback> feedbacks = new ArrayList<>();
 
     // Computed columns for sorting
-    @org.hibernate.annotations.Formula("(CASE WHEN (SELECT COALESCE(SUM(v.stock_quantity), 0) FROM product_variants v WHERE v.product_id = id) > 0 THEN 1 ELSE 0 END)")
+    @Formula("(CASE WHEN (SELECT COALESCE(SUM(v.stock_quantity), 0) FROM product_variants v WHERE v.product_id = id) > 0 THEN 1 ELSE 0 END)")
     private Integer hasStock;
 
-    @org.hibernate.annotations.Formula("(SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi INNER JOIN orders o ON oi.order_id = o.id INNER JOIN product_variants v ON oi.variant_id = v.id WHERE v.product_id = id AND o.order_status = 'DELIVERED')")
+    @Formula("(SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi INNER JOIN orders o ON oi.order_id = o.id INNER JOIN product_variants v ON oi.variant_id = v.id WHERE v.product_id = id AND o.order_status = 'DELIVERED')")
     private Integer totalSold;
+
+    @Formula("(SELECT COALESCE(SUM(v.stock_quantity), 0) FROM product_variants v WHERE v.product_id = id)")
+    private Integer totalStock;
 }

@@ -73,5 +73,19 @@ public class AdminOrderController {
 
         return new ResponseEntity<>(excelBytes, headers, HttpStatus.OK);
     }
+
+    @GetMapping("/{orderId}/invoice")
+    public ResponseEntity<byte[]> exportInvoice(@PathVariable UUID orderId) {
+        byte[] pdfBytes = exportService.exportOrderInvoicePdf(orderId);
+
+        String filename = "invoice_" + orderId.toString().substring(0, 8) + ".pdf";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
+        headers.setContentLength(pdfBytes.length);
+
+        return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+    }
 }
 

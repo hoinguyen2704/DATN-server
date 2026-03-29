@@ -58,7 +58,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
-        log.warn("Business error: {}", ex.getMessage());
+        log.warn("Business error: ", ex);
         return ResponseEntity
                 .badRequest()
                 .body(ApiResponse.error(ex.getMessage()));
