@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -57,7 +58,7 @@ public class OrderServiceImpl implements OrderService {
     private final FlashSaleService flashSaleService;
     private final EmailService emailService;
 
-    @org.springframework.beans.factory.annotation.Value("${link.frontend:http://localhost:3000}")
+    @Value("${link.frontend:http://localhost:3000}")
     private String frontendUrl;
 
     @Override
