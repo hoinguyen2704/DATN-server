@@ -29,6 +29,7 @@ public class ProductResponse {
     private String status;
     private Boolean isFeatured;
     private String specsJson;
+    private Integer totalSold;
     private LocalDateTime createdAt;
 
     // Derived properties

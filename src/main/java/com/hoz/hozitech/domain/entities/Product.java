@@ -73,7 +73,7 @@ public class Product extends AbstractAuditingEntity {
     @Formula("(CASE WHEN (SELECT COALESCE(SUM(v.stock_quantity), 0) FROM product_variants v WHERE v.product_id = id) > 0 THEN 1 ELSE 0 END)")
     private Integer hasStock;
 
-    @Formula("(SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi INNER JOIN orders o ON oi.order_id = o.id INNER JOIN product_variants v ON oi.variant_id = v.id WHERE v.product_id = id AND o.order_status = 'DELIVERED')")
+    @Formula("(SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi INNER JOIN orders o ON oi.order_id = o.id INNER JOIN product_variants v ON oi.variant_id = v.id WHERE v.product_id = id AND o.order_status = 'SHIPPED')")
     private Integer totalSold;
 
     @Formula("(SELECT COALESCE(SUM(v.stock_quantity), 0) FROM product_variants v WHERE v.product_id = id)")

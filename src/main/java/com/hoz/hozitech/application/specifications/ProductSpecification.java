@@ -58,4 +58,33 @@ public class ProductSpecification {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
+
+    /**
+     * Simplified filter for product export (keyword searches name/slug only).
+     */
+    public static Specification<Product> filterForExport(
+            String keyword,
+            java.util.UUID categoryId,
+            String status) {
+        return (root, query, cb) -> {
+            java.util.List<Predicate> predicates = new ArrayList<>();
+
+            if (keyword != null && !keyword.isBlank()) {
+                String pattern = "%" + keyword.toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get(Product_.name)), pattern),
+                        cb.like(cb.lower(root.get(Product_.slug)), pattern)));
+            }
+
+            if (categoryId != null) {
+                predicates.add(cb.equal(root.get(Product_.category).get(Category_.id), categoryId));
+            }
+
+            if (status != null && !status.isBlank()) {
+                predicates.add(cb.equal(root.get("status"), status.toUpperCase()));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
 }

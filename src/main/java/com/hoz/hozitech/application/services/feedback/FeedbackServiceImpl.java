@@ -31,6 +31,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     private final OrderRepository orderRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<FeedbackResponse> getFeedbacksByProduct(UUID productId, int page, int size) {
         Pageable pageable = PaginationConstant.of(page, size);
         // For public view, only show APPROVED feedbacks
@@ -72,6 +73,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<FeedbackResponse> getAllFeedbacks(String status, UUID productId, int page, int size) {
         Pageable pageable = PaginationConstant.of(page, size);
 

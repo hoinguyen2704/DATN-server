@@ -13,8 +13,14 @@ import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.ProductResponse;
 import com.hoz.hozitech.domain.entities.Product;
 import com.hoz.hozitech.domain.entities.ProductImage;
+import com.hoz.hozitech.application.services.export.ExportService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,6 +36,26 @@ public class AdminProductController {
     private final FileStorageService fileStorageService;
     private final ProductImageRepository productImageRepository;
     private final ProductRepository productRepository;
+    private final ExportService exportService;
+
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportProducts(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) UUID categoryId,
+            @RequestParam(required = false) String status) {
+
+        byte[] excelBytes = exportService.exportProductsToExcel(keyword, categoryId, status);
+
+        String filename = "products_" + java.time.LocalDate.now() + ".xlsx";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
+        headers.setContentLength(excelBytes.length);
+
+        return new ResponseEntity<>(excelBytes, headers, HttpStatus.OK);
+    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> getAdminProducts(

@@ -295,6 +295,7 @@ public class ProductServiceImpl implements ProductService {
                 .status(product.getStatus())
                 .isFeatured(product.getIsFeatured())
                 .specsJson(product.getSpecsJson())
+                .totalSold(product.getTotalSold() != null ? product.getTotalSold() : 0)
                 .createdAt(product.getCreatedAt())
                 .mainImageUrl(mainImageUrl)
                 .outOfStock(totalStock <= 0)

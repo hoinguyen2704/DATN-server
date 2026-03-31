@@ -49,4 +49,44 @@ public class OrderSpecification {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
+
+    /**
+     * Filter for order export with user eager-fetch.
+     * Searches keyword on orderNumber, user fullName, and user email.
+     */
+    public static Specification<Order> filterForExport(
+            String status,
+            String keyword,
+            LocalDateTime from,
+            LocalDateTime to) {
+        return (root, query, cb) -> {
+            java.util.List<Predicate> predicates = new ArrayList<>();
+
+            // Eager fetch user to avoid N+1
+            root.fetch("user", jakarta.persistence.criteria.JoinType.LEFT);
+
+            if (status != null && !status.isBlank()) {
+                predicates.add(cb.equal(root.get("orderStatus"),
+                        OrderStatus.valueOf(status.toUpperCase())));
+            }
+
+            if (keyword != null && !keyword.isBlank()) {
+                String pattern = "%" + keyword.toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("orderNumber")), pattern),
+                        cb.like(cb.lower(root.join("user").get("fullName")), pattern),
+                        cb.like(cb.lower(root.join("user").get("email")), pattern)));
+            }
+
+            if (from != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get(Order_.createdAt), from));
+            }
+
+            if (to != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get(Order_.createdAt), to));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
 }

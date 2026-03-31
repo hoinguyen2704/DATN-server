@@ -191,6 +191,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public OrderResponse getOrderByNumber(String orderNumber, UUID userId) {
         Order order = orderRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
@@ -211,6 +212,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<OrderResponse> getMyOrders(UUID userId, String status, String keyword, int page, int size) {
         var pageable = PaginationConstant.of(page, size);
 
@@ -251,6 +253,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<OrderResponse> getAllOrders(String status, String keyword, int page, int size) {
         var pageable = PaginationConstant.of(page, size);
 

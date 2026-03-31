@@ -2,14 +2,17 @@ package com.hoz.hozitech.application.services.export;
 
 import com.hoz.hozitech.application.repositories.FeedbackRepository;
 import com.hoz.hozitech.application.repositories.OrderRepository;
+import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.services.dashboard.DashboardService;
+import com.hoz.hozitech.application.specifications.OrderSpecification;
+import com.hoz.hozitech.application.specifications.ProductSpecification;
 import com.hoz.hozitech.domain.entities.Feedback;
 import com.hoz.hozitech.domain.entities.Order;
 import com.hoz.hozitech.domain.entities.OrderItem;
+import com.hoz.hozitech.domain.entities.Product;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.dtos.response.DashboardStatsResponse;
-import com.hoz.hozitech.domain.enums.OrderStatus;
 import com.hoz.hozitech.domain.enums.PaymentStatus;
 import com.lowagie.text.Chunk;
 import com.lowagie.text.Document;
@@ -57,6 +60,7 @@ public class ExportServiceImpl implements ExportService {
     private final UserRepository userRepository;
     private final FeedbackRepository feedbackRepository;
     private final DashboardService dashboardService;
+    private final ProductRepository productRepository;
 
     private static final String[] ORDER_HEADERS = {
             "Mã đơn", "Khách hàng", "Email", "SĐT",
@@ -1017,7 +1021,7 @@ public class ExportServiceImpl implements ExportService {
 
     @Override
     public byte[] exportOrdersToExcel(String status, String keyword, LocalDateTime from, LocalDateTime to) {
-        Specification<Order> spec = buildSpec(status, keyword, from, to);
+        Specification<Order> spec = OrderSpecification.filterForExport(status, keyword, from, to);
         List<Order> orders = orderRepository.findAll(spec);
 
         try (XSSFWorkbook workbook = new XSSFWorkbook();
@@ -1190,6 +1194,122 @@ public class ExportServiceImpl implements ExportService {
     }
 
     // ═══════════════════════════════════════════════════════════
+    // PRODUCTS EXPORT EXCEL
+    // ═══════════════════════════════════════════════════════════
+
+    private static final String[] PRODUCT_HEADERS = {
+            "STT", "Tên sản phẩm", "SKU/Slug", "Danh mục", "Thương hiệu",
+            "Giá gốc", "Tồn kho", "Đã bán", "Trạng thái", "Ngày tạo"
+    };
+
+    @Override
+    public byte[] exportProductsToExcel(String keyword, UUID categoryId, String status) {
+        List<Product> products = productRepository.findAll(
+                ProductSpecification.filterForExport(keyword, categoryId, status),
+                org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Order.desc("createdAt")));
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle currencyStyle = workbook.createCellStyle();
+            DataFormat dataFormat = workbook.createDataFormat();
+            currencyStyle.setDataFormat(dataFormat.getFormat("#,##0"));
+
+            CellStyle titleStyle = workbook.createCellStyle();
+            org.apache.poi.ss.usermodel.Font titleFontPoi = workbook.createFont();
+            titleFontPoi.setBold(true);
+            titleFontPoi.setFontHeightInPoints((short) 14);
+            titleStyle.setFont(titleFontPoi);
+
+            Sheet sheet = workbook.createSheet("Danh sách sản phẩm");
+
+            // Title row
+            Row titleRow = sheet.createRow(0);
+            Cell titleCell = titleRow.createCell(0);
+            titleCell.setCellValue("BÁO CÁO DANH SÁCH SẢN PHẨM");
+            titleCell.setCellStyle(titleStyle);
+
+            Row dateRow = sheet.createRow(1);
+            dateRow.createCell(0).setCellValue("Ngày xuất: " + LocalDateTime.now().format(DATE_FMT));
+
+            // Header row
+            Row headerRow = sheet.createRow(3);
+            for (int i = 0; i < PRODUCT_HEADERS.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(PRODUCT_HEADERS[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            // Data rows
+            int rowIdx = 4;
+            long totalSoldSum = 0;
+            long totalStockSum = 0;
+
+            for (Product product : products) {
+                Row row = sheet.createRow(rowIdx);
+
+                row.createCell(0).setCellValue(rowIdx - 3); // STT
+                row.createCell(1).setCellValue(product.getName());
+                row.createCell(2).setCellValue(product.getSlug());
+                row.createCell(3).setCellValue(
+                        product.getCategory() != null ? product.getCategory().getName() : "");
+                row.createCell(4).setCellValue(
+                        product.getBrand() != null ? product.getBrand().getName() : "");
+
+                Cell priceCell = row.createCell(5);
+                priceCell.setCellValue(product.getOriginPrice() != null ? product.getOriginPrice().doubleValue() : 0);
+                priceCell.setCellStyle(currencyStyle);
+
+                int stock = product.getTotalStock() != null ? product.getTotalStock() : 0;
+                row.createCell(6).setCellValue(stock);
+                totalStockSum += stock;
+
+                int sold = product.getTotalSold() != null ? product.getTotalSold() : 0;
+                row.createCell(7).setCellValue(sold);
+                totalSoldSum += sold;
+
+                row.createCell(8).setCellValue(
+                        "ACTIVE".equals(product.getStatus()) ? "Đang bán" : "Đã ẩn");
+                row.createCell(9).setCellValue(
+                        product.getCreatedAt() != null ? product.getCreatedAt().format(DATE_FMT) : "");
+
+                rowIdx++;
+            }
+
+            // Summary row
+            Row summaryRow = sheet.createRow(rowIdx + 1);
+            Cell sumLabel = summaryRow.createCell(0);
+            sumLabel.setCellValue("TỔNG CỘNG: " + products.size() + " sản phẩm");
+            CellStyle boldStyle = workbook.createCellStyle();
+            org.apache.poi.ss.usermodel.Font boldFontPoi = workbook.createFont();
+            boldFontPoi.setBold(true);
+            boldStyle.setFont(boldFontPoi);
+            sumLabel.setCellStyle(boldStyle);
+
+            Cell sumStock = summaryRow.createCell(6);
+            sumStock.setCellValue(totalStockSum);
+            sumStock.setCellStyle(boldStyle);
+
+            Cell sumSold = summaryRow.createCell(7);
+            sumSold.setCellValue(totalSoldSum);
+            sumSold.setCellStyle(boldStyle);
+
+            // Auto-size columns
+            for (int i = 0; i < PRODUCT_HEADERS.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to export products to Excel", e);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
     // HELPERS
     // ═══════════════════════════════════════════════════════════
 
@@ -1205,38 +1325,5 @@ public class ExportServiceImpl implements ExportService {
         return headerStyle;
     }
 
-    private Specification<Order> buildSpec(String status, String keyword, LocalDateTime from, LocalDateTime to) {
-        Specification<Order> spec = Specification.where((root, query, cb) -> cb.conjunction());
 
-        spec = spec.and((root, query, cb) -> {
-            root.fetch("user", jakarta.persistence.criteria.JoinType.LEFT);
-            return cb.conjunction();
-        });
-
-        if (status != null && !status.isBlank()) {
-            spec = spec.and((root, query, cb) ->
-                    cb.equal(root.get("orderStatus"), OrderStatus.valueOf(status.toUpperCase())));
-        }
-
-        if (keyword != null && !keyword.isBlank()) {
-            spec = spec.and((root, query, cb) -> {
-                String pattern = "%" + keyword.toLowerCase() + "%";
-                return cb.or(
-                        cb.like(cb.lower(root.get("orderNumber")), pattern),
-                        cb.like(cb.lower(root.join("user").get("fullName")), pattern),
-                        cb.like(cb.lower(root.join("user").get("email")), pattern)
-                );
-            });
-        }
-
-        if (from != null) {
-            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("createdAt"), from));
-        }
-
-        if (to != null) {
-            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("createdAt"), to));
-        }
-
-        return spec;
-    }
 }
