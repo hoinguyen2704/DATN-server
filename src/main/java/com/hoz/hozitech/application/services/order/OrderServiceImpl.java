@@ -337,6 +337,7 @@ public class OrderServiceImpl implements OrderService {
                 .customerEmail(customerEmail)
                 .customerPhone(customerPhone)
                 .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
                 .items(items)
                 .build();
     }

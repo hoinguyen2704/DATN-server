@@ -28,6 +28,7 @@ public class OrderResponse {
     private String note;
     private String shippingAddress;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private String paymentUrl; // For online payment redirect
 
     // Customer info (mapped from Order.user)
