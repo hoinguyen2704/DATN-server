@@ -39,6 +39,7 @@ public class CouponServiceImpl implements CouponService {
     // ═══════════════════════════════════════════════════════════════
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<CouponResponse> getAllCoupons(String keyword, int page, int size) {
         Pageable pageable = PaginationConstant.of(page, size);
         Page<Coupon> coupons = couponRepository.findAll(pageable);
@@ -46,6 +47,7 @@ public class CouponServiceImpl implements CouponService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public CouponResponse getCouponById(UUID id) {
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
@@ -53,6 +55,7 @@ public class CouponServiceImpl implements CouponService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public CouponResponse getCouponByCode(String code) {
         Coupon coupon = couponRepository.findByCode(code.toUpperCase())
                 .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
@@ -120,7 +123,7 @@ public class CouponServiceImpl implements CouponService {
                 .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
 
         if (StatusConstant.COUPON_ACTIVE.equalsIgnoreCase(coupon.getStatus())) {
-            coupon.setStatus(StatusConstant.PRODUCT_INACTIVE);
+            coupon.setStatus(StatusConstant.COUPON_INACTIVE);
         } else {
             coupon.setStatus(StatusConstant.COUPON_ACTIVE);
         }

@@ -14,6 +14,8 @@ import com.hoz.hozitech.domain.entities.Product;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.dtos.response.DashboardStatsResponse;
 import com.hoz.hozitech.domain.enums.PaymentStatus;
+import com.hoz.hozitech.web.exceptions.ExportException;
+import com.hoz.hozitech.web.exceptions.ResourceNotFoundException;
 import com.lowagie.text.Chunk;
 import com.lowagie.text.Document;
 import com.lowagie.text.Element;
@@ -88,7 +90,7 @@ public class ExportServiceImpl implements ExportService {
     @Override
     public byte[] exportOrderInvoicePdf(UUID orderId) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+                .orElseThrow(() -> new ResourceNotFoundException("Order", orderId));
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A4, 40, 40, 40, 40);
@@ -305,7 +307,7 @@ public class ExportServiceImpl implements ExportService {
             return out.toByteArray();
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to generate invoice PDF", e);
+            throw new ExportException("Failed to generate invoice PDF", e);
         }
     }
 
@@ -318,7 +320,7 @@ public class ExportServiceImpl implements ExportService {
             try {
                 return BaseFont.createFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.EMBEDDED);
             } catch (Exception ex) {
-                throw new RuntimeException("Cannot load font", ex);
+                throw new ExportException("Cannot load font", ex);
             }
         }
     }
@@ -531,7 +533,7 @@ public class ExportServiceImpl implements ExportService {
             return out.toByteArray();
 
         } catch (IOException e) {
-            throw new RuntimeException("Failed to export revenue report", e);
+            throw new ExportException("Failed to export revenue report", e);
         }
     }
 
@@ -594,7 +596,7 @@ public class ExportServiceImpl implements ExportService {
             return out.toByteArray();
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to generate dashboard report PDF: " + reportType, e);
+            throw new ExportException("Failed to generate dashboard report PDF: " + reportType, e);
         }
     }
 
@@ -1079,7 +1081,7 @@ public class ExportServiceImpl implements ExportService {
             return out.toByteArray();
 
         } catch (IOException e) {
-            throw new RuntimeException("Failed to export orders to Excel", e);
+            throw new ExportException("Failed to export orders to Excel", e);
         }
     }
 
@@ -1133,7 +1135,7 @@ public class ExportServiceImpl implements ExportService {
             return out.toByteArray();
 
         } catch (IOException e) {
-            throw new RuntimeException("Failed to export users to Excel", e);
+            throw new ExportException("Failed to export users to Excel", e);
         }
     }
 
@@ -1189,7 +1191,7 @@ public class ExportServiceImpl implements ExportService {
             return out.toByteArray();
 
         } catch (IOException e) {
-            throw new RuntimeException("Failed to export feedbacks to Excel", e);
+            throw new ExportException("Failed to export feedbacks to Excel", e);
         }
     }
 
@@ -1305,7 +1307,7 @@ public class ExportServiceImpl implements ExportService {
             return out.toByteArray();
 
         } catch (IOException e) {
-            throw new RuntimeException("Failed to export products to Excel", e);
+            throw new ExportException("Failed to export products to Excel", e);
         }
     }
 

@@ -22,6 +22,7 @@ public class SystemConfigServiceImpl implements SystemConfigService {
     private final SystemConfigRepository systemConfigRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<SystemConfigResponse> getAllConfigs(int page, int size) {
         Pageable pageable = PaginationConstant.of(page, size, Sort.by("configKey").ascending());
         Page<SystemConfig> configs = systemConfigRepository.findAll(pageable);
@@ -29,6 +30,7 @@ public class SystemConfigServiceImpl implements SystemConfigService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public SystemConfigResponse getConfigByKey(String key) {
         SystemConfig config = systemConfigRepository.findByConfigKey(key)
                 .orElseThrow(() -> new IllegalArgumentException("Config not found"));

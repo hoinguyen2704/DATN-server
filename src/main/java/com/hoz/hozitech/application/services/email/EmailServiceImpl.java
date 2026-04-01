@@ -52,7 +52,7 @@ public class EmailServiceImpl implements EmailService {
             
         } catch (MessagingException e) {
             log.error("Failed to send OTP email to {}", to, e);
-            throw new RuntimeException("Failed to send OTP email");
+            throw new IllegalStateException("Failed to send OTP email", e);
         }
     }
 

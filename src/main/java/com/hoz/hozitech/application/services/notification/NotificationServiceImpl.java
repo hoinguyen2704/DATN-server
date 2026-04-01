@@ -20,6 +20,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<NotificationResponse> getMyNotifications(UUID userId, int page, int size) {
         Pageable pageable = PaginationConstant.of(page, size);
         Page<Notification> notifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
@@ -27,6 +28,7 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public long getUnreadCount(UUID userId) {
         return notificationRepository.countByUserIdAndIsReadFalse(userId);
     }

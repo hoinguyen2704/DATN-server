@@ -13,6 +13,7 @@ import com.hoz.hozitech.domain.entities.Feedback;
 import com.hoz.hozitech.domain.entities.Order;
 import com.hoz.hozitech.domain.entities.Product;
 import com.hoz.hozitech.domain.entities.User;
+import com.hoz.hozitech.application.specifications.FeedbackSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -76,18 +77,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Transactional(readOnly = true)
     public PageResponse<FeedbackResponse> getAllFeedbacks(String status, UUID productId, int page, int size) {
         Pageable pageable = PaginationConstant.of(page, size);
-
-        Page<Feedback> feedbacks;
-        if (productId != null && status != null && !status.isBlank()) {
-            feedbacks = feedbackRepository.findByProductIdAndStatus(productId, status.toUpperCase(), pageable);
-        } else if (productId != null) {
-            feedbacks = feedbackRepository.findByProductId(productId, pageable);
-        } else if (status != null && !status.isBlank()) {
-            feedbacks = feedbackRepository.findByStatus(status.toUpperCase(), pageable);
-        } else {
-            feedbacks = feedbackRepository.findAll(pageable);
-        }
-
+        Page<Feedback> feedbacks = feedbackRepository.findAll(FeedbackSpecification.filter(status, productId), pageable);
         return PageResponse.of(feedbacks.map(this::mapToResponse));
     }
 

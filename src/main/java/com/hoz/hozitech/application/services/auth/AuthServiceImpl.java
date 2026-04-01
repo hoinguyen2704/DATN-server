@@ -26,6 +26,7 @@ import com.hoz.hozitech.domain.entities.Role;
 import com.hoz.hozitech.domain.entities.Token;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.enums.RoleType;
+import com.hoz.hozitech.web.exceptions.ResourceNotFoundException;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -69,7 +70,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         Role userRole = roleRepository.findById(RoleType.USER)
-                .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                .orElseThrow(() -> new ResourceNotFoundException("Role", RoleType.USER));
 
         User user = User.builder()
                 .fullName(request.getFullName())
@@ -78,7 +79,7 @@ public class AuthServiceImpl implements AuthService {
                 .phoneNumber(request.getPhoneNumber())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(userRole)
-                .status(StatusConstant.PRODUCT_ACTIVE)
+                .status(StatusConstant.USER_ACTIVE)
                 .authProvider("LOCAL")
                 .build();
 
@@ -241,7 +242,7 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(email).orElse(null);
         if (user == null) {
             Role userRole = roleRepository.findById(RoleType.USER)
-                    .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                    .orElseThrow(() -> new ResourceNotFoundException("Role", RoleType.USER));
 
             user = User.builder()
                     .fullName(name)
@@ -250,7 +251,7 @@ public class AuthServiceImpl implements AuthService {
                     .avatarUrl(avatarUrl)
                     .password(passwordEncoder.encode(java.util.UUID.randomUUID().toString()))
                     .role(userRole)
-                    .status(StatusConstant.PRODUCT_ACTIVE)
+                    .status(StatusConstant.USER_ACTIVE)
                     .authProvider(request.getProvider().toUpperCase())
                     .build();
             user = userRepository.save(user);

@@ -91,6 +91,30 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("Tài khoản hoặc mật khẩu không chính xác"));
     }
 
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResourceNotFound(ResourceNotFoundException ex) {
+        log.warn("Resource not found: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(ExportException.class)
+    public ResponseEntity<ApiResponse<Void>> handleExportException(ExportException ex) {
+        log.error("Export failed: ", ex);
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(ConfigurationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConfigurationException(ConfigurationException ex) {
+        log.error("Configuration error: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("Lỗi cấu hình hệ thống"));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
         log.error("Unexpected error: ", ex);

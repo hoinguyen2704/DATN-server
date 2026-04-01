@@ -16,6 +16,11 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.UUID;
 
+import com.hoz.hozitech.web.exceptions.ConfigurationException;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 public class FileStorageService {
 
@@ -46,7 +51,7 @@ public class FileStorageService {
 
     public String storeProductImage(MultipartFile file) {
         if (s3Client == null) {
-            throw new RuntimeException("AWS S3 is not configured. Please set AWS_ACCESS_KEY, AWS_SECRET_KEY, and AWS_BUCKET_NAME environment variables.");
+            throw new ConfigurationException("AWS S3 is not configured. Please set AWS_ACCESS_KEY, AWS_SECRET_KEY, and AWS_BUCKET_NAME environment variables.");
         }
 
         String originalFilename = file.getOriginalFilename();
@@ -64,7 +69,7 @@ public class FileStorageService {
             s3Client.putObject(new PutObjectRequest(bucketName, key, file.getInputStream(), metadata)
                     .withCannedAcl(CannedAccessControlList.PublicRead));
         } catch (IOException e) {
-            throw new RuntimeException("Failed to upload file to S3: " + key, e);
+            throw new ConfigurationException("Failed to upload file to S3: " + key, e);
         }
 
         return s3Client.getUrl(bucketName, key).toString();
@@ -75,7 +80,7 @@ public class FileStorageService {
      */
     public String uploadFile(MultipartFile file, String folder) {
         if (s3Client == null) {
-            throw new RuntimeException("AWS S3 is not configured.");
+            throw new ConfigurationException("AWS S3 is not configured.");
         }
 
         String originalFilename = file.getOriginalFilename();
@@ -93,7 +98,7 @@ public class FileStorageService {
             s3Client.putObject(new PutObjectRequest(bucketName, key, file.getInputStream(), metadata)
                     .withCannedAcl(CannedAccessControlList.PublicRead));
         } catch (IOException e) {
-            throw new RuntimeException("Failed to upload file to S3: " + key, e);
+            throw new ConfigurationException("Failed to upload file to S3: " + key, e);
         }
 
         return s3Client.getUrl(bucketName, key).toString();
@@ -108,7 +113,7 @@ public class FileStorageService {
             String key = fileUrl.substring(fileUrl.indexOf("products/"));
             s3Client.deleteObject(new DeleteObjectRequest(bucketName, key));
         } catch (Exception e) {
-            System.err.println("Failed to delete file from S3: " + fileUrl + " - " + e.getMessage());
+            log.error("Failed to delete file from S3: {} - {}", fileUrl, e.getMessage());
         }
     }
 }

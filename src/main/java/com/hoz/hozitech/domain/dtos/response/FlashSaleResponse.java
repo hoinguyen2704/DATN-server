@@ -29,6 +29,8 @@ public class FlashSaleResponse {
     @Builder
     public static class FlashSaleItemResponse {
         private String id;
+        private String productId;
+        private String productSlug;
         private String variantId;
         private String productName;
         private String variantName;

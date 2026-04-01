@@ -8,13 +8,21 @@ public final class StatusConstant {
 
     private StatusConstant() {}
 
+    // ─── General Status (shared across entities) ───
+    public static final String ACTIVE = "ACTIVE";
+
     // ─── Product Status ───
     public static final String PRODUCT_ACTIVE = "ACTIVE";
     public static final String PRODUCT_INACTIVE = "INACTIVE";
     public static final String PRODUCT_DRAFT = "DRAFT";
 
+    // ─── User Status ───
+    public static final String USER_ACTIVE = "ACTIVE";
+    public static final String USER_LOCKED = "LOCKED";
+
     // ─── Coupon Status ───
     public static final String COUPON_ACTIVE = "ACTIVE";
+    public static final String COUPON_INACTIVE = "INACTIVE";
     public static final String COUPON_EXPIRED = "EXPIRED";
     public static final String COUPON_PAUSED = "PAUSED";
 
@@ -38,6 +46,7 @@ public final class StatusConstant {
 
     // ─── Ticket Status ───
     public static final String TICKET_OPEN = "OPEN";
+    public static final String TICKET_ANSWERED = "ANSWERED";
     public static final String TICKET_IN_PROGRESS = "IN_PROGRESS";
     public static final String TICKET_RESOLVED = "RESOLVED";
     public static final String TICKET_CLOSED = "CLOSED";

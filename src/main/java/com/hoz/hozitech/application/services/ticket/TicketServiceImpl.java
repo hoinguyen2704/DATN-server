@@ -31,6 +31,7 @@ public class TicketServiceImpl implements TicketService {
     private final UserRepository userRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<TicketResponse> getMyTickets(UUID userId, int page, int size) {
         Pageable pageable = PaginationConstant.of(page, size);
         Page<Ticket> tickets = ticketRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
@@ -68,6 +69,7 @@ public class TicketServiceImpl implements TicketService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public TicketResponse getTicketDetail(UUID userId, UUID ticketId) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
@@ -107,6 +109,7 @@ public class TicketServiceImpl implements TicketService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<TicketResponse> getAllTickets(String status, int page, int size) {
         Pageable pageable = PaginationConstant.of(page, size);
         Page<Ticket> tickets;
@@ -119,6 +122,7 @@ public class TicketServiceImpl implements TicketService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public TicketResponse getTicketByIdAdmin(UUID ticketId) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
@@ -140,7 +144,7 @@ public class TicketServiceImpl implements TicketService {
 
         ticketMessageRepository.save(reply);
 
-        ticket.setStatus("ANSWERED");
+        ticket.setStatus(StatusConstant.TICKET_ANSWERED);
         ticketRepository.save(ticket);
         ticket.getMessages().add(reply);
 

@@ -13,6 +13,7 @@ import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.ProductResponse;
 import com.hoz.hozitech.domain.entities.Product;
 import com.hoz.hozitech.domain.entities.ProductImage;
+import com.hoz.hozitech.web.exceptions.ResourceNotFoundException;
 import com.hoz.hozitech.application.services.export.ExportService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -107,7 +108,7 @@ public class AdminProductController {
             @PathVariable UUID id,
             @RequestParam("files") MultipartFile[] files) {
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Product not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Product", id));
 
         int currentMaxOrder = productImageRepository.findByProductIdAndVariantIsNullOrderBySortOrder(id)
                 .stream().mapToInt(ProductImage::getSortOrder).max().orElse(-1);
@@ -133,7 +134,7 @@ public class AdminProductController {
             @PathVariable UUID productId,
             @PathVariable UUID imageId) {
         ProductImage image = productImageRepository.findById(imageId)
-                .orElseThrow(() -> new RuntimeException("Image not found: " + imageId));
+                .orElseThrow(() -> new ResourceNotFoundException("Image", imageId));
         fileStorageService.deleteFile(image.getImageUrl());
         productImageRepository.delete(image);
         return ResponseEntity.ok(ApiResponse.success("Image deleted successfully"));

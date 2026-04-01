@@ -12,6 +12,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
@@ -57,6 +59,7 @@ public class OrderServiceImpl implements OrderService {
     private final CartRepository cartRepository;
     private final FlashSaleService flashSaleService;
     private final EmailService emailService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${link.frontend:http://localhost:3000}")
     private String frontendUrl;
@@ -118,7 +121,7 @@ public class OrderServiceImpl implements OrderService {
             Coupon coupon = couponRepository.findByCode(request.getCouponCode())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid coupon code"));
 
-            if (!StatusConstant.PRODUCT_ACTIVE.equalsIgnoreCase(coupon.getStatus())) {
+            if (!StatusConstant.COUPON_ACTIVE.equalsIgnoreCase(coupon.getStatus())) {
                 throw new IllegalArgumentException("Coupon is not active");
             }
             if (coupon.getEndDate() != null && coupon.getEndDate().isBefore(LocalDateTime.now())) {
@@ -338,16 +341,17 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
+    @SuppressWarnings("unchecked")
     private String formatShippingAddress(String addressJson) {
         if (addressJson == null || addressJson.isBlank()) return "";
         try {
-            // Simple JSON parsing without Jackson dependency
-            String fullName = extractJsonField(addressJson, "fullName");
-            String phone = extractJsonField(addressJson, "phoneNumber");
-            String detail = extractJsonField(addressJson, "detailAddress");
-            String ward = extractJsonField(addressJson, "ward");
-            String district = extractJsonField(addressJson, "district");
-            String province = extractJsonField(addressJson, "province");
+            var map = objectMapper.readValue(addressJson, java.util.Map.class);
+            String fullName = (String) map.getOrDefault("fullName", "");
+            String phone = (String) map.getOrDefault("phoneNumber", "");
+            String detail = (String) map.getOrDefault("detailAddress", "");
+            String ward = (String) map.getOrDefault("ward", "");
+            String district = (String) map.getOrDefault("district", "");
+            String province = (String) map.getOrDefault("province", "");
 
             StringBuilder sb = new StringBuilder();
             if (!fullName.isEmpty()) sb.append(fullName);
@@ -362,16 +366,6 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    private String extractJsonField(String json, String field) {
-        String pattern = "\"" + field + "\":\"";
-        int start = json.indexOf(pattern);
-        if (start < 0) return "";
-        start += pattern.length();
-        int end = json.indexOf("\"", start);
-        if (end < 0) return "";
-        return json.substring(start, end).replace("\\\"", "\"").replace("\\\\", "\\");
-    }
-
     private String generateOrderNumber() {
         String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String random = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
@@ -379,19 +373,19 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private String snapshotAddress(Address address) {
-        return "{" +
-                "\"fullName\":\"" + escapeJson(address.getFullName()) + "\"," +
-                "\"phoneNumber\":\"" + escapeJson(address.getPhoneNumber()) + "\"," +
-                "\"province\":\"" + escapeJson(address.getProvince()) + "\"," +
-                "\"district\":\"" + escapeJson(address.getDistrict()) + "\"," +
-                "\"ward\":\"" + escapeJson(address.getWard()) + "\"," +
-                "\"detailAddress\":\"" + escapeJson(address.getDetailAddress()) + "\"" +
-                "}";
-    }
-
-    private String escapeJson(String value) {
-        if (value == null) return "";
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
+        try {
+            var map = new java.util.LinkedHashMap<String, String>();
+            map.put("fullName", address.getFullName());
+            map.put("phoneNumber", address.getPhoneNumber());
+            map.put("province", address.getProvince());
+            map.put("district", address.getDistrict());
+            map.put("ward", address.getWard());
+            map.put("detailAddress", address.getDetailAddress());
+            return objectMapper.writeValueAsString(map);
+        } catch (Exception e) {
+            log.error("Failed to serialize address", e);
+            return "{}";
+        }
     }
 
     // --- Email helpers ---

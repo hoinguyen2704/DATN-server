@@ -126,10 +126,10 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("Cannot lock an admin account");
         }
 
-        if (StatusConstant.PRODUCT_ACTIVE.equalsIgnoreCase(user.getStatus())) {
-            user.setStatus("LOCKED");
+        if (StatusConstant.USER_ACTIVE.equalsIgnoreCase(user.getStatus())) {
+            user.setStatus(StatusConstant.USER_LOCKED);
         } else {
-            user.setStatus(StatusConstant.PRODUCT_ACTIVE);
+            user.setStatus(StatusConstant.USER_ACTIVE);
         }
         return mapToResponse(userRepository.save(user));
     }

@@ -28,6 +28,7 @@ public class CartServiceImpl implements CartService {
     private final UserRepository userRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public List<CartResponse> getCartByUser(UUID userId) {
         return cartRepository.findByUserId(userId).stream()
                 .map(this::mapToResponse)
@@ -111,6 +112,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public long getCartCount(UUID userId) {
         return cartRepository.countByUserId(userId);
     }

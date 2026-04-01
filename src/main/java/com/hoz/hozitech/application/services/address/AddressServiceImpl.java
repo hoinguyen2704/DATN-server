@@ -22,6 +22,7 @@ public class AddressServiceImpl implements AddressService {
     private final UserService userService;
 
     @Override
+    @Transactional(readOnly = true)
     public List<AddressResponse> getUserAddresses() {
         User user = userService.getCurrentUserEntity();
         List<Address> addresses = addressRepository.findByUserIdOrderByIsDefaultDesc(user.getId());

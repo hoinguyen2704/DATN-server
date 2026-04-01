@@ -12,6 +12,7 @@ import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.entities.FlashSale;
 import com.hoz.hozitech.domain.entities.FlashSaleItem;
 import com.hoz.hozitech.domain.entities.ProductVariant;
+import com.hoz.hozitech.web.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
@@ -46,7 +47,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         if (request.getItems() != null) {
             for (FlashSaleRequest.FlashSaleItemRequest itemReq : request.getItems()) {
                 ProductVariant variant = productVariantRepository.findById(itemReq.getVariantId())
-                        .orElseThrow(() -> new RuntimeException("Variant not found: " + itemReq.getVariantId()));
+                        .orElseThrow(() -> new ResourceNotFoundException("Variant", itemReq.getVariantId()));
 
                 FlashSaleItem item = FlashSaleItem.builder()
                         .flashSale(flashSale)
@@ -67,7 +68,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Transactional
     public FlashSaleResponse updateFlashSale(UUID id, FlashSaleRequest request) {
         FlashSale flashSale = flashSaleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Flash sale not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Flash sale", id));
 
         flashSale.setName(request.getName());
         flashSale.setDescription(request.getDescription());
@@ -79,7 +80,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         if (request.getItems() != null) {
             for (FlashSaleRequest.FlashSaleItemRequest itemReq : request.getItems()) {
                 ProductVariant variant = productVariantRepository.findById(itemReq.getVariantId())
-                        .orElseThrow(() -> new RuntimeException("Variant not found: " + itemReq.getVariantId()));
+                        .orElseThrow(() -> new ResourceNotFoundException("Variant", itemReq.getVariantId()));
 
                 FlashSaleItem item = FlashSaleItem.builder()
                         .flashSale(flashSale)
@@ -106,7 +107,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Transactional(readOnly = true)
     public FlashSaleResponse getFlashSaleById(UUID id) {
         FlashSale flashSale = flashSaleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Flash sale not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Flash sale", id));
         return toResponse(flashSale);
     }
 
@@ -147,6 +148,8 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     private FlashSaleResponse toResponse(FlashSale fs) {
         List<FlashSaleItemResponse> itemResponses = fs.getItems().stream().map(item -> {
             ProductVariant v = item.getVariant();
+            String productId = v.getProduct() != null ? v.getProduct().getId().toString() : "";
+            String productSlug = v.getProduct() != null ? v.getProduct().getSlug() : "";
             String productName = v.getProduct() != null ? v.getProduct().getName() : "";
             String imageUrl = "";
             if (v.getProduct() != null && v.getProduct().getImages() != null && !v.getProduct().getImages().isEmpty()) {
@@ -159,6 +162,8 @@ public class FlashSaleServiceImpl implements FlashSaleService {
 
             return FlashSaleItemResponse.builder()
                     .id(item.getId().toString())
+                    .productId(productId)
+                    .productSlug(productSlug)
                     .variantId(v.getId().toString())
                     .productName(productName)
                     .variantName(v.getVariantName())
