@@ -162,7 +162,7 @@ public class TicketServiceImpl implements TicketService {
     }
 
     private String generateTicketNumber() {
-        return "TKT" + System.currentTimeMillis() + (int) (Math.random() * 100);
+        return "TKT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
     private TicketResponse mapToResponse(Ticket ticket) {

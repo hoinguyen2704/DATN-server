@@ -59,7 +59,7 @@ public class OrderServiceImpl implements OrderService {
     private final CartRepository cartRepository;
     private final FlashSaleService flashSaleService;
     private final EmailService emailService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     @Value("${link.frontend:http://localhost:3000}")
     private String frontendUrl;
