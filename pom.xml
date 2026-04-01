@@ -101,6 +101,12 @@
             <scope>runtime</scope>
         </dependency>
         
+        <!-- Jackson Extensions -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+        
         <!-- Google API Client for Social Login Token Verification -->
         <dependency>
             <groupId>com.google.api-client</groupId>

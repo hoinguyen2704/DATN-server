@@ -180,6 +180,7 @@ public class CouponServiceImpl implements CouponService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         Coupon coupon = couponRepository.findById(couponId)
                 .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+        validateCouponSavable(coupon);
 
         UserSavedCoupon saved = UserSavedCoupon.builder()
                 .user(user)
@@ -215,18 +216,7 @@ public class CouponServiceImpl implements CouponService {
         Coupon coupon = couponRepository.findByCode(code.toUpperCase())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid coupon code"));
 
-        if (!StatusConstant.COUPON_ACTIVE.equalsIgnoreCase(coupon.getStatus())) {
-            throw new IllegalArgumentException("Coupon is not active");
-        }
-        if (coupon.getEndDate() != null && coupon.getEndDate().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Coupon has expired");
-        }
-        if (coupon.getStartDate() != null && coupon.getStartDate().isAfter(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Coupon is not valid yet");
-        }
-        if (coupon.getUsageLimit() != null && coupon.getUsedCount() >= coupon.getUsageLimit()) {
-            throw new IllegalArgumentException("Coupon usage limit exceeded");
-        }
+        validateCouponAvailability(coupon);
         if (coupon.getMinOrderValue() != null && orderAmount.compareTo(coupon.getMinOrderValue()) < 0) {
             throw new IllegalArgumentException("Order does not meet minimum value for coupon. Minimum is: " + coupon.getMinOrderValue());
         }
@@ -237,6 +227,29 @@ public class CouponServiceImpl implements CouponService {
     // ═══════════════════════════════════════════════════════════════
     // PRIVATE HELPERS
     // ═══════════════════════════════════════════════════════════════
+
+    private void validateCouponAvailability(Coupon coupon) {
+        LocalDateTime now = LocalDateTime.now();
+        if (!StatusConstant.COUPON_ACTIVE.equalsIgnoreCase(coupon.getStatus())) {
+            throw new IllegalArgumentException("Coupon is not active");
+        }
+        if (coupon.getEndDate() != null && coupon.getEndDate().isBefore(now)) {
+            throw new IllegalArgumentException("Coupon has expired");
+        }
+        if (coupon.getStartDate() != null && coupon.getStartDate().isAfter(now)) {
+            throw new IllegalArgumentException("Coupon is not valid yet");
+        }
+        if (coupon.getUsageLimit() != null && coupon.getUsedCount() >= coupon.getUsageLimit()) {
+            throw new IllegalArgumentException("Coupon usage limit exceeded");
+        }
+    }
+
+    private void validateCouponSavable(Coupon coupon) {
+        validateCouponAvailability(coupon);
+        if (!Boolean.TRUE.equals(coupon.getIsPublic())) {
+            throw new IllegalArgumentException("Coupon is not public and cannot be saved");
+        }
+    }
 
     private void applyProductScope(Coupon coupon, CouponRequest request) {
         if (StatusConstant.COUPON_APPLY_SPECIFIC.equalsIgnoreCase(request.getApplyType())
