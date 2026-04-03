@@ -48,6 +48,8 @@ public class OrderResponse {
         private UUID productId;
         private String productName;
         private String variantName;
+        private String imageUrl;
+        private String sku;
         private BigDecimal unitPrice;
         private Integer quantity;
         private BigDecimal subtotal;

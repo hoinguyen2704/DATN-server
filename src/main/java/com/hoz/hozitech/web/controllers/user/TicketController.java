@@ -3,7 +3,7 @@ package com.hoz.hozitech.web.controllers.user;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.ticket.TicketService;
 import com.hoz.hozitech.web.base.RestAPI;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.hoz.hozitech.web.base.Authenticated;
 import com.hoz.hozitech.security.CustomUserDetails;
 import com.hoz.hozitech.domain.dtos.request.TicketMessageRequest;
 import com.hoz.hozitech.domain.dtos.request.TicketRequest;
@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestAPI("${api.prefix-client}/tickets")
-@PreAuthorize("isAuthenticated()")
+@Authenticated
 @RequiredArgsConstructor
 public class TicketController {
 

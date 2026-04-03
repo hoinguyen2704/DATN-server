@@ -7,7 +7,7 @@ import com.hoz.hozitech.security.CustomUserDetails;
 import com.hoz.hozitech.web.base.RestAPI;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.hoz.hozitech.web.base.Authenticated;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestAPI("${api.prefix-client}/my-coupons")
-@PreAuthorize("isAuthenticated()")
+@Authenticated
 @RequiredArgsConstructor
 public class UserCouponController {
 

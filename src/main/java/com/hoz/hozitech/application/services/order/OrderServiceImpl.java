@@ -37,6 +37,7 @@ import com.hoz.hozitech.domain.entities.Address;
 import com.hoz.hozitech.domain.entities.Coupon;
 import com.hoz.hozitech.domain.entities.Order;
 import com.hoz.hozitech.domain.entities.OrderItem;
+import com.hoz.hozitech.domain.entities.ProductImage;
 import com.hoz.hozitech.domain.entities.ProductVariant;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.enums.OrderStatus;
@@ -297,7 +298,29 @@ public class OrderServiceImpl implements OrderService {
 
     private OrderResponse mapToResponse(Order order) {
         List<OrderResponse.OrderItemResponse> items = order.getOrderItems().stream()
-                .map(item -> OrderResponse.OrderItemResponse.builder()
+                .map(item -> {
+                    String imageUrl = null;
+                    String sku = null;
+                    if (item.getVariant() != null) {
+                        sku = item.getVariant().getSku();
+                        // Try variant-specific image first, then product primary image
+                        if (item.getVariant().getImages() != null && !item.getVariant().getImages().isEmpty()) {
+                            imageUrl = item.getVariant().getImages().stream()
+                                    .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
+                                    .findFirst()
+                                    .map(ProductImage::getImageUrl)
+                                    .orElse(item.getVariant().getImages().get(0).getImageUrl());
+                        } else if (item.getVariant().getProduct() != null
+                                && item.getVariant().getProduct().getImages() != null
+                                && !item.getVariant().getProduct().getImages().isEmpty()) {
+                            imageUrl = item.getVariant().getProduct().getImages().stream()
+                                    .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
+                                    .findFirst()
+                                    .map(ProductImage::getImageUrl)
+                                    .orElse(item.getVariant().getProduct().getImages().get(0).getImageUrl());
+                        }
+                    }
+                    return OrderResponse.OrderItemResponse.builder()
                         .id(item.getId())
                         .variantId(item.getVariant() != null ? item.getVariant().getId() : null)
                         .productId(item.getVariant() != null && item.getVariant().getProduct() != null
@@ -305,10 +328,13 @@ public class OrderServiceImpl implements OrderService {
                                 : null)
                         .productName(item.getProductName())
                         .variantName(item.getVariantName())
+                        .imageUrl(imageUrl)
+                        .sku(sku)
                         .unitPrice(item.getUnitPrice())
                         .quantity(item.getQuantity())
                         .subtotal(item.getSubtotal())
-                        .build())
+                        .build();
+                })
                 .collect(Collectors.toList());
 
         // Extract customer info from user

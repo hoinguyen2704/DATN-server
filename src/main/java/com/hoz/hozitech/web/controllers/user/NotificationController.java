@@ -3,7 +3,7 @@ package com.hoz.hozitech.web.controllers.user;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.notification.NotificationService;
 import com.hoz.hozitech.web.base.RestAPI;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.hoz.hozitech.web.base.Authenticated;
 import com.hoz.hozitech.security.CustomUserDetails;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.NotificationResponse;
@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestAPI("${api.prefix-client}/notifications")
-@PreAuthorize("isAuthenticated()")
+@Authenticated
 @RequiredArgsConstructor
 public class NotificationController {
 

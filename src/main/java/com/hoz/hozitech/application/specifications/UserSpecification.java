@@ -54,12 +54,8 @@ public class UserSpecification {
             }
 
             if (keyword != null && !keyword.isBlank()) {
-                String pattern = "%" + keyword.toLowerCase() + "%";
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get(User_.fullName)), pattern),
-                        cb.like(cb.lower(root.get(User_.userName)), pattern),
-                        cb.like(cb.lower(root.get(User_.email)), pattern),
-                        cb.like(root.get(User_.phoneNumber), pattern)));
+                Specification<User> keywordSpec = hasFullNameOrEmail(keyword);
+                predicates.add(keywordSpec.toPredicate(root, query, cb));
             }
 
             if (roleType != null) {

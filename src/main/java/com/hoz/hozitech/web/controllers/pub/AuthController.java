@@ -9,7 +9,7 @@ import com.hoz.hozitech.domain.dtos.response.AuthResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.hoz.hozitech.web.base.Authenticated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -68,7 +68,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    @PreAuthorize("isAuthenticated()")
+    @Authenticated
     public ResponseEntity<ApiResponse<Void>> logout(
             @org.springframework.security.core.annotation.AuthenticationPrincipal
             com.hoz.hozitech.security.CustomUserDetails userDetails) {

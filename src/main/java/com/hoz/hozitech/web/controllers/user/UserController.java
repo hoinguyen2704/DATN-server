@@ -2,7 +2,7 @@ package com.hoz.hozitech.web.controllers.user;
 
 import com.hoz.hozitech.application.services.user.UserService;
 import com.hoz.hozitech.web.base.RestAPI;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.hoz.hozitech.web.base.Authenticated;
 import com.hoz.hozitech.domain.dtos.request.ChangePasswordRequest;
 import com.hoz.hozitech.domain.dtos.request.UpdateUserRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestAPI("${api.prefix-client}/users")
-@PreAuthorize("isAuthenticated()")
+@Authenticated
 @RequiredArgsConstructor
 public class UserController {
 
