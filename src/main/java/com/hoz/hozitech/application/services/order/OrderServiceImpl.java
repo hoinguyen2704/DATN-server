@@ -40,6 +40,9 @@ import com.hoz.hozitech.domain.entities.OrderItem;
 import com.hoz.hozitech.domain.entities.ProductImage;
 import com.hoz.hozitech.domain.entities.ProductVariant;
 import com.hoz.hozitech.domain.entities.User;
+import com.hoz.hozitech.domain.entities.OrderStatusHistory;
+import com.hoz.hozitech.domain.dtos.response.OrderStatusHistoryResponse;
+import com.hoz.hozitech.application.repositories.OrderStatusHistoryRepository;
 import com.hoz.hozitech.domain.enums.OrderStatus;
 import com.hoz.hozitech.domain.enums.PaymentMethod;
 import com.hoz.hozitech.domain.enums.PaymentStatus;
@@ -61,6 +64,7 @@ public class OrderServiceImpl implements OrderService {
     private final FlashSaleService flashSaleService;
     private final EmailService emailService;
     private final ObjectMapper objectMapper;
+    private final OrderStatusHistoryRepository orderStatusHistoryRepository;
 
     @Value("${link.frontend:http://localhost:3000}")
     private String frontendUrl;
@@ -178,6 +182,14 @@ public class OrderServiceImpl implements OrderService {
 
         Order savedOrder = orderRepository.save(order);
 
+        // Log history
+        OrderStatusHistory history = OrderStatusHistory.builder()
+                .order(savedOrder)
+                .status(OrderStatus.PENDING)
+                .description("Đơn hàng mới đã được tạo")
+                .build();
+        orderStatusHistoryRepository.save(history);
+
         // Clear cart items after successful checkout
         cartRepository.deleteAllByUserId(userId);
 
@@ -253,7 +265,17 @@ public class OrderServiceImpl implements OrderService {
             variantRepository.save(variant);
         }
 
-        return mapToResponse(orderRepository.save(order));
+        Order savedOrder = orderRepository.save(order);
+
+        // Log history
+        OrderStatusHistory history = OrderStatusHistory.builder()
+                .order(savedOrder)
+                .status(OrderStatus.CANCELLED)
+                .description("Người dùng đã huỷ đơn hàng")
+                .build();
+        orderStatusHistoryRepository.save(history);
+
+        return mapToResponse(savedOrder);
     }
 
     @Override
@@ -285,6 +307,14 @@ public class OrderServiceImpl implements OrderService {
         }
 
         Order updatedOrder = orderRepository.save(order);
+
+        // Log history
+        OrderStatusHistory history = OrderStatusHistory.builder()
+                .order(updatedOrder)
+                .status(newStatus)
+                .description(getDefaultDescriptionForStatus(newStatus))
+                .build();
+        orderStatusHistoryRepository.save(history);
 
         // Send shipped email notification
         if (newStatus == OrderStatus.SHIPPED) {
@@ -343,6 +373,16 @@ public class OrderServiceImpl implements OrderService {
         String customerEmail = user != null ? user.getEmail() : null;
         String customerPhone = user != null ? user.getPhoneNumber() : null;
 
+        // Map status histories
+        List<OrderStatusHistoryResponse> historyResponses = order.getStatusHistories().stream()
+                .map(history -> OrderStatusHistoryResponse.builder()
+                        .id(history.getId())
+                        .status(history.getStatus().name())
+                        .description(history.getDescription())
+                        .createdAt(history.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+
         // Format shipping address from JSON to readable string
         String formattedAddress = formatShippingAddress(order.getShippingAddressJson());
 
@@ -359,12 +399,14 @@ public class OrderServiceImpl implements OrderService {
                 .couponCode(order.getCouponCode())
                 .note(order.getNote())
                 .shippingAddress(formattedAddress)
+                .trackingCode(order.getTrackingCode())
                 .customerName(customerName)
                 .customerEmail(customerEmail)
                 .customerPhone(customerPhone)
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
                 .items(items)
+                .statusHistories(historyResponses)
                 .build();
     }
 
@@ -431,14 +473,16 @@ public class OrderServiceImpl implements OrderService {
             variables.put("CUSTOMER_FULL_NAME", address.getFullName());
             variables.put("CUSTOMER_PHONE", address.getPhoneNumber());
             variables.put("CUSTOMER_ADDRESS", buildFullAddress(address));
-            variables.put("ORDER_ITEMS", order.getOrderItems());
+            
+            OrderResponse response = mapToResponse(order);
+            variables.put("ORDER_ITEMS", response.getItems());
             variables.put("ORDER_SUBTOTAL", formatPrice(order.getSubtotal()));
             variables.put("ORDER_DISCOUNT_AMOUNT",
                     order.getDiscountAmount() != null && order.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0
                             ? formatPrice(order.getDiscountAmount()) : null);
             variables.put("ORDER_COUPON_CODE", order.getCouponCode());
             variables.put("ORDER_TOTAL", formatPrice(order.getTotalAmount()));
-            variables.put("ORDER_LINK", frontendUrl + "/order/detail/" + order.getOrderNumber());
+            variables.put("ORDER_LINK", frontendUrl + "/user/orders/" + order.getOrderNumber());
 
             emailService.sendTemplateMail(customerEmail,
                     "Đơn hàng " + order.getOrderNumber() + " đã tạo thành công - HoziTech",
@@ -458,14 +502,16 @@ public class OrderServiceImpl implements OrderService {
             variables.put("CUSTOMER_NAME", user.getFullName());
             variables.put("ORDER_NUMBER", order.getOrderNumber());
             variables.put("SHIPPED_DATE", LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
-            variables.put("ORDER_ITEMS", order.getOrderItems());
+            
+            OrderResponse response = mapToResponse(order);
+            variables.put("ORDER_ITEMS", response.getItems());
             variables.put("ORDER_SUBTOTAL", formatPrice(order.getSubtotal()));
             variables.put("ORDER_DISCOUNT_AMOUNT",
                     order.getDiscountAmount() != null && order.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0
                             ? formatPrice(order.getDiscountAmount()) : null);
             variables.put("ORDER_COUPON_CODE", order.getCouponCode());
             variables.put("ORDER_TOTAL", formatPrice(order.getTotalAmount()));
-            variables.put("ORDER_LINK", frontendUrl + "/order/detail/" + order.getOrderNumber());
+            variables.put("ORDER_LINK", frontendUrl + "/user/orders/" + order.getOrderNumber());
 
             emailService.sendTemplateMail(customerEmail,
                     "Đơn hàng " + order.getOrderNumber() + " đã giao thành công - HoziTech",
@@ -487,5 +533,18 @@ public class OrderServiceImpl implements OrderService {
     private String formatPrice(BigDecimal price) {
         if (price == null) return "0";
         return String.format("%,.0f", price);
+    }
+    
+    private String getDefaultDescriptionForStatus(OrderStatus status) {
+        switch (status) {
+            case PENDING: return "Đơn hàng đang chờ xác nhận";
+            case CONFIRMED: return "Người gửi đang chuẩn bị hàng";
+            case PROCESSING: return "Đơn hàng đang được đóng gói";
+            case SHIPPING: return "Đơn hàng đã được giao cho đơn vị vận chuyển";
+            case SHIPPED: return "Đơn hàng đang trên đường giao đến bạn";
+            case CANCELLED: return "Đơn hàng đã bị huỷ";
+            case RETURNED: return "Đơn hàng đã được hoàn trả";
+            default: return "Cập nhật trạng thái đơn hàng";
+        }
     }
 }

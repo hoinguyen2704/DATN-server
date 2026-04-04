@@ -11,7 +11,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
-
+import org.springframework.core.io.ClassPathResource;
 import java.util.Map;
 
 @Service
@@ -37,11 +37,13 @@ public class EmailServiceImpl implements EmailService {
             String process = templateEngine.process("otp-email", context);
             
             MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "utf-8");
             
             helper.setTo(to);
             helper.setSubject("Mã xác thực Đặt Lại Mật Khẩu - HoziTech");
             helper.setText(process, true);
+            
+            helper.addInline("logo", new ClassPathResource("static/logo.svg"));
             
             if (fromEmail != null && !fromEmail.isBlank()) {
                 helper.setFrom(fromEmail);
@@ -69,11 +71,13 @@ public class EmailServiceImpl implements EmailService {
             String content = templateEngine.process(templateName, context);
 
             MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "utf-8");
 
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(content, true);
+            
+            helper.addInline("logo", new ClassPathResource("static/logo.svg"));
 
             if (fromEmail != null && !fromEmail.isBlank()) {
                 helper.setFrom(fromEmail);

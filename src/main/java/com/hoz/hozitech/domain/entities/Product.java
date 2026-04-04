@@ -78,4 +78,7 @@ public class Product extends AbstractAuditingEntity {
 
     @Formula("(SELECT COALESCE(SUM(v.stock_quantity), 0) FROM product_variants v WHERE v.product_id = id)")
     private Integer totalStock;
+
+    @Formula("(SELECT COALESCE(AVG(f.rating), 0) FROM feedbacks f WHERE f.product_id = id)")
+    private Double averageRating;
 }

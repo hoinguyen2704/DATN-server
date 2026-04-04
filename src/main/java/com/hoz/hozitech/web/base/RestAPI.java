@@ -11,16 +11,7 @@ import java.lang.annotation.Target;
 
 /**
  * Gộp @RestController + @RequestMapping thành 1 annotation duy nhất.
- *
- * <p>Thay vì viết:
- * <pre>
- *   @RestController
- *   @RequestMapping("${api.prefix-admin}/brands")
- * </pre>
- * Chỉ cần viết:
- * <pre>
- *   @RestAPI("${api.prefix-admin}/brands")
- * </pre>
+ *   @RestAPI("${api.prefix-admin}/...")
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)

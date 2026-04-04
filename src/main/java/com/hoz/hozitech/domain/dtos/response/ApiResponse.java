@@ -9,7 +9,6 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-// @Schema(description = "Standard API response wrapper")
 public class ApiResponse<T> {
     // @Schema(description = "Indicates if the request was successful")
     private boolean success;

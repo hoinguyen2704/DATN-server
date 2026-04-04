@@ -29,6 +29,9 @@ public class Order extends AbstractAuditingEntity {
     @Column(name = "order_number", nullable = false, unique = true, length = 30)
     private String orderNumber;
 
+    @Column(name = "tracking_code", length = 50)
+    private String trackingCode;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "shipping_address_json", columnDefinition = "jsonb")
     private String shippingAddressJson;
@@ -74,4 +77,9 @@ public class Order extends AbstractAuditingEntity {
     @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> orderItems = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("createdAt DESC")
+    private List<OrderStatusHistory> statusHistories = new ArrayList<>();
 }

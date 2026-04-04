@@ -17,6 +17,7 @@ import java.util.UUID;
 public class OrderResponse {
     private UUID id;
     private String orderNumber;
+    private String trackingCode;
     private String orderStatus;
     private String paymentMethod;
     private String paymentStatus;
@@ -37,6 +38,7 @@ public class OrderResponse {
     private String customerPhone;
 
     private List<OrderItemResponse> items;
+    private List<OrderStatusHistoryResponse> statusHistories;
 
     @Data
     @Builder

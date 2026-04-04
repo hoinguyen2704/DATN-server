@@ -195,38 +195,70 @@ public class ProductServiceImpl implements ProductService {
         if (request.getStatus() != null) product.setStatus(request.getStatus());
         if (request.getIsFeatured() != null) product.setIsFeatured(request.getIsFeatured());
 
-        // Images are managed via separate upload/delete endpoints — DO NOT clear here
-        // Only clear and re-create variants
-        product.getVariants().clear();
-        entityManager.flush();
-
+        // Do NOT clear variants completely, this breaks historical order_items foreign keys!
+        // Instead, merge variants based on SKU.
         if (request.getVariants() != null) {
-            for (ProductVariantRequest varReq : request.getVariants()) {
-                ProductVariant variant = ProductVariant.builder()
-                        .sku(varReq.getSku())
-                        .variantName(varReq.getVariantName())
-                        .price(varReq.getPrice())
-                        .compareAtPrice(varReq.getCompareAtPrice())
-                        .stock(varReq.getStock() != null ? varReq.getStock() : 0)
-                        .active(varReq.getActive() != null ? varReq.getActive() : true)
-                        .product(product)
-                        .images(new ArrayList<>())
-                        .build();
+            Map<String, ProductVariant> existingVariantsMap = product.getVariants().stream()
+                    .collect(Collectors.toMap(ProductVariant::getSku, v -> v, (v1, v2) -> v1)); // handle duplicate skus
 
-                if (varReq.getImages() != null) {
-                    for (ProductImageRequest vImgReq : varReq.getImages()) {
-                        ProductImage vImg = ProductImage.builder()
-                                .imageUrl(vImgReq.getImageUrl())
-                                .isPrimary(vImgReq.getIsPrimary() != null ? vImgReq.getIsPrimary() : false)
-                                .variant(variant)
-                                .build();
-                        variant.getImages().add(vImg);
+            for (ProductVariantRequest varReq : request.getVariants()) {
+                ProductVariant variant = existingVariantsMap.get(varReq.getSku());
+
+                if (variant != null) {
+                    // 1. Update existing variant gracefully
+                    variant.setVariantName(varReq.getVariantName());
+                    variant.setPrice(varReq.getPrice());
+                    variant.setCompareAtPrice(varReq.getCompareAtPrice());
+                    variant.setStock(varReq.getStock() != null ? varReq.getStock() : 0);
+                    variant.setActive(varReq.getActive() != null ? varReq.getActive() : true);
+                    
+                    variant.getImages().clear(); // Safe to replace images as they have no incoming foreign keys
+                    if (varReq.getImages() != null) {
+                        for (ProductImageRequest vImgReq : varReq.getImages()) {
+                            ProductImage vImg = ProductImage.builder()
+                                    .imageUrl(vImgReq.getImageUrl())
+                                    .isPrimary(vImgReq.getIsPrimary() != null ? vImgReq.getIsPrimary() : false)
+                                    .variant(variant)
+                                    .build();
+                            variant.getImages().add(vImg);
+                        }
                     }
+                    existingVariantsMap.remove(varReq.getSku()); // Mark as processed
+                } else {
+                    // 2. Create entirely new variant
+                    ProductVariant newVariant = ProductVariant.builder()
+                            .sku(varReq.getSku())
+                            .variantName(varReq.getVariantName())
+                            .price(varReq.getPrice())
+                            .compareAtPrice(varReq.getCompareAtPrice())
+                            .stock(varReq.getStock() != null ? varReq.getStock() : 0)
+                            .active(varReq.getActive() != null ? varReq.getActive() : true)
+                            .product(product)
+                            .images(new ArrayList<>())
+                            .build();
+
+                    if (varReq.getImages() != null) {
+                        for (ProductImageRequest vImgReq : varReq.getImages()) {
+                            ProductImage vImg = ProductImage.builder()
+                                    .imageUrl(vImgReq.getImageUrl())
+                                    .isPrimary(vImgReq.getIsPrimary() != null ? vImgReq.getIsPrimary() : false)
+                                    .variant(newVariant)
+                                    .build();
+                            newVariant.getImages().add(vImg);
+                        }
+                    }
+                    product.getVariants().add(newVariant);
                 }
-                product.getVariants().add(variant);
+            }
+
+            // 3. For any variant that remains in the map, it means the Admin removed it from the UI.
+            // We MUST NOT delete it from product.getVariants() to prevent ForeignKey violations on old Orders.
+            // Soft-deactivate it instead.
+            for (ProductVariant removedVariant : existingVariantsMap.values()) {
+                removedVariant.setActive(false);
+                removedVariant.setStock(0);
             }
         }
-
         return mapToDetailedResponse(productRepository.save(product));
     }
 
@@ -235,6 +267,16 @@ public class ProductServiceImpl implements ProductService {
     public void deleteProduct(UUID id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+
+        // Critical Check: Prevent deletion if product is tied to historical orders
+        Number orderItemCount = (Number) entityManager.createNativeQuery(
+                "SELECT COUNT(*) FROM order_items WHERE variant_id IN (SELECT id FROM product_variants WHERE product_id = :pid)")
+                .setParameter("pid", id)
+                .getSingleResult();
+
+        if (orderItemCount.longValue() > 0) {
+            throw new IllegalArgumentException("Sản phẩm này đã phát sinh đơn hàng, không thể xoá cứng. Vui lòng chuyển trạng thái thành Bản Nháp hoặc Đã Ẩn!");
+        }
 
         // Preemptively wipe carts containing any variants of this product to bypass strict postgres FK restrictions
         entityManager.createNativeQuery("DELETE FROM carts WHERE variant_id IN (SELECT id FROM product_variants WHERE product_id = :pid)")
