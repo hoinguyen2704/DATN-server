@@ -25,6 +25,8 @@ public interface FeedbackRepository extends JpaRepository<Feedback, UUID>, JpaSp
     Page<Feedback> findByStatus(String status, Pageable pageable);
 
     boolean existsByUserIdAndProductIdAndOrderId(UUID userId, UUID productId, UUID orderId);
+    
+    List<Feedback> findAllByUserIdAndProductIdAndVariantIdAndOrderIdOrderByCreatedAtAsc(UUID userId, UUID productId, UUID variantId, UUID orderId);
 
     boolean existsByUserIdAndProductId(UUID userId, UUID productId);
 

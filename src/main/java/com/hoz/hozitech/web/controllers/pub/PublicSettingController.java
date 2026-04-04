@@ -1,0 +1,70 @@
+package com.hoz.hozitech.web.controllers.pub;
+
+import com.hoz.hozitech.application.services.setting.SettingService;
+import com.hoz.hozitech.domain.dtos.response.ApiResponse;
+import com.hoz.hozitech.web.base.RestAPI;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+@RestAPI("${api.prefix-client}/settings")
+@RequiredArgsConstructor
+public class PublicSettingController {
+
+    private final SettingService settingService;
+
+    /** Thông tin cửa hàng — dùng cho header, footer, trang liên hệ */
+    @GetMapping("/shop")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getShopInfo() {
+        Map<String, String> shop = new LinkedHashMap<>();
+        shop.put("shopName", val("SHOP_NAME"));
+        shop.put("shopEmail", val("SHOP_EMAIL"));
+        shop.put("supportEmail", val("SUPPORT_EMAIL"));
+        shop.put("hotline", val("HOTLINE"));
+        shop.put("address", val("SHOP_ADDRESS"));
+        shop.put("currency", val("CURRENCY"));
+        return ResponseEntity.ok(ApiResponse.success("Shop info", shop));
+    }
+
+    /** Danh sách payment methods đang bật — dùng cho Checkout */
+    @GetMapping("/payment-methods")
+    public ResponseEntity<ApiResponse<java.util.List<Map<String, Object>>>> getPaymentMethods() {
+        var methods = new java.util.ArrayList<Map<String, Object>>();
+
+        addIfEnabled(methods, "COD", "Thanh toán khi nhận hàng", "COD_ENABLED");
+        addIfEnabled(methods, "VNPAY", "VNPay", "VNPAY_ENABLED");
+        addIfEnabled(methods, "MOMO", "MoMo", "MOMO_ENABLED");
+        addIfEnabled(methods, "BANK_TRANSFER", "Chuyển khoản ngân hàng", "BANK_TRANSFER_ENABLED");
+
+        return ResponseEntity.ok(ApiResponse.success("Payment methods", methods));
+    }
+
+    /** Cấu hình vận chuyển — dùng cho Checkout tính phí ship */
+    @GetMapping("/shipping")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getShippingConfig() {
+        Map<String, Object> config = new LinkedHashMap<>();
+        config.put("defaultShippingFee", settingService.getSettingNumber("DEFAULT_SHIPPING_FEE"));
+        config.put("freeShippingThreshold", settingService.getSettingNumber("FREE_SHIPPING_THRESHOLD"));
+        return ResponseEntity.ok(ApiResponse.success("Shipping config", config));
+    }
+
+    // ─── Helpers ─────────────────────────────────────────────────
+
+    private String val(String key) {
+        String v = settingService.getSettingValue(key);
+        return v != null ? v : "";
+    }
+
+    private void addIfEnabled(java.util.List<Map<String, Object>> list,
+                              String id, String label, String enabledKey) {
+        boolean enabled = settingService.getSettingBoolean(enabledKey);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", id);
+        m.put("label", label);
+        m.put("enabled", enabled);
+        list.add(m);
+    }
+}

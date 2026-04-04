@@ -19,9 +19,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.beans.factory.annotation.Value;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -33,6 +34,9 @@ public class CouponServiceImpl implements CouponService {
     private final ProductRepository productRepository;
     private final UserSavedCouponRepository userSavedCouponRepository;
     private final UserRepository userRepository;
+
+    @Value("${app.timezone:Asia/Ho_Chi_Minh}")
+    private String appTimezone;
 
     // ═══════════════════════════════════════════════════════════════
     // ADMIN
@@ -138,7 +142,7 @@ public class CouponServiceImpl implements CouponService {
     @Override
     @Transactional(readOnly = true)
     public List<CouponResponse> getPublicCoupons(UUID userId) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of(appTimezone));
 
         // Fetch public + active vouchers (with or without end date)
         List<Coupon> withEndDate = couponRepository.findByIsPublicTrueAndStatusAndEndDateAfter(StatusConstant.COUPON_ACTIVE, now);
@@ -229,7 +233,7 @@ public class CouponServiceImpl implements CouponService {
     // ═══════════════════════════════════════════════════════════════
 
     private void validateCouponAvailability(Coupon coupon) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of(appTimezone));
         if (!StatusConstant.COUPON_ACTIVE.equalsIgnoreCase(coupon.getStatus())) {
             throw new IllegalArgumentException("Coupon is not active");
         }

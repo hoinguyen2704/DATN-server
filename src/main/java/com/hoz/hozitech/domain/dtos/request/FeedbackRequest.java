@@ -19,6 +19,8 @@ public class FeedbackRequest {
     @NotNull(message = "Product ID is required")
     private UUID productId;
 
+    private UUID variantId;
+
     // Optional: linking feedback directly to the order item purchased
     private UUID orderId;
 

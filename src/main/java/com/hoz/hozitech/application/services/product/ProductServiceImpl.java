@@ -334,6 +334,8 @@ public class ProductServiceImpl implements ProductService {
                         .build() : null)
                 .originPrice(product.getOriginPrice())
                 .lowestPrice(lowestPrice)
+                .averageRating(product.getAverageRating() != null ? product.getAverageRating() : 0.0)
+                .totalReviews(product.getFeedbacks() != null ? product.getFeedbacks().size() : 0)
                 .status(product.getStatus())
                 .isFeatured(product.getIsFeatured())
                 .specsJson(product.getSpecsJson())

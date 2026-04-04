@@ -22,7 +22,8 @@ public class FeedbackResponse {
     
     private UUID productId;
     private String productName;
-    
+    private UUID variantId;
+    private String variantName;
     private UUID userId;
     private String userName;
     private String userAvatar;
@@ -31,4 +32,6 @@ public class FeedbackResponse {
 
     private String adminReply;
     private LocalDateTime repliedAt;
+    
+    private Integer editCount;
 }

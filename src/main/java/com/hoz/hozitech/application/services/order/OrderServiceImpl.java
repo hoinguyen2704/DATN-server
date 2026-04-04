@@ -29,6 +29,7 @@ import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.constant.MailTemplate;
 import com.hoz.hozitech.application.services.email.EmailService;
 import com.hoz.hozitech.application.services.flashsale.FlashSaleService;
+import com.hoz.hozitech.application.services.setting.SettingService;
 import com.hoz.hozitech.application.specifications.OrderSpecification;
 import com.hoz.hozitech.domain.dtos.request.CheckoutRequest;
 import com.hoz.hozitech.domain.dtos.response.OrderResponse;
@@ -65,6 +66,7 @@ public class OrderServiceImpl implements OrderService {
     private final EmailService emailService;
     private final ObjectMapper objectMapper;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
+    private final SettingService settingService;
 
     @Value("${link.frontend:http://localhost:3000}")
     private String frontendUrl;
@@ -152,12 +154,21 @@ public class OrderServiceImpl implements OrderService {
             couponRepository.save(coupon);
         }
 
-        BigDecimal shippingFee = BigDecimal.ZERO; // Can be calculated based on address later
+        // Tính phí ship từ cài đặt hệ thống
+        BigDecimal defaultFee = settingService.getSettingNumber("DEFAULT_SHIPPING_FEE");
+        BigDecimal threshold = settingService.getSettingNumber("FREE_SHIPPING_THRESHOLD");
+        BigDecimal shippingFee = (threshold.compareTo(BigDecimal.ZERO) > 0 && subtotal.compareTo(threshold) >= 0)
+                ? BigDecimal.ZERO : defaultFee;
         BigDecimal totalAmount = subtotal.add(shippingFee).subtract(discountAmount);
         if (totalAmount.compareTo(BigDecimal.ZERO) < 0) totalAmount = BigDecimal.ZERO;
 
         PaymentMethod paymentMethod = PaymentMethod.valueOf(request.getPaymentMethod().toUpperCase());
 
+        // Validate: phương thức thanh toán phải đang được bật trong cài đặt
+        String enabledKey = paymentMethod.name() + "_ENABLED";
+        if (!settingService.getSettingBoolean(enabledKey)) {
+            throw new IllegalArgumentException("Phương thức thanh toán " + paymentMethod.name() + " hiện không khả dụng");
+        }
         Order order = Order.builder()
                 .orderNumber(generateOrderNumber())
                 .shippingAddressJson(addressJson)
@@ -537,13 +548,13 @@ public class OrderServiceImpl implements OrderService {
     
     private String getDefaultDescriptionForStatus(OrderStatus status) {
         switch (status) {
-            case PENDING: return "Đơn hàng đang chờ xác nhận";
-            case CONFIRMED: return "Người gửi đang chuẩn bị hàng";
-            case PROCESSING: return "Đơn hàng đang được đóng gói";
-            case SHIPPING: return "Đơn hàng đã được giao cho đơn vị vận chuyển";
-            case SHIPPED: return "Đơn hàng đang trên đường giao đến bạn";
-            case CANCELLED: return "Đơn hàng đã bị huỷ";
-            case RETURNED: return "Đơn hàng đã được hoàn trả";
+            case OrderStatus.PENDING: return "Đơn hàng đang chờ xác nhận";
+            case OrderStatus.CONFIRMED: return "Người gửi đang chuẩn bị hàng";
+            case OrderStatus.PROCESSING: return "Đơn hàng đang được đóng gói";
+            case OrderStatus.SHIPPING: return "Đơn hàng đã được giao cho đơn vị vận chuyển";
+            case OrderStatus.SHIPPED: return "Đơn hàng đang trên đường giao đến bạn";
+            case OrderStatus.CANCELLED: return "Đơn hàng đã bị huỷ";
+            case OrderStatus.RETURNED: return "Đơn hàng đã được hoàn trả";
             default: return "Cập nhật trạng thái đơn hàng";
         }
     }

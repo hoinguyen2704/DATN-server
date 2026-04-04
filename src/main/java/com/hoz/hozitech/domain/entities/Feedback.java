@@ -44,6 +44,11 @@ public class Feedback extends AbstractAuditingEntity {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "variant_id")
+    private ProductVariant variant;
+
     @Column(name = "admin_reply", columnDefinition = "TEXT")
     private String adminReply;
 
@@ -53,4 +58,8 @@ public class Feedback extends AbstractAuditingEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")
     private Order order;
+
+    @Builder.Default
+    @Column(name = "edit_count", columnDefinition = "integer default 0")
+    private Integer editCount = 0;
 }

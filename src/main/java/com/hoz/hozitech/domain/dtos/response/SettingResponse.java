@@ -6,16 +6,17 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Data
-@Builder
-@AllArgsConstructor
 @NoArgsConstructor
-public class SystemConfigResponse {
-    private UUID id;
-    private String configKey;
-    private String configValue;
+@AllArgsConstructor
+@Builder
+public class SettingResponse {
+    private String id;
+    private String groupName;
+    private String settingKey;
+    private String settingValue;
+    private String valueType;
     private String description;
     private LocalDateTime updatedAt;
 }

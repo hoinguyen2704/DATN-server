@@ -12,6 +12,7 @@ import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.entities.Feedback;
 import com.hoz.hozitech.domain.entities.Order;
 import com.hoz.hozitech.domain.entities.Product;
+import com.hoz.hozitech.domain.entities.ProductVariant;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.application.specifications.FeedbackSpecification;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +31,7 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     private final FeedbackRepository feedbackRepository;
     private final ProductRepository productRepository;
+    private final com.hoz.hozitech.application.repositories.ProductVariantRepository productVariantRepository;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
 
@@ -60,6 +64,21 @@ public class FeedbackServiceImpl implements FeedbackService {
             }
         }
 
+        ProductVariant variant = null;
+        if (request.getVariantId() != null) {
+            variant = productVariantRepository.findById(request.getVariantId())
+                    .orElseThrow(() -> new IllegalArgumentException("Variant not found"));
+        }
+
+        List<Feedback> existingFeedbacks = null;
+        if (request.getOrderId() != null && request.getVariantId() != null) {
+            existingFeedbacks = feedbackRepository.findAllByUserIdAndProductIdAndVariantIdAndOrderIdOrderByCreatedAtAsc(userId, request.getProductId(), request.getVariantId(), request.getOrderId());
+        }
+
+        if (existingFeedbacks != null && existingFeedbacks.size() >= 2) {
+            throw new IllegalArgumentException("Bạn đã đạt giới hạn 2 lần đánh giá cho phân loại này");
+        }
+
         Feedback feedback = Feedback.builder()
                 .rating(request.getRating())
                 .content(request.getContent())
@@ -67,10 +86,21 @@ public class FeedbackServiceImpl implements FeedbackService {
                 .status(StatusConstant.FEEDBACK_APPROVED) // Auto-approve for now, or could default to PENDING
                 .user(user)
                 .product(product)
+                .variant(variant)
                 .order(order)
+                .editCount(0) // Unused now but kept for compatibility
                 .build();
 
         return mapToResponse(feedbackRepository.save(feedback));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FeedbackResponse> getMyFeedbacks(UUID userId, UUID productId, UUID variantId, UUID orderId) {
+        return feedbackRepository.findAllByUserIdAndProductIdAndVariantIdAndOrderIdOrderByCreatedAtAsc(userId, productId, variantId, orderId)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -128,12 +158,15 @@ public class FeedbackServiceImpl implements FeedbackService {
                 .createdAt(feedback.getCreatedAt())
                 .productId(feedback.getProduct().getId())
                 .productName(feedback.getProduct().getName())
+                .variantId(feedback.getVariant() != null ? feedback.getVariant().getId() : null)
+                .variantName(feedback.getVariant() != null ? feedback.getVariant().getVariantName() : null)
                 .userId(feedback.getUser().getId())
                 .userName(feedback.getUser().getFullName() != null ? feedback.getUser().getFullName() : feedback.getUser().getUserName())
                 .userAvatar(feedback.getUser().getAvatarUrl())
                 .orderId(feedback.getOrder() != null ? feedback.getOrder().getId() : null)
                 .adminReply(feedback.getAdminReply())
                 .repliedAt(feedback.getRepliedAt())
+                .editCount(feedback.getEditCount())
                 .build();
     }
 }

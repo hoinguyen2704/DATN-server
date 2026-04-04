@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestAPI("${api.prefix-client}/feedbacks")
@@ -55,5 +56,16 @@ public class FeedbackController {
             @PathVariable UUID productId) {
         return ResponseEntity.ok(ApiResponse.success("Check review status success",
                 feedbackService.hasUserReviewedProduct(userDetails.getUser().getId(), productId)));
+    }
+
+    @GetMapping("/my-feedback")
+    public ResponseEntity<ApiResponse<List<FeedbackResponse>>> getMyFeedbacks(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam UUID productId,
+            @RequestParam(required = false) UUID variantId,
+            @RequestParam UUID orderId) {
+        
+        return ResponseEntity.ok(ApiResponse.success("Fetch my feedback success",
+                feedbackService.getMyFeedbacks(userDetails.getUser().getId(), productId, variantId, orderId)));
     }
 }
