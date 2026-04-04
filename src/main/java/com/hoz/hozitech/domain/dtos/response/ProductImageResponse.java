@@ -14,5 +14,8 @@ import java.util.UUID;
 public class ProductImageResponse {
     private UUID id;
     private String imageUrl;
+    private String altText;
+    private Integer sortOrder;
     private Boolean isPrimary;
+    private UUID variantId;
 }

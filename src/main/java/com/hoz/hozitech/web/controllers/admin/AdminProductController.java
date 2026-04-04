@@ -7,12 +7,14 @@ import com.hoz.hozitech.application.services.product.ProductService;
 import com.hoz.hozitech.application.services.storage.FileStorageService;
 import com.hoz.hozitech.application.repositories.ProductImageRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
+import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.domain.dtos.request.ProductRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.ProductResponse;
 import com.hoz.hozitech.domain.entities.Product;
 import com.hoz.hozitech.domain.entities.ProductImage;
+import com.hoz.hozitech.domain.entities.ProductVariant;
 import com.hoz.hozitech.web.exceptions.ResourceNotFoundException;
 import com.hoz.hozitech.application.services.export.ExportService;
 import jakarta.validation.Valid;
@@ -37,6 +39,7 @@ public class AdminProductController {
     private final FileStorageService fileStorageService;
     private final ProductImageRepository productImageRepository;
     private final ProductRepository productRepository;
+    private final ProductVariantRepository productVariantRepository;
     private final ExportService exportService;
 
     @GetMapping("/export")
@@ -129,6 +132,39 @@ public class AdminProductController {
         return ResponseEntity.ok(ApiResponse.success("Images uploaded successfully", uploaded));
     }
 
+    @PostMapping("/{productId}/variants/{variantId}/images")
+    public ResponseEntity<ApiResponse<List<Map<String, String>>>> uploadVariantImages(
+            @PathVariable UUID productId,
+            @PathVariable UUID variantId,
+            @RequestParam("files") MultipartFile[] files) {
+        ProductVariant variant = productVariantRepository.findById(variantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Variant", variantId));
+
+        if (variant.getProduct() == null || !variant.getProduct().getId().equals(productId)) {
+            throw new ResourceNotFoundException("Variant does not belong to product", variantId);
+        }
+
+        int currentMaxOrder = productImageRepository.findByVariantIdOrderBySortOrder(variantId)
+                .stream().mapToInt(ProductImage::getSortOrder).max().orElse(-1);
+
+        List<Map<String, String>> uploaded = new ArrayList<>();
+        for (MultipartFile file : files) {
+            String url = fileStorageService.storeProductImage(file);
+            ProductImage image = ProductImage.builder()
+                    .imageUrl(url)
+                    .altText(variant.getProduct().getName() + " - " + variant.getVariantName())
+                    .sortOrder(++currentMaxOrder)
+                    .isPrimary(currentMaxOrder == 0)
+                    .product(variant.getProduct())
+                    .variant(variant)
+                    .build();
+            productImageRepository.save(image);
+            uploaded.add(Map.of("id", image.getId().toString(), "imageUrl", url));
+        }
+
+        return ResponseEntity.ok(ApiResponse.success("Variant images uploaded successfully", uploaded));
+    }
+
     @DeleteMapping("/{productId}/images/{imageId}")
     public ResponseEntity<ApiResponse<Void>> deleteImage(
             @PathVariable UUID productId,
@@ -138,5 +174,27 @@ public class AdminProductController {
         fileStorageService.deleteFile(image.getImageUrl());
         productImageRepository.delete(image);
         return ResponseEntity.ok(ApiResponse.success("Image deleted successfully"));
+    }
+
+    @DeleteMapping("/{productId}/variants/{variantId}/images/{imageId}")
+    public ResponseEntity<ApiResponse<Void>> deleteVariantImage(
+            @PathVariable UUID productId,
+            @PathVariable UUID variantId,
+            @PathVariable UUID imageId) {
+        ProductImage image = productImageRepository.findById(imageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Image", imageId));
+
+        boolean invalidTarget = image.getVariant() == null
+                || !image.getVariant().getId().equals(variantId)
+                || image.getProduct() == null
+                || !image.getProduct().getId().equals(productId);
+
+        if (invalidTarget) {
+            throw new ResourceNotFoundException("Image does not belong to variant", imageId);
+        }
+
+        fileStorageService.deleteFile(image.getImageUrl());
+        productImageRepository.delete(image);
+        return ResponseEntity.ok(ApiResponse.success("Variant image deleted successfully"));
     }
 }

@@ -159,6 +159,7 @@ public class ProductServiceImpl implements ProductService {
                         ProductImage vImg = ProductImage.builder()
                                 .imageUrl(vImgReq.getImageUrl())
                                 .isPrimary(vImgReq.getIsPrimary() != null ? vImgReq.getIsPrimary() : false)
+                                .product(product)
                                 .variant(variant)
                                 .build();
                         variant.getImages().add(vImg);
@@ -212,12 +213,13 @@ public class ProductServiceImpl implements ProductService {
                     variant.setStock(varReq.getStock() != null ? varReq.getStock() : 0);
                     variant.setActive(varReq.getActive() != null ? varReq.getActive() : true);
                     
-                    variant.getImages().clear(); // Safe to replace images as they have no incoming foreign keys
                     if (varReq.getImages() != null) {
+                        variant.getImages().clear(); // Replace only when images are explicitly provided
                         for (ProductImageRequest vImgReq : varReq.getImages()) {
                             ProductImage vImg = ProductImage.builder()
                                     .imageUrl(vImgReq.getImageUrl())
                                     .isPrimary(vImgReq.getIsPrimary() != null ? vImgReq.getIsPrimary() : false)
+                                    .product(product)
                                     .variant(variant)
                                     .build();
                             variant.getImages().add(vImg);
@@ -242,6 +244,7 @@ public class ProductServiceImpl implements ProductService {
                             ProductImage vImg = ProductImage.builder()
                                     .imageUrl(vImgReq.getImageUrl())
                                     .isPrimary(vImgReq.getIsPrimary() != null ? vImgReq.getIsPrimary() : false)
+                                    .product(product)
                                     .variant(newVariant)
                                     .build();
                             newVariant.getImages().add(vImg);
@@ -306,11 +309,30 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private ProductResponse mapToResponse(Product product) {
+        Comparator<ProductImage> imageComparator = Comparator
+                .comparing((ProductImage img) -> !Boolean.TRUE.equals(img.getIsPrimary()))
+                .thenComparing(img -> img.getSortOrder() == null ? Integer.MAX_VALUE : img.getSortOrder())
+                .thenComparing(img -> img.getId() == null ? "" : img.getId().toString());
+
         String mainImageUrl = product.getImages().stream()
+                .filter(img -> img.getVariant() == null)
+                .sorted(imageComparator)
+                .map(ProductImage::getImageUrl)
+                .findFirst()
+                .orElseGet(() -> product.getVariants().stream()
+                        .flatMap(v -> v.getImages().stream())
+                        .sorted(imageComparator)
+                        .map(ProductImage::getImageUrl)
+                        .findFirst()
+                        .orElse(null));
+
+        if (mainImageUrl == null) {
+            mainImageUrl = product.getImages().stream()
                 .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
                 .map(ProductImage::getImageUrl)
                 .findFirst()
                 .orElse(product.getImages().isEmpty() ? null : product.getImages().get(0).getImageUrl());
+        }
 
         int totalStock = product.getVariants().stream().mapToInt(ProductVariant::getStock).sum();
 
@@ -348,13 +370,22 @@ public class ProductServiceImpl implements ProductService {
 
     private ProductResponse mapToDetailedResponse(Product product) {
         ProductResponse response = mapToResponse(product);
+        Comparator<ProductImage> imageComparator = Comparator
+                .comparing((ProductImage img) -> !Boolean.TRUE.equals(img.getIsPrimary()))
+                .thenComparing(img -> img.getSortOrder() == null ? Integer.MAX_VALUE : img.getSortOrder())
+                .thenComparing(img -> img.getId() == null ? "" : img.getId().toString());
         
         List<ProductVariantResponse> variants = product.getVariants().stream().map((ProductVariant v) -> {
-            List<ProductImageResponse> vImages = v.getImages().stream().map((ProductImage img) ->
+            List<ProductImageResponse> vImages = v.getImages().stream()
+                    .sorted(imageComparator)
+                    .map((ProductImage img) ->
                     ProductImageResponse.builder()
                             .id(img.getId())
                             .imageUrl(img.getImageUrl())
+                            .altText(img.getAltText())
+                            .sortOrder(img.getSortOrder())
                             .isPrimary(img.getIsPrimary())
+                            .variantId(v.getId())
                             .build()
             ).collect(Collectors.toList());
 
@@ -379,10 +410,14 @@ public class ProductServiceImpl implements ProductService {
         // Map product-level images (not tied to any variant)
         List<ProductImageResponse> productImages = product.getImages().stream()
                 .filter(img -> img.getVariant() == null)
+                .sorted(imageComparator)
                 .map(img -> ProductImageResponse.builder()
                         .id(img.getId())
                         .imageUrl(img.getImageUrl())
+                        .altText(img.getAltText())
+                        .sortOrder(img.getSortOrder())
                         .isPrimary(img.getIsPrimary())
+                        .variantId(null)
                         .build())
                 .collect(Collectors.toList());
         response.setImages(productImages);
