@@ -25,6 +25,8 @@ public class CheckoutRequest {
 
     private String couponCode;
 
+    private String shippingCouponCode;
+
     private String note;
 
     @NotNull(message = "Items are required")

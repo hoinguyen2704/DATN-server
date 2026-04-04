@@ -122,24 +122,22 @@ public class OrderServiceImpl implements OrderService {
             variantRepository.save(variant);
         }
 
-        // Apply coupon
+        // Tính phí ship từ cài đặt hệ thống trước
+        BigDecimal defaultFee = settingService.getSettingNumber("DEFAULT_SHIPPING_FEE");
+        BigDecimal threshold = settingService.getSettingNumber("FREE_SHIPPING_THRESHOLD");
+        BigDecimal shippingFee = (threshold.compareTo(BigDecimal.ZERO) > 0 && subtotal.compareTo(threshold) >= 0)
+                ? BigDecimal.ZERO : defaultFee;
+
+        // Apply product coupon
         BigDecimal discountAmount = BigDecimal.ZERO;
         if (request.getCouponCode() != null && !request.getCouponCode().isBlank()) {
             Coupon coupon = couponRepository.findByCode(request.getCouponCode())
-                    .orElseThrow(() -> new IllegalArgumentException("Invalid coupon code"));
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid product coupon code"));
 
-            if (!StatusConstant.COUPON_ACTIVE.equalsIgnoreCase(coupon.getStatus())) {
-                throw new IllegalArgumentException("Coupon is not active");
+            if (!StatusConstant.COUPON_CATEGORY_PRODUCT.equalsIgnoreCase(coupon.getCouponCategory())) {
+                throw new IllegalArgumentException("Voucher is not a product voucher");
             }
-            if (coupon.getEndDate() != null && coupon.getEndDate().isBefore(LocalDateTime.now())) {
-                throw new IllegalArgumentException("Coupon has expired");
-            }
-            if (coupon.getUsageLimit() != null && coupon.getUsedCount() >= coupon.getUsageLimit()) {
-                throw new IllegalArgumentException("Coupon usage limit exceeded");
-            }
-            if (coupon.getMinOrderValue() != null && subtotal.compareTo(coupon.getMinOrderValue()) < 0) {
-                throw new IllegalArgumentException("Order does not meet minimum value for coupon");
-            }
+            validateCoupon(coupon, subtotal);
 
             if (StatusConstant.DISCOUNT_PERCENTAGE.equalsIgnoreCase(coupon.getDiscountType())) {
                 discountAmount = subtotal.multiply(coupon.getDiscountValue()).divide(BigDecimal.valueOf(100));
@@ -154,12 +152,39 @@ public class OrderServiceImpl implements OrderService {
             couponRepository.save(coupon);
         }
 
-        // Tính phí ship từ cài đặt hệ thống
-        BigDecimal defaultFee = settingService.getSettingNumber("DEFAULT_SHIPPING_FEE");
-        BigDecimal threshold = settingService.getSettingNumber("FREE_SHIPPING_THRESHOLD");
-        BigDecimal shippingFee = (threshold.compareTo(BigDecimal.ZERO) > 0 && subtotal.compareTo(threshold) >= 0)
-                ? BigDecimal.ZERO : defaultFee;
-        BigDecimal totalAmount = subtotal.add(shippingFee).subtract(discountAmount);
+        // Apply shipping coupon
+        BigDecimal shippingDiscountAmount = BigDecimal.ZERO;
+        if (request.getShippingCouponCode() != null && !request.getShippingCouponCode().isBlank()) {
+            Coupon coupon = couponRepository.findByCode(request.getShippingCouponCode())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid shipping coupon code"));
+
+            if (!StatusConstant.COUPON_CATEGORY_SHIPPING.equalsIgnoreCase(coupon.getCouponCategory())) {
+                throw new IllegalArgumentException("Voucher is not a freeship voucher");
+            }
+            validateCoupon(coupon, subtotal);
+
+            if (StatusConstant.DISCOUNT_PERCENTAGE.equalsIgnoreCase(coupon.getDiscountType())) {
+                shippingDiscountAmount = shippingFee.multiply(coupon.getDiscountValue()).divide(BigDecimal.valueOf(100));
+                if (coupon.getMaxDiscountAmount() != null && shippingDiscountAmount.compareTo(coupon.getMaxDiscountAmount()) > 0) {
+                    shippingDiscountAmount = coupon.getMaxDiscountAmount();
+                }
+            } else {
+                shippingDiscountAmount = coupon.getDiscountValue();
+            }
+            
+            // Limit shipping discount to actual shipping fee
+            if (shippingDiscountAmount == null || shippingDiscountAmount.compareTo(BigDecimal.ZERO) == 0) {
+                 shippingDiscountAmount = shippingFee; // If 0 or null, freeship 100%
+            }
+            if (shippingDiscountAmount.compareTo(shippingFee) > 0) {
+                shippingDiscountAmount = shippingFee;
+            }
+
+            coupon.setUsedCount(coupon.getUsedCount() + 1);
+            couponRepository.save(coupon);
+        }
+
+        BigDecimal totalAmount = subtotal.add(shippingFee).subtract(discountAmount).subtract(shippingDiscountAmount);
         if (totalAmount.compareTo(BigDecimal.ZERO) < 0) totalAmount = BigDecimal.ZERO;
 
         PaymentMethod paymentMethod = PaymentMethod.valueOf(request.getPaymentMethod().toUpperCase());
@@ -177,11 +202,13 @@ public class OrderServiceImpl implements OrderService {
                 .subtotal(subtotal)
                 .shippingFee(shippingFee)
                 .discountAmount(discountAmount)
+                .shippingDiscountAmount(shippingDiscountAmount)
                 .totalAmount(totalAmount)
                 .paymentMethod(paymentMethod)
                 .paymentStatus(paymentMethod == PaymentMethod.COD ? PaymentStatus.PENDING : PaymentStatus.PENDING)
                 .user(user)
                 .couponCode(request.getCouponCode())
+                .shippingCouponCode(request.getShippingCouponCode())
                 .orderItems(new ArrayList<>())
                 .build();
 
@@ -406,8 +433,10 @@ public class OrderServiceImpl implements OrderService {
                 .subtotal(order.getSubtotal())
                 .shippingFee(order.getShippingFee())
                 .discountAmount(order.getDiscountAmount())
+                .shippingDiscountAmount(order.getShippingDiscountAmount())
                 .totalAmount(order.getTotalAmount())
                 .couponCode(order.getCouponCode())
+                .shippingCouponCode(order.getShippingCouponCode())
                 .note(order.getNote())
                 .shippingAddress(formattedAddress)
                 .trackingCode(order.getTrackingCode())
@@ -419,6 +448,21 @@ public class OrderServiceImpl implements OrderService {
                 .items(items)
                 .statusHistories(historyResponses)
                 .build();
+    }
+
+    private void validateCoupon(Coupon coupon, BigDecimal subtotal) {
+        if (!StatusConstant.COUPON_ACTIVE.equalsIgnoreCase(coupon.getStatus())) {
+            throw new IllegalArgumentException("Coupon is not active");
+        }
+        if (coupon.getEndDate() != null && coupon.getEndDate().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Coupon has expired");
+        }
+        if (coupon.getUsageLimit() != null && coupon.getUsedCount() >= coupon.getUsageLimit()) {
+            throw new IllegalArgumentException("Coupon usage limit exceeded");
+        }
+        if (coupon.getMinOrderValue() != null && subtotal.compareTo(coupon.getMinOrderValue()) < 0) {
+            throw new IllegalArgumentException("Order does not meet minimum value for coupon");
+        }
     }
 
     @SuppressWarnings("unchecked")

@@ -25,6 +25,8 @@ public class CouponRequest {
     @NotBlank(message = "Discount type is required")
     private String discountType; // PERCENTAGE, FIXED_AMOUNT
 
+    private String couponCategory; // PRODUCT, SHIPPING
+
     @NotNull(message = "Discount value is required")
     @Min(0)
     private BigDecimal discountValue;

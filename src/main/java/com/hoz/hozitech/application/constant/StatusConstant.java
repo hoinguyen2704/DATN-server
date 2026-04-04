@@ -30,6 +30,10 @@ public final class StatusConstant {
     public static final String DISCOUNT_PERCENTAGE = "PERCENTAGE";
     public static final String DISCOUNT_FIXED = "FIXED_AMOUNT";
 
+    // ─── Coupon Category ───
+    public static final String COUPON_CATEGORY_PRODUCT = "PRODUCT";
+    public static final String COUPON_CATEGORY_SHIPPING = "SHIPPING";
+
     // ─── Coupon Apply Type ───
     public static final String COUPON_APPLY_ALL = "ALL";
     public static final String COUPON_APPLY_SPECIFIC = "SPECIFIC_PRODUCTS";

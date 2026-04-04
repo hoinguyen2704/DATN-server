@@ -27,6 +27,10 @@ public class Coupon extends AbstractAuditingEntity {
     @Column(name = "discount_type", nullable = false, length = 50)
     private String discountType; // PERCENTAGE, FIXED_AMOUNT
 
+    @Builder.Default
+    @Column(name = "coupon_category", length = 30, columnDefinition = "varchar(30) default 'PRODUCT'")
+    private String couponCategory = "PRODUCT"; // PRODUCT, SHIPPING
+
     @Column(name = "discount_value", precision = 15, scale = 2)
     private BigDecimal discountValue;
 

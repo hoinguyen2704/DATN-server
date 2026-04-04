@@ -18,6 +18,7 @@ public class CouponResponse {
     private UUID id;
     private String code;
     private String discountType;
+    private String couponCategory;
     private BigDecimal discountValue;
     private BigDecimal minOrderValue;
     private BigDecimal maxDiscountAmount;

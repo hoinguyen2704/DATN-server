@@ -55,6 +55,10 @@ public class Order extends AbstractAuditingEntity {
     @Column(name = "discount_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal discountAmount = BigDecimal.ZERO;
 
+    @Builder.Default
+    @Column(name = "shipping_discount_amount", precision = 15, scale = 2, columnDefinition = "numeric(15,2) default 0.00")
+    private BigDecimal shippingDiscountAmount = BigDecimal.ZERO;
+
     @Column(name = "total_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal totalAmount;
 
@@ -73,6 +77,9 @@ public class Order extends AbstractAuditingEntity {
 
     @Column(name = "coupon_code", length = 50)
     private String couponCode;
+
+    @Column(name = "shipping_coupon_code", length = 50)
+    private String shippingCouponCode;
 
     @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)

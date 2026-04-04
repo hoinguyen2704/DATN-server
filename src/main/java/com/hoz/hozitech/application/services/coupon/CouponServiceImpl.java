@@ -85,6 +85,7 @@ public class CouponServiceImpl implements CouponService {
                 .status(StatusConstant.COUPON_ACTIVE)
                 .isPublic(request.getIsPublic() != null ? request.getIsPublic() : false)
                 .applyType(request.getApplyType() != null ? request.getApplyType() : StatusConstant.COUPON_APPLY_ALL)
+                .couponCategory(request.getCouponCategory() != null ? request.getCouponCategory().toUpperCase() : StatusConstant.COUPON_CATEGORY_PRODUCT)
                 .build();
 
         // Link applicable products
@@ -113,6 +114,7 @@ public class CouponServiceImpl implements CouponService {
         coupon.setEndDate(request.getEndDate());
         coupon.setIsPublic(request.getIsPublic() != null ? request.getIsPublic() : coupon.getIsPublic());
         coupon.setApplyType(request.getApplyType() != null ? request.getApplyType() : coupon.getApplyType());
+        coupon.setCouponCategory(request.getCouponCategory() != null ? request.getCouponCategory().toUpperCase() : coupon.getCouponCategory());
 
         // Re-link applicable products
         applyProductScope(coupon, request);
@@ -287,6 +289,7 @@ public class CouponServiceImpl implements CouponService {
                 .id(coupon.getId())
                 .code(coupon.getCode())
                 .discountType(coupon.getDiscountType())
+                .couponCategory(coupon.getCouponCategory())
                 .discountValue(coupon.getDiscountValue())
                 .minOrderValue(coupon.getMinOrderValue())
                 .maxDiscountAmount(coupon.getMaxDiscountAmount())

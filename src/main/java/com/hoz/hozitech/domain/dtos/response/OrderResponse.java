@@ -24,8 +24,10 @@ public class OrderResponse {
     private BigDecimal subtotal;
     private BigDecimal shippingFee;
     private BigDecimal discountAmount;
+    private BigDecimal shippingDiscountAmount;
     private BigDecimal totalAmount;
     private String couponCode;
+    private String shippingCouponCode;
     private String note;
     private String shippingAddress;
     private LocalDateTime createdAt;
