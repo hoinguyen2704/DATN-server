@@ -1,5 +1,6 @@
 package com.hoz.hozitech.application.services.ticket;
 
+import com.hoz.hozitech.domain.dtos.request.ContactRequest;
 import com.hoz.hozitech.domain.dtos.request.TicketMessageRequest;
 import com.hoz.hozitech.domain.dtos.request.TicketRequest;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -12,6 +13,8 @@ public interface TicketService {
     PageResponse<TicketResponse> getMyTickets(UUID userId, int page, int size);
     
     TicketResponse createTicket(UUID userId, TicketRequest request);
+    
+    TicketResponse createGuestTicket(ContactRequest request);
     
     TicketResponse getTicketDetail(UUID userId, UUID ticketId);
     

@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import com.hoz.hozitech.domain.enums.UserStatus;
 
 @Data
 @Builder
@@ -22,7 +23,7 @@ public class UserResponse {
     private LocalDate dateOfBirth;
     private String gender;
     private String avatarUrl;
-    private String status;
+    private UserStatus status;
     private String role;
     private LocalDateTime createdAt;
 }

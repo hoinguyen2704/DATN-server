@@ -2,6 +2,7 @@ package com.hoz.hozitech.domain.entities;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hoz.hozitech.domain.entities.base.AbstractAuditingEntity;
+import com.hoz.hozitech.domain.enums.TicketStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -27,13 +28,23 @@ public class Ticket extends AbstractAuditingEntity {
     private String subject;
 
     @Builder.Default
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)
-    private String status = "OPEN"; // OPEN, IN_PROGRESS, ANSWERED, CLOSED
+    private TicketStatus status = TicketStatus.OPEN;
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = true)
     private User user;
+
+    @Column(name = "guest_name", length = 100)
+    private String guestName;
+
+    @Column(name = "guest_email", length = 100)
+    private String guestEmail;
+
+    @Column(name = "guest_phone", length = 20)
+    private String guestPhone;
 
     @Builder.Default
     @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)

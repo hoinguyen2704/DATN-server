@@ -4,6 +4,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hoz.hozitech.domain.entities.base.AbstractAuditingEntity;
 import com.hoz.hozitech.domain.enums.OrderStatus;
 import com.hoz.hozitech.domain.enums.PaymentMethod;
+import com.hoz.hozitech.domain.enums.PaymentStatus;
+import com.hoz.hozitech.domain.enums.TaxMode;
+
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -59,6 +62,27 @@ public class Order extends AbstractAuditingEntity {
     @Column(name = "shipping_discount_amount", precision = 15, scale = 2, columnDefinition = "numeric(15,2) default 0.00")
     private BigDecimal shippingDiscountAmount = BigDecimal.ZERO;
 
+    @Builder.Default
+    @Column(name = "tax_percent", precision = 5, scale = 2, columnDefinition = "numeric(5,2) default 0.00")
+    private BigDecimal taxPercent = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tax_mode", length = 20)
+    private TaxMode taxMode = TaxMode.INCLUDED;
+
+    @Builder.Default
+    @Column(name = "taxable_amount", precision = 15, scale = 2, columnDefinition = "numeric(15,2) default 0.00")
+    private BigDecimal taxableAmount = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "tax_amount", precision = 15, scale = 2, columnDefinition = "numeric(15,2) default 0.00")
+    private BigDecimal taxAmount = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "tax_apply_on_shipping", nullable = false)
+    private Boolean taxApplyOnShipping = Boolean.FALSE;
+
     @Column(name = "total_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal totalAmount;
 
@@ -68,7 +92,7 @@ public class Order extends AbstractAuditingEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_status", nullable = false, length = 20)
-    private com.hoz.hozitech.domain.enums.PaymentStatus paymentStatus;
+    private PaymentStatus paymentStatus;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

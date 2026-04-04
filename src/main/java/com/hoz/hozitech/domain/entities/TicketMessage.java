@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hoz.hozitech.domain.entities.base.AbstractAuditingEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Getter
 @Setter
@@ -22,6 +24,7 @@ public class TicketMessage extends AbstractAuditingEntity {
     @Column(name = "content", columnDefinition = "TEXT", nullable = false)
     private String content;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "attachments_json", columnDefinition = "jsonb")
     private String attachmentsJson;
 

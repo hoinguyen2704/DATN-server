@@ -1,8 +1,11 @@
 package com.hoz.hozitech.application.services.order;
 
-import com.hoz.hozitech.application.constant.StatusConstant;
 import com.hoz.hozitech.application.constant.PaginationConstant;
+import com.hoz.hozitech.domain.enums.CouponCategory;
+import com.hoz.hozitech.domain.enums.DiscountType;
+import com.hoz.hozitech.domain.enums.CouponStatus;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -47,6 +50,7 @@ import com.hoz.hozitech.application.repositories.OrderStatusHistoryRepository;
 import com.hoz.hozitech.domain.enums.OrderStatus;
 import com.hoz.hozitech.domain.enums.PaymentMethod;
 import com.hoz.hozitech.domain.enums.PaymentStatus;
+import com.hoz.hozitech.domain.enums.TaxMode;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +59,8 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
+    private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
+    private static final int MONEY_SCALE = 2;
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
@@ -134,12 +140,12 @@ public class OrderServiceImpl implements OrderService {
             Coupon coupon = couponRepository.findByCode(request.getCouponCode())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid product coupon code"));
 
-            if (!StatusConstant.COUPON_CATEGORY_PRODUCT.equalsIgnoreCase(coupon.getCouponCategory())) {
+            if (coupon.getCouponCategory() != CouponCategory.PRODUCT) {
                 throw new IllegalArgumentException("Voucher is not a product voucher");
             }
             validateCoupon(coupon, subtotal);
 
-            if (StatusConstant.DISCOUNT_PERCENTAGE.equalsIgnoreCase(coupon.getDiscountType())) {
+            if (coupon.getDiscountType() == DiscountType.PERCENTAGE) {
                 discountAmount = subtotal.multiply(coupon.getDiscountValue()).divide(BigDecimal.valueOf(100));
                 if (coupon.getMaxDiscountAmount() != null && discountAmount.compareTo(coupon.getMaxDiscountAmount()) > 0) {
                     discountAmount = coupon.getMaxDiscountAmount();
@@ -151,6 +157,12 @@ public class OrderServiceImpl implements OrderService {
             coupon.setUsedCount(coupon.getUsedCount() + 1);
             couponRepository.save(coupon);
         }
+        if (discountAmount.compareTo(BigDecimal.ZERO) < 0) {
+            discountAmount = BigDecimal.ZERO;
+        }
+        if (discountAmount.compareTo(subtotal) > 0) {
+            discountAmount = subtotal;
+        }
 
         // Apply shipping coupon
         BigDecimal shippingDiscountAmount = BigDecimal.ZERO;
@@ -158,12 +170,12 @@ public class OrderServiceImpl implements OrderService {
             Coupon coupon = couponRepository.findByCode(request.getShippingCouponCode())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid shipping coupon code"));
 
-            if (!StatusConstant.COUPON_CATEGORY_SHIPPING.equalsIgnoreCase(coupon.getCouponCategory())) {
+            if (coupon.getCouponCategory() != CouponCategory.SHIPPING) {
                 throw new IllegalArgumentException("Voucher is not a freeship voucher");
             }
             validateCoupon(coupon, subtotal);
 
-            if (StatusConstant.DISCOUNT_PERCENTAGE.equalsIgnoreCase(coupon.getDiscountType())) {
+            if (coupon.getDiscountType() == DiscountType.PERCENTAGE) {
                 shippingDiscountAmount = shippingFee.multiply(coupon.getDiscountValue()).divide(BigDecimal.valueOf(100));
                 if (coupon.getMaxDiscountAmount() != null && shippingDiscountAmount.compareTo(coupon.getMaxDiscountAmount()) > 0) {
                     shippingDiscountAmount = coupon.getMaxDiscountAmount();
@@ -184,8 +196,14 @@ public class OrderServiceImpl implements OrderService {
             couponRepository.save(coupon);
         }
 
-        BigDecimal totalAmount = subtotal.add(shippingFee).subtract(discountAmount).subtract(shippingDiscountAmount);
-        if (totalAmount.compareTo(BigDecimal.ZERO) < 0) totalAmount = BigDecimal.ZERO;
+        BigDecimal productBase = subtotal.subtract(discountAmount);
+        if (productBase.compareTo(BigDecimal.ZERO) < 0) productBase = BigDecimal.ZERO;
+
+        BigDecimal shippingBase = shippingFee.subtract(shippingDiscountAmount);
+        if (shippingBase.compareTo(BigDecimal.ZERO) < 0) shippingBase = BigDecimal.ZERO;
+
+        TaxSnapshot taxSnapshot = calculateTaxSnapshot(productBase, shippingBase);
+        BigDecimal totalAmount = taxSnapshot.totalAmount();
 
         PaymentMethod paymentMethod = PaymentMethod.valueOf(request.getPaymentMethod().toUpperCase());
 
@@ -203,6 +221,11 @@ public class OrderServiceImpl implements OrderService {
                 .shippingFee(shippingFee)
                 .discountAmount(discountAmount)
                 .shippingDiscountAmount(shippingDiscountAmount)
+                .taxPercent(taxSnapshot.taxPercent())
+                .taxMode(taxSnapshot.taxMode())
+                .taxableAmount(taxSnapshot.taxableAmount())
+                .taxAmount(taxSnapshot.taxAmount())
+                .taxApplyOnShipping(taxSnapshot.taxApplyOnShipping())
                 .totalAmount(totalAmount)
                 .paymentMethod(paymentMethod)
                 .paymentStatus(paymentMethod == PaymentMethod.COD ? PaymentStatus.PENDING : PaymentStatus.PENDING)
@@ -434,6 +457,11 @@ public class OrderServiceImpl implements OrderService {
                 .shippingFee(order.getShippingFee())
                 .discountAmount(order.getDiscountAmount())
                 .shippingDiscountAmount(order.getShippingDiscountAmount())
+                .taxPercent(nz(order.getTaxPercent()))
+                .taxMode(order.getTaxMode() != null ? order.getTaxMode().name() : TaxMode.INCLUDED.name())
+                .taxableAmount(nz(order.getTaxableAmount()))
+                .taxAmount(nz(order.getTaxAmount()))
+                .taxApplyOnShipping(order.getTaxApplyOnShipping() != null ? order.getTaxApplyOnShipping() : Boolean.FALSE)
                 .totalAmount(order.getTotalAmount())
                 .couponCode(order.getCouponCode())
                 .shippingCouponCode(order.getShippingCouponCode())
@@ -451,7 +479,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private void validateCoupon(Coupon coupon, BigDecimal subtotal) {
-        if (!StatusConstant.COUPON_ACTIVE.equalsIgnoreCase(coupon.getStatus())) {
+        if (coupon.getStatus() != CouponStatus.ACTIVE) {
             throw new IllegalArgumentException("Coupon is not active");
         }
         if (coupon.getEndDate() != null && coupon.getEndDate().isBefore(LocalDateTime.now())) {
@@ -463,6 +491,78 @@ public class OrderServiceImpl implements OrderService {
         if (coupon.getMinOrderValue() != null && subtotal.compareTo(coupon.getMinOrderValue()) < 0) {
             throw new IllegalArgumentException("Order does not meet minimum value for coupon");
         }
+    }
+
+    private TaxSnapshot calculateTaxSnapshot(BigDecimal productBase, BigDecimal shippingBase) {
+        BigDecimal safeProductBase = nz(productBase);
+        BigDecimal safeShippingBase = nz(shippingBase);
+        BigDecimal netTotal = safeProductBase.add(safeShippingBase);
+        if (netTotal.compareTo(BigDecimal.ZERO) < 0) netTotal = BigDecimal.ZERO;
+
+        boolean taxEnabled = boolSettingWithFallback("TAX_ENABLED", true);
+        TaxMode taxMode = parseTaxMode(textSettingWithFallback("TAX_MODE", TaxMode.INCLUDED.name()));
+        boolean taxApplyOnShipping = boolSettingWithFallback("TAX_APPLY_ON_SHIPPING", true);
+        BigDecimal taxPercent = settingService.getSettingNumber("DEFAULT_TAX_PERCENT");
+        if (taxPercent == null || taxPercent.compareTo(BigDecimal.ZERO) < 0) {
+            taxPercent = BigDecimal.ZERO;
+        }
+
+        BigDecimal taxableAmount = safeProductBase;
+        if (taxApplyOnShipping) {
+            taxableAmount = taxableAmount.add(safeShippingBase);
+        }
+        if (taxableAmount.compareTo(BigDecimal.ZERO) < 0) taxableAmount = BigDecimal.ZERO;
+
+        BigDecimal taxAmount = BigDecimal.ZERO;
+        BigDecimal totalAmount = netTotal;
+
+        if (taxEnabled && taxPercent.compareTo(BigDecimal.ZERO) > 0 && taxableAmount.compareTo(BigDecimal.ZERO) > 0) {
+            if (taxMode == TaxMode.EXCLUDED) {
+                taxAmount = taxableAmount
+                        .multiply(taxPercent)
+                        .divide(ONE_HUNDRED, MONEY_SCALE, RoundingMode.HALF_UP);
+                totalAmount = netTotal.add(taxAmount);
+            } else {
+                BigDecimal denominator = ONE_HUNDRED.add(taxPercent);
+                if (denominator.compareTo(BigDecimal.ZERO) > 0) {
+                    taxAmount = taxableAmount
+                            .multiply(taxPercent)
+                            .divide(denominator, MONEY_SCALE, RoundingMode.HALF_UP);
+                }
+                totalAmount = netTotal;
+            }
+        }
+
+        if (totalAmount.compareTo(BigDecimal.ZERO) < 0) totalAmount = BigDecimal.ZERO;
+
+        return new TaxSnapshot(
+                taxPercent,
+                taxMode,
+                taxApplyOnShipping,
+                taxableAmount,
+                taxAmount,
+                totalAmount
+        );
+    }
+
+    private TaxMode parseTaxMode(String mode) {
+        if (mode == null || mode.isBlank()) return TaxMode.INCLUDED;
+        try {
+            return TaxMode.valueOf(mode.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return TaxMode.INCLUDED;
+        }
+    }
+
+    private String textSettingWithFallback(String key, String fallback) {
+        String value = settingService.getSettingValue(key);
+        return (value == null || value.isBlank()) ? fallback : value;
+    }
+
+    private boolean boolSettingWithFallback(String key, boolean fallback) {
+        String value = settingService.getSettingValue(key);
+        if (value == null || value.isBlank()) return fallback;
+        return "true".equalsIgnoreCase(value);
     }
 
     @SuppressWarnings("unchecked")
@@ -531,12 +631,20 @@ public class OrderServiceImpl implements OrderService {
             
             OrderResponse response = mapToResponse(order);
             variables.put("ORDER_ITEMS", response.getItems());
-            variables.put("ORDER_SUBTOTAL", formatPrice(order.getSubtotal()));
+            variables.put("ORDER_SUBTOTAL", formatPrice(nz(order.getSubtotal())));
+            variables.put("ORDER_SHIPPING_FEE", formatPrice(nz(order.getShippingFee())));
             variables.put("ORDER_DISCOUNT_AMOUNT",
-                    order.getDiscountAmount() != null && order.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0
+                    nz(order.getDiscountAmount()).compareTo(BigDecimal.ZERO) > 0
                             ? formatPrice(order.getDiscountAmount()) : null);
+            variables.put("ORDER_SHIPPING_DISCOUNT_AMOUNT",
+                    nz(order.getShippingDiscountAmount()).compareTo(BigDecimal.ZERO) > 0
+                            ? formatPrice(order.getShippingDiscountAmount()) : null);
+            variables.put("ORDER_TAX_LABEL", buildTaxLabel(order));
+            variables.put("ORDER_TAX_AMOUNT",
+                    nz(order.getTaxAmount()).compareTo(BigDecimal.ZERO) > 0
+                            ? formatPrice(order.getTaxAmount()) : null);
             variables.put("ORDER_COUPON_CODE", order.getCouponCode());
-            variables.put("ORDER_TOTAL", formatPrice(order.getTotalAmount()));
+            variables.put("ORDER_TOTAL", formatPrice(nz(order.getTotalAmount())));
             variables.put("ORDER_LINK", frontendUrl + "/user/orders/" + order.getOrderNumber());
 
             emailService.sendTemplateMail(customerEmail,
@@ -560,12 +668,20 @@ public class OrderServiceImpl implements OrderService {
             
             OrderResponse response = mapToResponse(order);
             variables.put("ORDER_ITEMS", response.getItems());
-            variables.put("ORDER_SUBTOTAL", formatPrice(order.getSubtotal()));
+            variables.put("ORDER_SUBTOTAL", formatPrice(nz(order.getSubtotal())));
+            variables.put("ORDER_SHIPPING_FEE", formatPrice(nz(order.getShippingFee())));
             variables.put("ORDER_DISCOUNT_AMOUNT",
-                    order.getDiscountAmount() != null && order.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0
+                    nz(order.getDiscountAmount()).compareTo(BigDecimal.ZERO) > 0
                             ? formatPrice(order.getDiscountAmount()) : null);
+            variables.put("ORDER_SHIPPING_DISCOUNT_AMOUNT",
+                    nz(order.getShippingDiscountAmount()).compareTo(BigDecimal.ZERO) > 0
+                            ? formatPrice(order.getShippingDiscountAmount()) : null);
+            variables.put("ORDER_TAX_LABEL", buildTaxLabel(order));
+            variables.put("ORDER_TAX_AMOUNT",
+                    nz(order.getTaxAmount()).compareTo(BigDecimal.ZERO) > 0
+                            ? formatPrice(order.getTaxAmount()) : null);
             variables.put("ORDER_COUPON_CODE", order.getCouponCode());
-            variables.put("ORDER_TOTAL", formatPrice(order.getTotalAmount()));
+            variables.put("ORDER_TOTAL", formatPrice(nz(order.getTotalAmount())));
             variables.put("ORDER_LINK", frontendUrl + "/user/orders/" + order.getOrderNumber());
 
             emailService.sendTemplateMail(customerEmail,
@@ -589,6 +705,28 @@ public class OrderServiceImpl implements OrderService {
         if (price == null) return "0";
         return String.format("%,.0f", price);
     }
+
+    private BigDecimal nz(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private String buildTaxLabel(Order order) {
+        BigDecimal percent = nz(order.getTaxPercent()).stripTrailingZeros();
+        String percentText = percent.scale() <= 0 ? percent.toPlainString() : percent.toPlainString();
+        if (order.getTaxMode() == TaxMode.EXCLUDED) {
+            return "Thuế VAT (" + percentText + "%)";
+        }
+        return "Thuế VAT (" + percentText + "%, đã gồm)";
+    }
+
+    private record TaxSnapshot(
+            BigDecimal taxPercent,
+            TaxMode taxMode,
+            boolean taxApplyOnShipping,
+            BigDecimal taxableAmount,
+            BigDecimal taxAmount,
+            BigDecimal totalAmount
+    ) {}
     
     private String getDefaultDescriptionForStatus(OrderStatus status) {
         switch (status) {

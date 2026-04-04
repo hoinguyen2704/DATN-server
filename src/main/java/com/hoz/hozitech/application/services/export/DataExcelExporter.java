@@ -44,7 +44,7 @@ public class DataExcelExporter {
 
     private static final String[] ORDER_HEADERS = {
             "Mã đơn", "Khách hàng", "Email", "SĐT",
-            "Tạm tính", "Giảm giá", "Phí ship", "Thành tiền",
+            "Tạm tính", "Giảm giá", "Phí ship", "Thuế", "Thành tiền",
             "Trạng thái", "Thanh toán", "Ngày đặt"
     };
 
@@ -119,15 +119,19 @@ public class DataExcelExporter {
                 shippingCell.setCellValue(order.getShippingFee() != null ? order.getShippingFee().doubleValue() : 0);
                 shippingCell.setCellStyle(currencyStyle);
 
-                Cell totalCell = row.createCell(7);
+                Cell taxCell = row.createCell(7);
+                taxCell.setCellValue(order.getTaxAmount() != null ? order.getTaxAmount().doubleValue() : 0);
+                taxCell.setCellStyle(currencyStyle);
+
+                Cell totalCell = row.createCell(8);
                 totalCell.setCellValue(order.getTotalAmount() != null ? order.getTotalAmount().doubleValue() : 0);
                 totalCell.setCellStyle(currencyStyle);
 
-                row.createCell(8).setCellValue(mapOrderStatusVi(
+                row.createCell(9).setCellValue(mapOrderStatusVi(
                         order.getOrderStatus() != null ? order.getOrderStatus().name() : ""));
-                row.createCell(9).setCellValue(
-                        order.getPaymentStatus() != null ? order.getPaymentStatus().name() : "");
                 row.createCell(10).setCellValue(
+                        order.getPaymentStatus() != null ? order.getPaymentStatus().name() : "");
+                row.createCell(11).setCellValue(
                         order.getCreatedAt() != null ? order.getCreatedAt().format(DATE_FMT) : "");
             }
 
@@ -248,7 +252,7 @@ public class DataExcelExporter {
 
             int rowIdx = 4;
             for (Feedback fb : feedbacks) {
-                if (status != null && !status.isEmpty() && !status.equalsIgnoreCase(fb.getStatus())) continue;
+                if (status != null && !status.isEmpty() && !status.equalsIgnoreCase(fb.getStatus().name())) continue;
                 if (productId != null && !productId.equals(fb.getProduct().getId())) continue;
 
                 Row row = sheet.createRow(rowIdx++);
@@ -258,7 +262,7 @@ public class DataExcelExporter {
                 row.createCell(3).setCellValue(fb.getUser() != null ? fb.getUser().getEmail() : "");
                 row.createCell(4).setCellValue(fb.getRating());
                 row.createCell(5).setCellValue(fb.getContent() != null ? fb.getContent() : "");
-                row.createCell(6).setCellValue(fb.getStatus() != null ? fb.getStatus() : "");
+                row.createCell(6).setCellValue(fb.getStatus() != null ? fb.getStatus().name() : "");
                 row.createCell(7).setCellValue(fb.getAdminReply() != null ? fb.getAdminReply() : "");
                 row.createCell(8).setCellValue(
                         fb.getCreatedAt() != null ? fb.getCreatedAt().format(DATE_FMT) : "");
@@ -343,7 +347,7 @@ public class DataExcelExporter {
                 totalSoldSum += sold;
 
                 row.createCell(8).setCellValue(
-                        "ACTIVE".equals(product.getStatus()) ? "Đang bán" : "Đã ẩn");
+                        com.hoz.hozitech.domain.enums.ProductStatus.ACTIVE == product.getStatus() ? "Đang bán" : "Đã ẩn");
                 row.createCell(9).setCellValue(
                         product.getCreatedAt() != null ? product.getCreatedAt().format(DATE_FMT) : "");
 

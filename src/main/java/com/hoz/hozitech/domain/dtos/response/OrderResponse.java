@@ -25,6 +25,11 @@ public class OrderResponse {
     private BigDecimal shippingFee;
     private BigDecimal discountAmount;
     private BigDecimal shippingDiscountAmount;
+    private BigDecimal taxPercent;
+    private String taxMode;
+    private BigDecimal taxableAmount;
+    private BigDecimal taxAmount;
+    private Boolean taxApplyOnShipping;
     private BigDecimal totalAmount;
     private String couponCode;
     private String shippingCouponCode;

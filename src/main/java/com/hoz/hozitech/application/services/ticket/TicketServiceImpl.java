@@ -1,10 +1,11 @@
 package com.hoz.hozitech.application.services.ticket;
 
-import com.hoz.hozitech.application.constant.StatusConstant;
+import com.hoz.hozitech.domain.enums.TicketStatus;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.TicketMessageRepository;
 import com.hoz.hozitech.application.repositories.TicketRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
+import com.hoz.hozitech.domain.dtos.request.ContactRequest;
 import com.hoz.hozitech.domain.dtos.request.TicketMessageRequest;
 import com.hoz.hozitech.domain.dtos.request.TicketRequest;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -47,7 +48,7 @@ public class TicketServiceImpl implements TicketService {
         Ticket ticket = Ticket.builder()
                 .ticketNumber(generateTicketNumber())
                 .subject(request.getSubject())
-                .status(StatusConstant.TICKET_OPEN)
+                .status(TicketStatus.OPEN)
                 .user(user)
                 .build();
 
@@ -63,6 +64,32 @@ public class TicketServiceImpl implements TicketService {
         ticketMessageRepository.save(initialMessage);
         
         // Reload ticket to include messages list if necessary, or just rely on mappings next fetch.
+        ticket.getMessages().add(initialMessage);
+
+        return mapToResponse(ticket);
+    }
+
+    @Override
+    @Transactional
+    public TicketResponse createGuestTicket(ContactRequest request) {
+        Ticket ticket = Ticket.builder()
+                .ticketNumber(generateTicketNumber())
+                .subject(request.getSubject())
+                .status(TicketStatus.OPEN)
+                .guestName(request.getName())
+                .guestEmail(request.getEmail())
+                .guestPhone(request.getPhone())
+                .build();
+
+        ticket = ticketRepository.save(ticket);
+
+        TicketMessage initialMessage = TicketMessage.builder()
+                .senderType("USER")
+                .content(request.getMessage())
+                .ticket(ticket)
+                .build();
+
+        ticketMessageRepository.save(initialMessage);
         ticket.getMessages().add(initialMessage);
 
         return mapToResponse(ticket);
@@ -101,7 +128,7 @@ public class TicketServiceImpl implements TicketService {
         ticketMessageRepository.save(reply);
         
         // Optionally update ticket status
-        ticket.setStatus(StatusConstant.TICKET_OPEN);
+        ticket.setStatus(TicketStatus.OPEN);
         ticketRepository.save(ticket);
         ticket.getMessages().add(reply);
 
@@ -114,7 +141,7 @@ public class TicketServiceImpl implements TicketService {
         Pageable pageable = PaginationConstant.of(page, size);
         Page<Ticket> tickets;
         if (status != null && !status.isBlank()) {
-            tickets = ticketRepository.findByStatusOrderByCreatedAtDesc(status.toUpperCase(), pageable);
+            tickets = ticketRepository.findByStatusOrderByCreatedAtDesc(TicketStatus.valueOf(status.toUpperCase()), pageable);
         } else {
             tickets = ticketRepository.findAll(pageable);
         }
@@ -144,7 +171,7 @@ public class TicketServiceImpl implements TicketService {
 
         ticketMessageRepository.save(reply);
 
-        ticket.setStatus(StatusConstant.TICKET_ANSWERED);
+        ticket.setStatus(TicketStatus.ANSWERED);
         ticketRepository.save(ticket);
         ticket.getMessages().add(reply);
 
@@ -157,7 +184,7 @@ public class TicketServiceImpl implements TicketService {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
 
-        ticket.setStatus(status.toUpperCase());
+        ticket.setStatus(TicketStatus.valueOf(status.toUpperCase()));
         return mapToResponse(ticketRepository.save(ticket));
     }
 
@@ -166,15 +193,19 @@ public class TicketServiceImpl implements TicketService {
     }
 
     private TicketResponse mapToResponse(Ticket ticket) {
+        String uName = ticket.getUser() != null ? 
+            (ticket.getUser().getFullName() != null ? ticket.getUser().getFullName() : ticket.getUser().getUserName()) 
+            : ticket.getGuestName() != null ? ticket.getGuestName() : "Khách";
+            
         return TicketResponse.builder()
                 .id(ticket.getId())
                 .ticketNumber(ticket.getTicketNumber())
                 .subject(ticket.getSubject())
                 .status(ticket.getStatus())
                 .createdAt(ticket.getCreatedAt())
-                .userId(ticket.getUser().getId())
-                .userName(ticket.getUser().getFullName() != null ? ticket.getUser().getFullName() : ticket.getUser().getUserName())
-                .userEmail(ticket.getUser().getEmail())
+                .userId(ticket.getUser() != null ? ticket.getUser().getId() : null)
+                .userName(uName)
+                .userEmail(ticket.getUser() != null ? ticket.getUser().getEmail() : ticket.getGuestEmail())
                 .messages(ticket.getMessages() != null ? 
                         ticket.getMessages().stream().map(this::mapMessageToResponse).collect(Collectors.toList()) 
                         : null)

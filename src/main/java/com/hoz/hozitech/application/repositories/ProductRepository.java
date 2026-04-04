@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.hoz.hozitech.domain.enums.ProductStatus;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,9 +29,9 @@ public interface ProductRepository extends JpaRepository<Product, UUID>, JpaSpec
     Long countFeedbacks(@Param("productId") UUID productId);
 
     // Homepage queries
-    List<Product> findByStatusAndIsFeaturedTrue(String status, Pageable pageable);
+    List<Product> findByStatusAndIsFeaturedTrue(ProductStatus status, Pageable pageable);
 
-    List<Product> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
+    List<Product> findByStatusOrderByCreatedAtDesc(ProductStatus status, Pageable pageable);
 
     @Query("SELECT p FROM Product p LEFT JOIN Feedback f ON f.product = p WHERE p.status = 'ACTIVE' GROUP BY p ORDER BY COALESCE(AVG(f.rating), 0) DESC, COUNT(f) DESC")
     List<Product> findTopRatedProducts(Pageable pageable);

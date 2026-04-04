@@ -7,15 +7,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 @Repository
 public interface FlashSaleRepository extends JpaRepository<FlashSale, UUID> {
 
     @Query("SELECT fs FROM FlashSale fs WHERE fs.status = 'ACTIVE' " +
-            "AND fs.startTime <= CURRENT_TIMESTAMP AND fs.endTime >= CURRENT_TIMESTAMP")
-    Optional<FlashSale> findActiveFlashSale();
+            "AND fs.startTime <= CURRENT_TIMESTAMP AND fs.endTime >= CURRENT_TIMESTAMP ORDER BY fs.endTime ASC")
+    List<FlashSale> findActiveFlashSales();
 
     Page<FlashSale> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }

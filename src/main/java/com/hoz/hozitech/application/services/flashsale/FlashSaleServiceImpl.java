@@ -1,6 +1,5 @@
 package com.hoz.hozitech.application.services.flashsale;
 
-import com.hoz.hozitech.application.constant.StatusConstant;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.FlashSaleItemRepository;
 import com.hoz.hozitech.application.repositories.FlashSaleRepository;
@@ -12,6 +11,7 @@ import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.entities.FlashSale;
 import com.hoz.hozitech.domain.entities.FlashSaleItem;
 import com.hoz.hozitech.domain.entities.ProductVariant;
+import com.hoz.hozitech.domain.enums.FlashSaleStatus;
 import com.hoz.hozitech.web.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -39,7 +39,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                 .description(request.getDescription())
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
-                .status(StatusConstant.FLASH_SCHEDULED)
+                .status(FlashSaleStatus.SCHEDULED)
                 .build();
 
         flashSale = flashSaleRepository.save(flashSale);
@@ -74,9 +74,9 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         flashSale.setDescription(request.getDescription());
         flashSale.setStartTime(request.getStartTime());
         flashSale.setEndTime(request.getEndTime());
-
-        // Update items: clear and re-add
         flashSale.getItems().clear();
+        flashSaleRepository.flush();
+        
         if (request.getItems() != null) {
             for (FlashSaleRequest.FlashSaleItemRequest itemReq : request.getItems()) {
                 ProductVariant variant = productVariantRepository.findById(itemReq.getVariantId())
@@ -93,6 +93,16 @@ public class FlashSaleServiceImpl implements FlashSaleService {
             }
         }
 
+        flashSale = flashSaleRepository.save(flashSale);
+        return toResponse(flashSale);
+    }
+
+    @Override
+    @Transactional
+    public FlashSaleResponse updateFlashSaleStatus(UUID id, FlashSaleStatus status) {
+        FlashSale flashSale = flashSaleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Flash sale", id));
+        flashSale.setStatus(status);
         flashSale = flashSaleRepository.save(flashSale);
         return toResponse(flashSale);
     }
@@ -123,9 +133,17 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Override
     @Transactional(readOnly = true)
     public FlashSaleResponse getActiveFlashSale() {
-        return flashSaleRepository.findActiveFlashSale()
-                .map(this::toResponse)
+        return getActiveFlashSales().stream()
+                .findFirst()
                 .orElse(null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FlashSaleResponse> getActiveFlashSales() {
+        return flashSaleRepository.findActiveFlashSales().stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -182,7 +200,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                 .description(fs.getDescription())
                 .startTime(fs.getStartTime())
                 .endTime(fs.getEndTime())
-                .status(fs.getStatus())
+                .status(fs.getStatus().name())
                 .items(itemResponses)
                 .createdAt(fs.getCreatedAt())
                 .build();

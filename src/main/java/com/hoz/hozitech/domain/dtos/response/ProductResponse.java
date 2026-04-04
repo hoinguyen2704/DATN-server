@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import com.hoz.hozitech.domain.enums.ProductStatus;
 
 @Data
 @Builder
@@ -26,7 +27,7 @@ public class ProductResponse {
     private BigDecimal lowestPrice;
     private Double averageRating;
     private Integer totalReviews;
-    private String status;
+    private ProductStatus status;
     private Boolean isFeatured;
     private String specsJson;
     private Integer totalSold;

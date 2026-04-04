@@ -1,6 +1,10 @@
 package com.hoz.hozitech.domain.entities;
 
 import com.hoz.hozitech.domain.entities.base.AbstractAuditingEntity;
+import com.hoz.hozitech.domain.enums.CouponStatus;
+import com.hoz.hozitech.domain.enums.DiscountType;
+import com.hoz.hozitech.domain.enums.CouponCategory;
+import com.hoz.hozitech.domain.enums.CouponApplyType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import lombok.*;
@@ -24,12 +28,14 @@ public class Coupon extends AbstractAuditingEntity {
     @Column(name = "code", nullable = false, length = 50, unique = true)
     private String code;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "discount_type", nullable = false, length = 50)
-    private String discountType; // PERCENTAGE, FIXED_AMOUNT
+    private DiscountType discountType;
 
     @Builder.Default
+    @Enumerated(EnumType.STRING)
     @Column(name = "coupon_category", length = 30, columnDefinition = "varchar(30) default 'PRODUCT'")
-    private String couponCategory = "PRODUCT"; // PRODUCT, SHIPPING
+    private CouponCategory couponCategory = CouponCategory.PRODUCT;
 
     @Column(name = "discount_value", precision = 15, scale = 2)
     private BigDecimal discountValue;
@@ -56,8 +62,9 @@ public class Coupon extends AbstractAuditingEntity {
     private LocalDateTime endDate;
 
     @Builder.Default
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)
-    private String status = "ACTIVE";
+    private CouponStatus status = CouponStatus.ACTIVE;
 
     // ─── NEW: Visibility ─────────────────────────────────────────
     @Builder.Default
@@ -66,8 +73,9 @@ public class Coupon extends AbstractAuditingEntity {
 
     // ─── NEW: Apply scope ────────────────────────────────────────
     @Builder.Default
+    @Enumerated(EnumType.STRING)
     @Column(name = "apply_type", nullable = false, length = 30)
-    private String applyType = "ALL"; // ALL | SPECIFIC_PRODUCTS
+    private CouponApplyType applyType = CouponApplyType.ALL;
 
     // ─── NEW: Applicable products (only when applyType = SPECIFIC_PRODUCTS)
     @ManyToMany(fetch = FetchType.LAZY)

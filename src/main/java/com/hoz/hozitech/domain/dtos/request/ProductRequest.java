@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+import com.hoz.hozitech.domain.enums.ProductStatus;
 
 @Data
 @Builder
@@ -36,7 +37,7 @@ public class ProductRequest {
     @NotNull(message = "Category ID is required")
     private UUID categoryId;
 
-    private String status;
+    private ProductStatus status;
 
     private Boolean isFeatured;
 

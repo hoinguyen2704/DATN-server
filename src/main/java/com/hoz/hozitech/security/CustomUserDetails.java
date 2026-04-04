@@ -8,6 +8,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import com.hoz.hozitech.domain.entities.User;
+import com.hoz.hozitech.domain.enums.UserStatus;
 
 import lombok.RequiredArgsConstructor;
 
@@ -45,7 +46,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return !"LOCKED".equalsIgnoreCase(user.getStatus());
+        return UserStatus.LOCKED != user.getStatus();
     }
 
     @Override
@@ -55,6 +56,6 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return "ACTIVE".equalsIgnoreCase(user.getStatus());
+        return UserStatus.ACTIVE == user.getStatus();
     }
 }

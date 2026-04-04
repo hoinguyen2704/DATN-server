@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 
 import com.hoz.hozitech.domain.entities.Feedback;
+import com.hoz.hozitech.domain.enums.FeedbackStatus;
 
 import jakarta.persistence.criteria.Predicate;
 
@@ -20,7 +21,9 @@ public class FeedbackSpecification {
             }
 
             if (status != null && !status.isBlank()) {
-                predicates.add(cb.equal(root.get("status"), status.toUpperCase()));
+                try {
+                    predicates.add(cb.equal(root.get("status"), FeedbackStatus.valueOf(status.toUpperCase())));
+                } catch (IllegalArgumentException ignored) {}
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

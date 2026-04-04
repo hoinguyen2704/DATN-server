@@ -46,6 +46,7 @@ public class SecurityConfig {
             "/api/v1/flash-sales/**",
             "/api/v1/cms/**",
             "/api/v1/settings/**",
+            "/api/v1/public/**",
             "/uploads/**",
             "/v3/api-docs/**",
             "/swagger-ui/**",

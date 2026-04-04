@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import com.hoz.hozitech.domain.enums.TicketStatus;
 
 @Data
 @Builder
@@ -17,7 +18,7 @@ public class TicketResponse {
     private UUID id;
     private String ticketNumber;
     private String subject;
-    private String status;
+    private TicketStatus status;
     private LocalDateTime createdAt;
     
     private UUID userId;

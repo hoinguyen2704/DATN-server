@@ -2,6 +2,7 @@ package com.hoz.hozitech.domain.entities;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hoz.hozitech.domain.entities.base.AbstractAuditingEntity;
+import com.hoz.hozitech.domain.enums.FeedbackStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -32,8 +33,9 @@ public class Feedback extends AbstractAuditingEntity {
     private String imagesJson;
 
     @Builder.Default
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)
-    private String status = "APPROVED"; // APPROVED, HIDDEN, SPAM
+    private FeedbackStatus status = FeedbackStatus.APPROVED;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

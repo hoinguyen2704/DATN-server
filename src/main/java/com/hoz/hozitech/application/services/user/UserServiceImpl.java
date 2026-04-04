@@ -1,8 +1,8 @@
 package com.hoz.hozitech.application.services.user;
 
-import com.hoz.hozitech.application.constant.StatusConstant;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.UserRepository;
+import com.hoz.hozitech.domain.enums.UserStatus;
 import com.hoz.hozitech.application.specifications.UserSpecification;
 import com.hoz.hozitech.domain.dtos.request.ChangePasswordRequest;
 import com.hoz.hozitech.domain.dtos.request.UpdateUserRequest;
@@ -126,10 +126,10 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("Cannot lock an admin account");
         }
 
-        if (StatusConstant.USER_ACTIVE.equalsIgnoreCase(user.getStatus())) {
-            user.setStatus(StatusConstant.USER_LOCKED);
+        if (UserStatus.ACTIVE == user.getStatus()) {
+            user.setStatus(UserStatus.LOCKED);
         } else {
-            user.setStatus(StatusConstant.USER_ACTIVE);
+            user.setStatus(UserStatus.ACTIVE);
         }
         return mapToResponse(userRepository.save(user));
     }

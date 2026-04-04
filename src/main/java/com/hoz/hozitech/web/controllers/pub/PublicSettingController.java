@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -51,11 +52,46 @@ public class PublicSettingController {
         return ResponseEntity.ok(ApiResponse.success("Shipping config", config));
     }
 
+    /** Cấu hình thuế — dùng cho Checkout hiển thị breakdown thuế */
+    @GetMapping("/tax")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getTaxConfig() {
+        Map<String, Object> config = new LinkedHashMap<>();
+        config.put("enabled", bool("TAX_ENABLED", true));
+        config.put("taxPercent", num("DEFAULT_TAX_PERCENT", BigDecimal.TEN));
+
+        String taxMode = valOrDefault("TAX_MODE", "INCLUDED").toUpperCase();
+        if (!"EXCLUDED".equals(taxMode)) taxMode = "INCLUDED";
+        config.put("taxMode", taxMode);
+
+        config.put("applyOnShipping", bool("TAX_APPLY_ON_SHIPPING", true));
+        return ResponseEntity.ok(ApiResponse.success("Tax config", config));
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────
 
     private String val(String key) {
         String v = settingService.getSettingValue(key);
         return v != null ? v : "";
+    }
+
+    private String valOrDefault(String key, String fallback) {
+        String v = settingService.getSettingValue(key);
+        return (v == null || v.isBlank()) ? fallback : v;
+    }
+
+    private boolean bool(String key, boolean fallback) {
+        String v = settingService.getSettingValue(key);
+        return (v == null || v.isBlank()) ? fallback : "true".equalsIgnoreCase(v);
+    }
+
+    private BigDecimal num(String key, BigDecimal fallback) {
+        String v = settingService.getSettingValue(key);
+        if (v == null || v.isBlank()) return fallback;
+        try {
+            return new BigDecimal(v);
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
     }
 
     private void addIfEnabled(java.util.List<Map<String, Object>> list,

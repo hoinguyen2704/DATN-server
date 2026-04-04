@@ -1,6 +1,8 @@
 package com.hoz.hozitech.domain.entities;
 
 import com.hoz.hozitech.domain.entities.base.AbstractAuditingEntity;
+import com.hoz.hozitech.domain.enums.FlashSaleStatus;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -30,8 +32,9 @@ public class FlashSale extends AbstractAuditingEntity {
     private LocalDateTime endTime;
 
     @Builder.Default
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status = "SCHEDULED"; // SCHEDULED, ACTIVE, ENDED
+    private FlashSaleStatus status = FlashSaleStatus.SCHEDULED;
 
     @Builder.Default
     @OneToMany(mappedBy = "flashSale", cascade = CascadeType.ALL, orphanRemoval = true)

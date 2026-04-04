@@ -1,6 +1,6 @@
 package com.hoz.hozitech.application.services.feedback;
 
-import com.hoz.hozitech.application.constant.StatusConstant;
+import com.hoz.hozitech.domain.enums.FeedbackStatus;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.FeedbackRepository;
 import com.hoz.hozitech.application.repositories.OrderRepository;
@@ -40,7 +40,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     public PageResponse<FeedbackResponse> getFeedbacksByProduct(UUID productId, int page, int size) {
         Pageable pageable = PaginationConstant.of(page, size);
         // For public view, only show APPROVED feedbacks
-        Page<Feedback> feedbacks = feedbackRepository.findByProductIdAndStatus(productId, StatusConstant.FEEDBACK_APPROVED, pageable);
+        Page<Feedback> feedbacks = feedbackRepository.findByProductIdAndStatus(productId, FeedbackStatus.APPROVED, pageable);
         return PageResponse.of(feedbacks.map(this::mapToResponse));
     }
 
@@ -83,7 +83,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                 .rating(request.getRating())
                 .content(request.getContent())
                 .imagesJson(request.getImagesJson())
-                .status(StatusConstant.FEEDBACK_APPROVED) // Auto-approve for now, or could default to PENDING
+                .status(FeedbackStatus.APPROVED) // Auto-approve for now, or could default to PENDING
                 .user(user)
                 .product(product)
                 .variant(variant)
@@ -117,7 +117,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         Feedback feedback = feedbackRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Feedback not found"));
 
-        feedback.setStatus(status.toUpperCase()); // APPROVED, HIDDEN, SPAM
+        feedback.setStatus(FeedbackStatus.valueOf(status.toUpperCase())); // APPROVED, HIDDEN, SPAM
         return mapToResponse(feedbackRepository.save(feedback));
     }
 

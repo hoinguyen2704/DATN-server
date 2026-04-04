@@ -6,6 +6,7 @@ import org.hibernate.type.SqlTypes;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hoz.hozitech.domain.entities.base.AbstractAuditingEntity;
 import jakarta.persistence.*;
+import com.hoz.hozitech.domain.enums.ProductStatus;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -45,8 +46,9 @@ public class Product extends AbstractAuditingEntity {
     @Column(name = "specs_json", columnDefinition = "jsonb")
     private String specsJson;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 50)
-    private String status;
+    private ProductStatus status = ProductStatus.ACTIVE;
 
     @Builder.Default
     @Column(name = "is_featured", nullable = false)

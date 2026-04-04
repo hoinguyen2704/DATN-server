@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 
+import java.util.List;
+
 @RestAPI("${api.prefix-client}/flash-sales")
 @RequiredArgsConstructor
 public class PublicFlashSaleController {
@@ -21,5 +23,11 @@ public class PublicFlashSaleController {
             return ResponseEntity.ok(new ApiResponse<>(true, "No active flash sale", null, java.time.LocalDateTime.now()));
         }
         return ResponseEntity.ok(ApiResponse.success("Active flash sale fetched", response));
+    }
+
+    @GetMapping("/active-list")
+    public ResponseEntity<ApiResponse<List<FlashSaleResponse>>> getActiveFlashSales() {
+        List<FlashSaleResponse> responses = flashSaleService.getActiveFlashSales();
+        return ResponseEntity.ok(ApiResponse.success("Active flash sales fetched", responses));
     }
 }

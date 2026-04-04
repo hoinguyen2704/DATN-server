@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import com.hoz.hozitech.domain.enums.FeedbackStatus;
 
 @Repository
 public interface FeedbackRepository extends JpaRepository<Feedback, UUID>, JpaSpecificationExecutor<Feedback> {
@@ -20,9 +21,9 @@ public interface FeedbackRepository extends JpaRepository<Feedback, UUID>, JpaSp
 
     Page<Feedback> findByProductIdAndRating(UUID productId, Integer rating, Pageable pageable);
 
-    Page<Feedback> findByProductIdAndStatus(UUID productId, String status, Pageable pageable);
+    Page<Feedback> findByProductIdAndStatus(UUID productId, FeedbackStatus status, Pageable pageable);
 
-    Page<Feedback> findByStatus(String status, Pageable pageable);
+    Page<Feedback> findByStatus(FeedbackStatus status, Pageable pageable);
 
     boolean existsByUserIdAndProductIdAndOrderId(UUID userId, UUID productId, UUID orderId);
     

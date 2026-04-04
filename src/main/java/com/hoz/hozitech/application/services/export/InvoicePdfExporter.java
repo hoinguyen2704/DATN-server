@@ -180,6 +180,20 @@ public class InvoicePdfExporter {
                 addTotalRow(totalsTable, "Giảm giá:", "-" + formatMoney(order.getDiscountAmount()), normalFont, greenFont);
             }
             addTotalRow(totalsTable, "Phí ship:", formatMoney(order.getShippingFee()), normalFont, normalFont);
+            if (order.getShippingDiscountAmount() != null && order.getShippingDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
+                Font greenFont = new Font(baseFont, 10, Font.BOLD, new Color(5, 150, 105));
+                addTotalRow(totalsTable, "Giảm phí ship:", "-" + formatMoney(order.getShippingDiscountAmount()), normalFont, greenFont);
+            }
+            if (order.getTaxAmount() != null && order.getTaxAmount().compareTo(BigDecimal.ZERO) > 0) {
+                String taxLabel = "Thuế VAT";
+                if (order.getTaxPercent() != null) {
+                    taxLabel = taxLabel + " (" + order.getTaxPercent().stripTrailingZeros().toPlainString() + "%)";
+                }
+                if (order.getTaxMode() != null && "INCLUDED".equalsIgnoreCase(order.getTaxMode().name())) {
+                    taxLabel = taxLabel + " (đã gồm)";
+                }
+                addTotalRow(totalsTable, taxLabel + ":", formatMoney(order.getTaxAmount()), normalFont, normalFont);
+            }
 
             PdfPCell sepCell = new PdfPCell();
             sepCell.setBorder(Rectangle.BOTTOM);

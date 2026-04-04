@@ -1,6 +1,6 @@
 package com.hoz.hozitech.application.services.auth;
 
-import com.hoz.hozitech.application.constant.StatusConstant;
+import com.hoz.hozitech.domain.enums.UserStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -79,7 +79,7 @@ public class AuthServiceImpl implements AuthService {
                 .phoneNumber(request.getPhoneNumber())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(userRole)
-                .status(StatusConstant.USER_ACTIVE)
+                .status(UserStatus.ACTIVE)
                 .authProvider("LOCAL")
                 .build();
 
@@ -251,7 +251,7 @@ public class AuthServiceImpl implements AuthService {
                     .avatarUrl(avatarUrl)
                     .password(passwordEncoder.encode(java.util.UUID.randomUUID().toString()))
                     .role(userRole)
-                    .status(StatusConstant.USER_ACTIVE)
+                    .status(UserStatus.ACTIVE)
                     .authProvider(request.getProvider().toUpperCase())
                     .build();
             user = userRepository.save(user);

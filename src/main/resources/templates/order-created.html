@@ -129,9 +129,21 @@
                                 <td style="padding: 12px 16px; font-size: 14px; color: #64748b;">Tạm tính:</td>
                                 <td th:text="${ORDER_SUBTOTAL} + '₫'" style="padding: 12px 16px; font-size: 14px; color: #1e293b; text-align: right;"></td>
                             </tr>
+                            <tr>
+                                <td style="padding: 12px 16px; font-size: 14px; color: #64748b;">Phí vận chuyển:</td>
+                                <td th:text="${ORDER_SHIPPING_FEE} + '₫'" style="padding: 12px 16px; font-size: 14px; color: #1e293b; text-align: right;"></td>
+                            </tr>
                             <tr th:if="${ORDER_DISCOUNT_AMOUNT != null}">
                                 <td style="padding: 12px 16px; font-size: 14px; color: #64748b;">Giảm giá:</td>
                                 <td th:text="'-' + ${ORDER_DISCOUNT_AMOUNT} + '₫'" style="padding: 12px 16px; font-size: 14px; color: #10b981; text-align: right; font-weight: 600;"></td>
+                            </tr>
+                            <tr th:if="${ORDER_SHIPPING_DISCOUNT_AMOUNT != null}">
+                                <td style="padding: 12px 16px; font-size: 14px; color: #64748b;">Giảm phí vận chuyển:</td>
+                                <td th:text="'-' + ${ORDER_SHIPPING_DISCOUNT_AMOUNT} + '₫'" style="padding: 12px 16px; font-size: 14px; color: #10b981; text-align: right; font-weight: 600;"></td>
+                            </tr>
+                            <tr th:if="${ORDER_TAX_AMOUNT != null}">
+                                <td th:text="${ORDER_TAX_LABEL}" style="padding: 12px 16px; font-size: 14px; color: #64748b;"></td>
+                                <td th:text="${ORDER_TAX_AMOUNT} + '₫'" style="padding: 12px 16px; font-size: 14px; color: #1e293b; text-align: right; font-weight: 600;"></td>
                             </tr>
                             <tr th:if="${ORDER_COUPON_CODE != null}">
                                 <td style="padding: 12px 16px; font-size: 14px; color: #64748b;">Mã giảm giá:</td>

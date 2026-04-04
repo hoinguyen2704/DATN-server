@@ -1,6 +1,6 @@
 package com.hoz.hozitech.application.services.product;
 
-import com.hoz.hozitech.application.constant.StatusConstant;
+import com.hoz.hozitech.domain.enums.ProductStatus;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.BrandRepository;
 import com.hoz.hozitech.application.repositories.CategoryRepository;
@@ -123,7 +123,7 @@ public class ProductServiceImpl implements ProductService {
                 .brand(brand)
                 .originPrice(request.getOriginPrice())
                 .specsJson(request.getSpecsJson())
-                .status(request.getStatus() != null ? request.getStatus() : StatusConstant.PRODUCT_ACTIVE)
+                .status(request.getStatus() != null ? request.getStatus() : ProductStatus.ACTIVE)
                 .isFeatured(request.getIsFeatured() != null ? request.getIsFeatured() : false)
                 .category(category)
                 .variants(new ArrayList<>())
@@ -300,10 +300,10 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found"));
         
-        if (StatusConstant.PRODUCT_ACTIVE.equalsIgnoreCase(product.getStatus())) {
-            product.setStatus(StatusConstant.PRODUCT_DRAFT);
+        if (ProductStatus.ACTIVE == product.getStatus()) {
+            product.setStatus(ProductStatus.DRAFT);
         } else {
-            product.setStatus(StatusConstant.PRODUCT_ACTIVE);
+            product.setStatus(ProductStatus.ACTIVE);
         }
         return mapToDetailedResponse(productRepository.save(product));
     }
@@ -443,7 +443,7 @@ public class ProductServiceImpl implements ProductService {
         // Map status param to Boolean: null = all, ACTIVE = true, INACTIVE/DRAFT = false
         Boolean active = null;
         if (status != null && !status.isBlank()) {
-            active = StatusConstant.PRODUCT_ACTIVE.equalsIgnoreCase(status);
+            active = ProductStatus.ACTIVE.name().equalsIgnoreCase(status);
         }
 
         Specification<Product> spec = ProductSpecification.filter(keyword, categoryId, null, null, null, null, active);
@@ -455,7 +455,7 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(readOnly = true)
     public List<ProductResponse> getFeaturedProducts(int limit) {
         Pageable pageable = PageRequest.of(0, limit);
-        return productRepository.findByStatusAndIsFeaturedTrue(StatusConstant.PRODUCT_ACTIVE, pageable)
+        return productRepository.findByStatusAndIsFeaturedTrue(ProductStatus.ACTIVE, pageable)
                 .stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
@@ -463,7 +463,7 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(readOnly = true)
     public List<ProductResponse> getNewArrivals(int limit) {
         Pageable pageable = PageRequest.of(0, limit);
-        return productRepository.findByStatusOrderByCreatedAtDesc(StatusConstant.PRODUCT_ACTIVE, pageable)
+        return productRepository.findByStatusOrderByCreatedAtDesc(ProductStatus.ACTIVE, pageable)
                 .stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 

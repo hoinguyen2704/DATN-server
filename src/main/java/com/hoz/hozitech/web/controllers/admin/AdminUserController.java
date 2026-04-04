@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+import com.hoz.hozitech.domain.enums.UserStatus;
 
 @RestAPI("${api.prefix-admin}/users")
 @RoleAdmin
@@ -45,7 +46,7 @@ public class AdminUserController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<UserResponse>> toggleStatus(@PathVariable UUID id) {
         UserResponse response = userService.toggleUserStatus(id);
-        String msg = "LOCKED".equalsIgnoreCase(response.getStatus()) ? "User has been locked successfully" : "User has been unlocked successfully";
+        String msg = UserStatus.LOCKED == response.getStatus() ? "User has been locked successfully" : "User has been unlocked successfully";
         return ResponseEntity.ok(ApiResponse.success(msg, response));
     }
 

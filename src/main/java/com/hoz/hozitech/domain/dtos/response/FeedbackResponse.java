@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import com.hoz.hozitech.domain.enums.FeedbackStatus;
 
 @Data
 @Builder
@@ -17,7 +18,7 @@ public class FeedbackResponse {
     private Integer rating;
     private String content;
     private String imagesJson;
-    private String status;
+    private FeedbackStatus status;
     private LocalDateTime createdAt;
     
     private UUID productId;

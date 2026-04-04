@@ -1,7 +1,10 @@
 package com.hoz.hozitech.application.services.coupon;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
-import com.hoz.hozitech.application.constant.StatusConstant;
+import com.hoz.hozitech.domain.enums.CouponStatus;
+import com.hoz.hozitech.domain.enums.CouponCategory;
+import com.hoz.hozitech.domain.enums.DiscountType;
+import com.hoz.hozitech.domain.enums.CouponApplyType;
 import com.hoz.hozitech.application.repositories.CouponRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.UserSavedCouponRepository;
@@ -75,17 +78,17 @@ public class CouponServiceImpl implements CouponService {
 
         Coupon coupon = Coupon.builder()
                 .code(request.getCode().toUpperCase())
-                .discountType(request.getDiscountType().toUpperCase())
+                .discountType(DiscountType.valueOf(request.getDiscountType().toUpperCase()))
                 .discountValue(request.getDiscountValue())
                 .minOrderValue(request.getMinOrderValue())
                 .maxDiscountAmount(request.getMaxDiscountAmount())
                 .usageLimit(request.getUsageLimit())
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
-                .status(StatusConstant.COUPON_ACTIVE)
+                .status(CouponStatus.ACTIVE)
                 .isPublic(request.getIsPublic() != null ? request.getIsPublic() : false)
-                .applyType(request.getApplyType() != null ? request.getApplyType() : StatusConstant.COUPON_APPLY_ALL)
-                .couponCategory(request.getCouponCategory() != null ? request.getCouponCategory().toUpperCase() : StatusConstant.COUPON_CATEGORY_PRODUCT)
+                .applyType(request.getApplyType() != null ? CouponApplyType.valueOf(request.getApplyType().toUpperCase()) : CouponApplyType.ALL)
+                .couponCategory(request.getCouponCategory() != null ? CouponCategory.valueOf(request.getCouponCategory().toUpperCase()) : CouponCategory.PRODUCT)
                 .build();
 
         // Link applicable products
@@ -105,7 +108,7 @@ public class CouponServiceImpl implements CouponService {
         }
 
         coupon.setCode(request.getCode().toUpperCase());
-        coupon.setDiscountType(request.getDiscountType().toUpperCase());
+        coupon.setDiscountType(DiscountType.valueOf(request.getDiscountType().toUpperCase()));
         coupon.setDiscountValue(request.getDiscountValue());
         coupon.setMinOrderValue(request.getMinOrderValue());
         coupon.setMaxDiscountAmount(request.getMaxDiscountAmount());
@@ -113,8 +116,8 @@ public class CouponServiceImpl implements CouponService {
         coupon.setStartDate(request.getStartDate());
         coupon.setEndDate(request.getEndDate());
         coupon.setIsPublic(request.getIsPublic() != null ? request.getIsPublic() : coupon.getIsPublic());
-        coupon.setApplyType(request.getApplyType() != null ? request.getApplyType() : coupon.getApplyType());
-        coupon.setCouponCategory(request.getCouponCategory() != null ? request.getCouponCategory().toUpperCase() : coupon.getCouponCategory());
+        coupon.setApplyType(request.getApplyType() != null ? CouponApplyType.valueOf(request.getApplyType().toUpperCase()) : coupon.getApplyType());
+        coupon.setCouponCategory(request.getCouponCategory() != null ? CouponCategory.valueOf(request.getCouponCategory().toUpperCase()) : coupon.getCouponCategory());
 
         // Re-link applicable products
         applyProductScope(coupon, request);
@@ -128,10 +131,10 @@ public class CouponServiceImpl implements CouponService {
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
 
-        if (StatusConstant.COUPON_ACTIVE.equalsIgnoreCase(coupon.getStatus())) {
-            coupon.setStatus(StatusConstant.COUPON_INACTIVE);
+        if (CouponStatus.ACTIVE == coupon.getStatus()) {
+            coupon.setStatus(CouponStatus.INACTIVE);
         } else {
-            coupon.setStatus(StatusConstant.COUPON_ACTIVE);
+            coupon.setStatus(CouponStatus.ACTIVE);
         }
 
         return mapToResponse(couponRepository.save(coupon));
@@ -147,8 +150,8 @@ public class CouponServiceImpl implements CouponService {
         LocalDateTime now = LocalDateTime.now(ZoneId.of(appTimezone));
 
         // Fetch public + active vouchers (with or without end date)
-        List<Coupon> withEndDate = couponRepository.findByIsPublicTrueAndStatusAndEndDateAfter(StatusConstant.COUPON_ACTIVE, now);
-        List<Coupon> withoutEndDate = couponRepository.findByIsPublicTrueAndStatusAndEndDateIsNull(StatusConstant.COUPON_ACTIVE);
+        List<Coupon> withEndDate = couponRepository.findByIsPublicTrueAndStatusAndEndDateAfter(CouponStatus.ACTIVE, now);
+        List<Coupon> withoutEndDate = couponRepository.findByIsPublicTrueAndStatusAndEndDateIsNull(CouponStatus.ACTIVE);
 
         List<Coupon> all = new ArrayList<>(withEndDate);
         all.addAll(withoutEndDate);
@@ -236,7 +239,7 @@ public class CouponServiceImpl implements CouponService {
 
     private void validateCouponAvailability(Coupon coupon) {
         LocalDateTime now = LocalDateTime.now(ZoneId.of(appTimezone));
-        if (!StatusConstant.COUPON_ACTIVE.equalsIgnoreCase(coupon.getStatus())) {
+        if (CouponStatus.ACTIVE != coupon.getStatus()) {
             throw new IllegalArgumentException("Coupon is not active");
         }
         if (coupon.getEndDate() != null && coupon.getEndDate().isBefore(now)) {
@@ -258,7 +261,7 @@ public class CouponServiceImpl implements CouponService {
     }
 
     private void applyProductScope(Coupon coupon, CouponRequest request) {
-        if (StatusConstant.COUPON_APPLY_SPECIFIC.equalsIgnoreCase(request.getApplyType())
+        if (CouponApplyType.SPECIFIC_PRODUCTS.name().equalsIgnoreCase(request.getApplyType())
                 && request.getApplicableProductIds() != null
                 && !request.getApplicableProductIds().isEmpty()) {
             List<Product> products = productRepository.findAllById(request.getApplicableProductIds());

@@ -43,6 +43,13 @@ public class AdminFlashSaleController {
     public ResponseEntity<ApiResponse<FlashSaleResponse>> update(@PathVariable UUID id, @Valid @RequestBody FlashSaleRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Flash sale updated", flashSaleService.updateFlashSale(id, request)));
     }
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<FlashSaleResponse>> updateStatus(
+            @PathVariable UUID id, 
+            @RequestParam com.hoz.hozitech.domain.enums.FlashSaleStatus status) {
+        return ResponseEntity.ok(ApiResponse.success("Flash sale status updated", flashSaleService.updateFlashSaleStatus(id, status)));
+    }
+
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
