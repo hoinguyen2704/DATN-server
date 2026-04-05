@@ -5,6 +5,7 @@ import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.TicketMessageRepository;
 import com.hoz.hozitech.application.repositories.TicketRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
+import com.hoz.hozitech.application.services.notification.NotificationService;
 import com.hoz.hozitech.domain.dtos.request.ContactRequest;
 import com.hoz.hozitech.domain.dtos.request.TicketMessageRequest;
 import com.hoz.hozitech.domain.dtos.request.TicketRequest;
@@ -30,6 +31,7 @@ public class TicketServiceImpl implements TicketService {
     private final TicketRepository ticketRepository;
     private final TicketMessageRepository ticketMessageRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -174,6 +176,14 @@ public class TicketServiceImpl implements TicketService {
         ticket.setStatus(TicketStatus.ANSWERED);
         ticketRepository.save(ticket);
         ticket.getMessages().add(reply);
+        if (ticket.getUser() != null) {
+            notificationService.createForUser(
+                    ticket.getUser().getId(),
+                    "Bạn có phản hồi hỗ trợ mới",
+                    "Yêu cầu " + ticket.getTicketNumber() + " đã được admin phản hồi.",
+                    "SUPPORT"
+            );
+        }
 
         return mapToResponse(ticket);
     }
@@ -183,9 +193,20 @@ public class TicketServiceImpl implements TicketService {
     public TicketResponse updateTicketStatus(UUID ticketId, String status) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+        TicketStatus oldStatus = ticket.getStatus();
 
-        ticket.setStatus(TicketStatus.valueOf(status.toUpperCase()));
-        return mapToResponse(ticketRepository.save(ticket));
+        TicketStatus newStatus = TicketStatus.valueOf(status.toUpperCase());
+        ticket.setStatus(newStatus);
+        Ticket saved = ticketRepository.save(ticket);
+        if (ticket.getUser() != null && oldStatus != newStatus) {
+            notificationService.createForUser(
+                    ticket.getUser().getId(),
+                    "Cập nhật trạng thái hỗ trợ",
+                    "Yêu cầu " + ticket.getTicketNumber() + " đã chuyển sang trạng thái " + newStatus.getDescription() + ".",
+                    "SUPPORT"
+            );
+        }
+        return mapToResponse(saved);
     }
 
     private String generateTicketNumber() {

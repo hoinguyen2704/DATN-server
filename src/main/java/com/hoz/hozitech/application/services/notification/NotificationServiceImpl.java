@@ -2,9 +2,13 @@ package com.hoz.hozitech.application.services.notification;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.NotificationRepository;
+import com.hoz.hozitech.application.repositories.OrderRepository;
+import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.domain.dtos.response.NotificationResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.entities.Notification;
+import com.hoz.hozitech.domain.entities.Order;
+import com.hoz.hozitech.domain.entities.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +22,8 @@ import java.util.UUID;
 public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
+    private final OrderRepository orderRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -51,6 +57,29 @@ public class NotificationServiceImpl implements NotificationService {
     @Transactional
     public void markAllAsRead(UUID userId) {
         notificationRepository.markAllAsRead(userId);
+    }
+
+    @Override
+    @Transactional
+    public void createForUser(UUID userId, String title, String content, String type, UUID orderId) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return;
+        }
+
+        Order order = null;
+        if (orderId != null) {
+            order = orderRepository.findById(orderId).orElse(null);
+        }
+
+        Notification notification = Notification.builder()
+                .title(title)
+                .content(content)
+                .type(type)
+                .user(user)
+                .order(order)
+                .build();
+        notificationRepository.save(notification);
     }
 
     private NotificationResponse mapToResponse(Notification n) {

@@ -32,6 +32,7 @@ import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.constant.MailTemplate;
 import com.hoz.hozitech.application.services.email.EmailService;
 import com.hoz.hozitech.application.services.flashsale.FlashSaleService;
+import com.hoz.hozitech.application.services.notification.NotificationService;
 import com.hoz.hozitech.application.services.setting.SettingService;
 import com.hoz.hozitech.application.specifications.OrderSpecification;
 import com.hoz.hozitech.domain.dtos.request.CheckoutRequest;
@@ -73,6 +74,7 @@ public class OrderServiceImpl implements OrderService {
     private final ObjectMapper objectMapper;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final SettingService settingService;
+    private final NotificationService notificationService;
 
     @Value("${link.frontend:http://localhost:3000}")
     private String frontendUrl;
@@ -263,6 +265,13 @@ public class OrderServiceImpl implements OrderService {
 
         // Send order created email
         sendOrderCreatedEmail(savedOrder, user, address);
+        notificationService.createForUser(
+                userId,
+                "Đặt hàng thành công",
+                "Đơn hàng " + savedOrder.getOrderNumber() + " đã được tạo thành công.",
+                "ORDER",
+                savedOrder.getId()
+        );
 
         return response;
     }
@@ -335,6 +344,13 @@ public class OrderServiceImpl implements OrderService {
                 .description("Người dùng đã huỷ đơn hàng")
                 .build();
         orderStatusHistoryRepository.save(history);
+        notificationService.createForUser(
+                userId,
+                "Đơn hàng đã bị huỷ",
+                "Đơn hàng " + savedOrder.getOrderNumber() + " đã được huỷ theo yêu cầu của bạn.",
+                "ORDER",
+                savedOrder.getId()
+        );
 
         return mapToResponse(savedOrder);
     }
@@ -359,6 +375,7 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse updateOrderStatus(UUID orderId, String status) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+        OrderStatus oldStatus = order.getOrderStatus();
 
         OrderStatus newStatus = OrderStatus.valueOf(status.toUpperCase());
         order.setOrderStatus(newStatus);
@@ -376,6 +393,15 @@ public class OrderServiceImpl implements OrderService {
                 .description(getDefaultDescriptionForStatus(newStatus))
                 .build();
         orderStatusHistoryRepository.save(history);
+        if (oldStatus != newStatus) {
+            notificationService.createForUser(
+                    updatedOrder.getUser().getId(),
+                    "Cập nhật đơn hàng",
+                    "Đơn hàng " + updatedOrder.getOrderNumber() + " đã chuyển sang trạng thái " + getStatusLabel(newStatus) + ".",
+                    "ORDER",
+                    updatedOrder.getId()
+            );
+        }
 
         // Send shipped email notification
         if (newStatus == OrderStatus.SHIPPED) {
@@ -738,6 +764,19 @@ public class OrderServiceImpl implements OrderService {
             case OrderStatus.CANCELLED: return "Đơn hàng đã bị huỷ";
             case OrderStatus.RETURNED: return "Đơn hàng đã được hoàn trả";
             default: return "Cập nhật trạng thái đơn hàng";
+        }
+    }
+
+    private String getStatusLabel(OrderStatus status) {
+        switch (status) {
+            case OrderStatus.PENDING: return "chờ xác nhận";
+            case OrderStatus.CONFIRMED: return "đã xác nhận";
+            case OrderStatus.PROCESSING: return "đang xử lý";
+            case OrderStatus.SHIPPING: return "đang giao";
+            case OrderStatus.SHIPPED: return "đã giao";
+            case OrderStatus.CANCELLED: return "đã huỷ";
+            case OrderStatus.RETURNED: return "đã hoàn trả";
+            default: return status.name();
         }
     }
 }
