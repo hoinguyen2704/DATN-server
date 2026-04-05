@@ -7,6 +7,7 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
+import java.io.IOException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hoz.hozitech.application.services.realtime.RealtimeEventEnvelope;
@@ -38,7 +39,13 @@ public class RealtimeWebSocketHandler extends TextWebSocketHandler {
                         .data(Map.of("connected", true))
                         .build()
         );
-        session.sendMessage(new TextMessage(payload));
+        try {
+            if (session.isOpen()) {
+                session.sendMessage(new TextMessage(payload));
+            }
+        } catch (IOException e) {
+            log.warn("realtime_ws_send_error sessionId={} msg=WS_CONNECTED error={}", session.getId(), e.getMessage());
+        }
     }
 
     @Override
@@ -50,7 +57,13 @@ public class RealtimeWebSocketHandler extends TextWebSocketHandler {
                             .data(Map.of("ok", true))
                             .build()
             );
-            session.sendMessage(new TextMessage(payload));
+            try {
+                if (session.isOpen()) {
+                    session.sendMessage(new TextMessage(payload));
+                }
+            } catch (IOException e) {
+                log.warn("realtime_ws_send_error sessionId={} msg=PONG error={}", session.getId(), e.getMessage());
+            }
         }
     }
 
