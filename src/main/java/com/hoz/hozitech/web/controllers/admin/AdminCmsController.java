@@ -1,6 +1,7 @@
 package com.hoz.hozitech.web.controllers.admin;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
+import com.hoz.hozitech.application.services.storage.FileStorageService;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
 import com.hoz.hozitech.application.services.article.ArticleService;
@@ -17,8 +18,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestAPI("${api.prefix-admin}/cms")
@@ -28,6 +31,7 @@ public class AdminCmsController {
 
     private final BannerService bannerService;
     private final ArticleService articleService;
+    private final FileStorageService fileStorageService;
 
     // --- BANNERS ---
 
@@ -52,6 +56,12 @@ public class AdminCmsController {
     public ResponseEntity<ApiResponse<Void>> deleteBanner(@PathVariable UUID id) {
         bannerService.deleteBanner(id);
         return ResponseEntity.ok(ApiResponse.success("Banner deleted successfully"));
+    }
+
+    @PostMapping("/banners/upload-image")
+    public ResponseEntity<ApiResponse<Map<String, String>>> uploadBannerImage(@RequestParam("file") MultipartFile file) {
+        String imageUrl = fileStorageService.uploadFile(file, "banners");
+        return ResponseEntity.ok(ApiResponse.success("Banner image uploaded successfully", Map.of("imageUrl", imageUrl)));
     }
 
     // --- ARTICLES ---
@@ -81,5 +91,11 @@ public class AdminCmsController {
     public ResponseEntity<ApiResponse<Void>> deleteArticle(@PathVariable UUID id) {
         articleService.deleteArticle(id);
         return ResponseEntity.ok(ApiResponse.success("Article deleted successfully"));
+    }
+
+    @PostMapping("/articles/upload-thumbnail")
+    public ResponseEntity<ApiResponse<Map<String, String>>> uploadArticleThumbnail(@RequestParam("file") MultipartFile file) {
+        String imageUrl = fileStorageService.uploadFile(file, "articles");
+        return ResponseEntity.ok(ApiResponse.success("Article thumbnail uploaded successfully", Map.of("imageUrl", imageUrl)));
     }
 }
