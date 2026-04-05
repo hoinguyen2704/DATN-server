@@ -19,9 +19,4 @@ public class Role {
 
     @Column(name = "role_name", nullable = false, length = 50)
     private String roleName;
-
-    public Object stream() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'stream'");
-    }
 }

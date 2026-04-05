@@ -47,6 +47,8 @@ public class SecurityConfig {
             "/api/v1/cms/**",
             "/api/v1/settings/**",
             "/api/v1/public/**",
+            "/ws/support",
+            "/ws/support/**",
             "/uploads/**",
             "/v3/api-docs/**",
             "/swagger-ui/**",

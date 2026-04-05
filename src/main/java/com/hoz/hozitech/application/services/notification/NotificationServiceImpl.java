@@ -1,9 +1,11 @@
 package com.hoz.hozitech.application.services.notification;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
+import com.hoz.hozitech.application.constant.RealtimeEventType;
 import com.hoz.hozitech.application.repositories.NotificationRepository;
 import com.hoz.hozitech.application.repositories.OrderRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
+import com.hoz.hozitech.application.services.realtime.RealtimeEventPushService;
 import com.hoz.hozitech.domain.dtos.response.NotificationResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.entities.Notification;
@@ -24,6 +26,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
+    private final RealtimeEventPushService realtimeEventPushService;
 
     @Override
     @Transactional(readOnly = true)
@@ -79,7 +82,8 @@ public class NotificationServiceImpl implements NotificationService {
                 .user(user)
                 .order(order)
                 .build();
-        notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+        realtimeEventPushService.sendToUser(userId, RealtimeEventType.USER_NOTIFICATION_CREATED, mapToResponse(saved));
     }
 
     private NotificationResponse mapToResponse(Notification n) {

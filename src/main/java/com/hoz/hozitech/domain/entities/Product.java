@@ -46,6 +46,7 @@ public class Product extends AbstractAuditingEntity {
     @Column(name = "specs_json", columnDefinition = "jsonb")
     private String specsJson;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 50)
     private ProductStatus status = ProductStatus.ACTIVE;

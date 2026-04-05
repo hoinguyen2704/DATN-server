@@ -55,6 +55,7 @@ public class User extends AbstractAuditingEntity {
     @Column(name = "auth_provider", length = 50)
     private String authProvider;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 50)
     private UserStatus status = UserStatus.ACTIVE;

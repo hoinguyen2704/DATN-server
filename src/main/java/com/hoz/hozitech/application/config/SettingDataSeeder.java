@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
-import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +19,6 @@ import java.util.List;
 public class SettingDataSeeder implements ApplicationRunner {
 
     private final SettingRepository settingRepository;
-    private final Environment environment;
     private final JdbcTemplate jdbcTemplate;
 
     @Override
