@@ -39,6 +39,14 @@ spring:
       pageable:
         default-page-size: 20
 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:dummy}
+            client-secret: ${GOOGLE_CLIENT_SECRET:dummy}
+
 server:
   port: ${SERVER_PORT:8080}
 
@@ -50,7 +58,9 @@ api:
   prefix-client: api/v1
   #admin api
   prefix-admin: admin/api/v1
-
+security:
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173}
 jwt:
   secret-key: ${JWT_SECRET_KEY}
   # 7 days

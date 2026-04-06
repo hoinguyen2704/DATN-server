@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Collection;
 
 @Repository
 public interface CartRepository extends JpaRepository<Cart, UUID> {
@@ -16,6 +17,8 @@ public interface CartRepository extends JpaRepository<Cart, UUID> {
     Optional<Cart> findByUserIdAndVariantId(UUID userId, UUID variantId);
 
     void deleteAllByUserId(UUID userId);
+
+    void deleteByUserIdAndVariantIdIn(UUID userId, Collection<UUID> variantIds);
 
     long countByUserId(UUID userId);
 }

@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -44,5 +45,8 @@ public class CheckoutRequest {
         @NotNull(message = "Quantity is required")
         @Min(value = 1, message = "Quantity must be at least 1")
         private Integer quantity;
+
+        // Optional snapshot price sent by frontend to detect cart staleness before checkout.
+        private BigDecimal expectedUnitPrice;
     }
 }

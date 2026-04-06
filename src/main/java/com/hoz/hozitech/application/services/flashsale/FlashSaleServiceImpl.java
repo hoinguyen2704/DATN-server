@@ -149,7 +149,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Override
     @Transactional
     public BigDecimal applyFlashSaleAndReduceStock(UUID variantId, int quantity) {
-        return flashSaleItemRepository.findActiveFlashSaleItemByVariantId(variantId)
+        return flashSaleItemRepository.findActiveFlashSaleItemByVariantIdForUpdate(variantId)
                 .map(item -> {
                     if (item.getFlashStock() - item.getSoldCount() >= quantity) {
                         item.setSoldCount(item.getSoldCount() + quantity);

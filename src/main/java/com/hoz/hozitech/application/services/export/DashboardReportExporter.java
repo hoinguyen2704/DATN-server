@@ -54,13 +54,16 @@ public class DashboardReportExporter {
                     buildOrdersReportPdf(document, stats, headerFont, normalFont, boldFont, smallFont, altRowColor);
                     break;
                 case "revenue":
-                    buildRevenueReportPdf(document, stats, headerFont, normalFont, boldFont, greenBoldFont, altRowColor);
+                    buildRevenueReportPdf(document, stats, headerFont, normalFont, boldFont, greenBoldFont,
+                            altRowColor);
                     break;
                 case "products":
-                    buildProductsReportPdf(document, stats, headerFont, normalFont, boldFont, greenBoldFont, altRowColor);
+                    buildProductsReportPdf(document, stats, headerFont, normalFont, boldFont, greenBoldFont,
+                            altRowColor);
                     break;
                 case "customers":
-                    buildCustomersReportPdf(document, stats, headerFont, normalFont, boldFont, purpleBoldFont, altRowColor);
+                    buildCustomersReportPdf(document, stats, headerFont, normalFont, boldFont, purpleBoldFont,
+                            altRowColor);
                     break;
                 case "returns":
                     buildReturnsReportPdf(document, stats, baseFont);
@@ -85,35 +88,56 @@ public class DashboardReportExporter {
         }
     }
 
-    // ─── Report Header ───
+    // Report Header
 
-    private void addReportHeader(Document document, BaseFont baseFont, String reportType, String period) throws Exception {
+    private void addReportHeader(Document document, BaseFont baseFont, String reportType, String period)
+            throws Exception {
         Font logoFont = new Font(baseFont, 18, Font.BOLD, PRIMARY_COLOR);
         Font titleFont = new Font(baseFont, 16, Font.BOLD, Color.BLACK);
         Font subtitleFont = new Font(baseFont, 10, Font.NORMAL, Color.GRAY);
 
         String periodLabel;
         switch (period.toUpperCase()) {
-            case "WEEK": periodLabel = "Theo tuần"; break;
-            case "MONTH": periodLabel = "Theo tháng"; break;
-            case "YEAR": periodLabel = "Theo năm"; break;
-            default: periodLabel = period;
+            case "WEEK":
+                periodLabel = "Theo tuần";
+                break;
+            case "MONTH":
+                periodLabel = "Theo tháng";
+                break;
+            case "YEAR":
+                periodLabel = "Theo năm";
+                break;
+            default:
+                periodLabel = period;
         }
 
         String reportTitle;
         switch (reportType.toLowerCase()) {
-            case "orders": reportTitle = "BÁO CÁO ĐƠN HÀNG GẦN ĐÂY"; break;
-            case "revenue": reportTitle = "BÁO CÁO DOANH THU"; break;
-            case "products": reportTitle = "BÁO CÁO SẢN PHẨM BÁN CHẠY"; break;
-            case "customers": reportTitle = "BÁO CÁO KHÁCH HÀNG TIỀM NĂNG"; break;
-            case "returns": reportTitle = "BÁO CÁO TỈ LỆ HOÀN / HỦY"; break;
-            case "reviews": reportTitle = "BÁO CÁO TỔNG QUAN ĐÁNH GIÁ"; break;
-            default: reportTitle = "BÁO CÁO";
+            case "orders":
+                reportTitle = "BÁO CÁO ĐƠN HÀNG GẦN ĐÂY";
+                break;
+            case "revenue":
+                reportTitle = "BÁO CÁO DOANH THU";
+                break;
+            case "products":
+                reportTitle = "BÁO CÁO SẢN PHẨM BÁN CHẠY";
+                break;
+            case "customers":
+                reportTitle = "BÁO CÁO KHÁCH HÀNG TIỀM NĂNG";
+                break;
+            case "returns":
+                reportTitle = "BÁO CÁO TỈ LỆ HOÀN / HỦY";
+                break;
+            case "reviews":
+                reportTitle = "BÁO CÁO TỔNG QUAN ĐÁNH GIÁ";
+                break;
+            default:
+                reportTitle = "BÁO CÁO";
         }
 
         PdfPTable headerTable = new PdfPTable(2);
         headerTable.setWidthPercentage(100);
-        headerTable.setWidths(new float[]{50, 50});
+        headerTable.setWidths(new float[] { 50, 50 });
 
         PdfPCell leftCell = new PdfPCell();
         leftCell.setBorder(Rectangle.NO_BORDER);
@@ -148,17 +172,18 @@ public class DashboardReportExporter {
         document.add(title);
 
         Paragraph subtitle = new Paragraph(
-                "Thời gian: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " - " + periodLabel,
+                "Thời gian: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " - "
+                        + periodLabel,
                 subtitleFont);
         subtitle.setAlignment(Element.ALIGN_CENTER);
         document.add(subtitle);
         document.add(new Paragraph(" "));
     }
 
-    // ─── Orders Report ───
+    // Orders Report
 
     private void buildOrdersReportPdf(Document document, DashboardStatsResponse stats,
-                                       Font headerFont, Font normalFont, Font boldFont, Font smallFont, Color altRowColor) throws Exception {
+            Font headerFont, Font normalFont, Font boldFont, Font smallFont, Color altRowColor) throws Exception {
         if (stats.getRecentOrders() == null || stats.getRecentOrders().isEmpty()) {
             document.add(new Paragraph("Không có đơn hàng nào trong khoảng thời gian này.", normalFont));
             return;
@@ -166,10 +191,10 @@ public class DashboardReportExporter {
 
         PdfPTable table = new PdfPTable(5);
         table.setWidthPercentage(100);
-        table.setWidths(new float[]{15, 25, 15, 20, 25});
+        table.setWidths(new float[] { 15, 25, 15, 20, 25 });
         table.setSpacingBefore(10);
 
-        String[] headers = {"Mã đơn", "Khách hàng", "Ngày đặt", "Tổng tiền", "Trạng thái"};
+        String[] headers = { "Mã đơn", "Khách hàng", "Ngày đặt", "Tổng tiền", "Trạng thái" };
         for (String h : headers) {
             PdfPCell hCell = new PdfPCell(new Phrase(h, headerFont));
             hCell.setBackgroundColor(PRIMARY_COLOR);
@@ -183,25 +208,36 @@ public class DashboardReportExporter {
             Color bgColor = idx % 2 == 0 ? Color.WHITE : altRowColor;
 
             PdfPCell c1 = new PdfPCell(new Phrase(order.getOrderNumber(), boldFont));
-            c1.setPadding(6); c1.setBackgroundColor(bgColor);
+            c1.setPadding(6);
+            c1.setBackgroundColor(bgColor);
             table.addCell(c1);
 
-            PdfPCell c2 = new PdfPCell(new Phrase(order.getCustomerName() != null ? order.getCustomerName() : "N/A", normalFont));
-            c2.setPadding(6); c2.setBackgroundColor(bgColor);
+            PdfPCell c2 = new PdfPCell(
+                    new Phrase(order.getCustomerName() != null ? order.getCustomerName() : "N/A", normalFont));
+            c2.setPadding(6);
+            c2.setBackgroundColor(bgColor);
             table.addCell(c2);
 
-            String dateStr = order.getCreatedAt() != null ? order.getCreatedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "";
+            String dateStr = order.getCreatedAt() != null
+                    ? order.getCreatedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                    : "";
             PdfPCell c3 = new PdfPCell(new Phrase(dateStr, smallFont));
-            c3.setPadding(6); c3.setBackgroundColor(bgColor); c3.setHorizontalAlignment(Element.ALIGN_CENTER);
+            c3.setPadding(6);
+            c3.setBackgroundColor(bgColor);
+            c3.setHorizontalAlignment(Element.ALIGN_CENTER);
             table.addCell(c3);
 
             PdfPCell c4 = new PdfPCell(new Phrase(formatMoney(order.getTotalAmount()), boldFont));
-            c4.setPadding(6); c4.setBackgroundColor(bgColor); c4.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            c4.setPadding(6);
+            c4.setBackgroundColor(bgColor);
+            c4.setHorizontalAlignment(Element.ALIGN_RIGHT);
             table.addCell(c4);
 
             String statusStr = mapOrderStatusVi(order.getStatus());
             PdfPCell c5 = new PdfPCell(new Phrase(statusStr, normalFont));
-            c5.setPadding(6); c5.setBackgroundColor(bgColor); c5.setHorizontalAlignment(Element.ALIGN_CENTER);
+            c5.setPadding(6);
+            c5.setBackgroundColor(bgColor);
+            c5.setHorizontalAlignment(Element.ALIGN_CENTER);
             table.addCell(c5);
 
             idx++;
@@ -215,10 +251,10 @@ public class DashboardReportExporter {
         document.add(summary);
     }
 
-    // ─── Revenue Report ───
+    // Revenue Report
 
     private void buildRevenueReportPdf(Document document, DashboardStatsResponse stats,
-                                        Font headerFont, Font normalFont, Font boldFont, Font greenBoldFont, Color altRowColor) throws Exception {
+            Font headerFont, Font normalFont, Font boldFont, Font greenBoldFont, Color altRowColor) throws Exception {
         if (stats.getRevenueChart() == null || stats.getRevenueChart().isEmpty()) {
             document.add(new Paragraph("Không có dữ liệu doanh thu.", normalFont));
             return;
@@ -226,10 +262,10 @@ public class DashboardReportExporter {
 
         PdfPTable table = new PdfPTable(3);
         table.setWidthPercentage(100);
-        table.setWidths(new float[]{35, 25, 40});
+        table.setWidths(new float[] { 35, 25, 40 });
         table.setSpacingBefore(10);
 
-        String[] headers = {"Thời gian", "Số đơn hàng", "Doanh thu"};
+        String[] headers = { "Thời gian", "Số đơn hàng", "Doanh thu" };
         for (String h : headers) {
             PdfPCell hCell = new PdfPCell(new Phrase(h, headerFont));
             hCell.setBackgroundColor(PRIMARY_COLOR);
@@ -246,44 +282,55 @@ public class DashboardReportExporter {
             Color bgColor = idx % 2 == 0 ? Color.WHITE : altRowColor;
 
             PdfPCell c1 = new PdfPCell(new Phrase(item.getLabel(), boldFont));
-            c1.setPadding(6); c1.setBackgroundColor(bgColor);
+            c1.setPadding(6);
+            c1.setBackgroundColor(bgColor);
             table.addCell(c1);
 
             PdfPCell c2 = new PdfPCell(new Phrase(String.valueOf(item.getOrders()), normalFont));
-            c2.setPadding(6); c2.setBackgroundColor(bgColor); c2.setHorizontalAlignment(Element.ALIGN_CENTER);
+            c2.setPadding(6);
+            c2.setBackgroundColor(bgColor);
+            c2.setHorizontalAlignment(Element.ALIGN_CENTER);
             table.addCell(c2);
 
             PdfPCell c3 = new PdfPCell(new Phrase(formatMoney(item.getRevenue()), greenBoldFont));
-            c3.setPadding(6); c3.setBackgroundColor(bgColor); c3.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            c3.setPadding(6);
+            c3.setBackgroundColor(bgColor);
+            c3.setHorizontalAlignment(Element.ALIGN_RIGHT);
             table.addCell(c3);
 
             totalOrders += item.getOrders();
-            if (item.getRevenue() != null) totalRevenue = totalRevenue.add(item.getRevenue());
+            if (item.getRevenue() != null)
+                totalRevenue = totalRevenue.add(item.getRevenue());
             idx++;
         }
 
         PdfPCell tLabel = new PdfPCell(new Phrase("TỔNG CỘNG", boldFont));
-        tLabel.setPadding(8); tLabel.setBackgroundColor(new Color(239, 246, 255));
+        tLabel.setPadding(8);
+        tLabel.setBackgroundColor(new Color(239, 246, 255));
         tLabel.setBorderWidth(2);
         table.addCell(tLabel);
 
         PdfPCell tOrders = new PdfPCell(new Phrase(String.valueOf(totalOrders), boldFont));
-        tOrders.setPadding(8); tOrders.setBackgroundColor(new Color(239, 246, 255));
-        tOrders.setHorizontalAlignment(Element.ALIGN_CENTER); tOrders.setBorderWidth(2);
+        tOrders.setPadding(8);
+        tOrders.setBackgroundColor(new Color(239, 246, 255));
+        tOrders.setHorizontalAlignment(Element.ALIGN_CENTER);
+        tOrders.setBorderWidth(2);
         table.addCell(tOrders);
 
         PdfPCell tRev = new PdfPCell(new Phrase(formatMoney(totalRevenue), greenBoldFont));
-        tRev.setPadding(8); tRev.setBackgroundColor(new Color(239, 246, 255));
-        tRev.setHorizontalAlignment(Element.ALIGN_RIGHT); tRev.setBorderWidth(2);
+        tRev.setPadding(8);
+        tRev.setBackgroundColor(new Color(239, 246, 255));
+        tRev.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        tRev.setBorderWidth(2);
         table.addCell(tRev);
 
         document.add(table);
     }
 
-    // ─── Products Report ───
+    // Products Report
 
     private void buildProductsReportPdf(Document document, DashboardStatsResponse stats,
-                                         Font headerFont, Font normalFont, Font boldFont, Font greenBoldFont, Color altRowColor) throws Exception {
+            Font headerFont, Font normalFont, Font boldFont, Font greenBoldFont, Color altRowColor) throws Exception {
         if (stats.getTopProducts() == null || stats.getTopProducts().isEmpty()) {
             document.add(new Paragraph("Không có dữ liệu sản phẩm.", normalFont));
             return;
@@ -291,10 +338,10 @@ public class DashboardReportExporter {
 
         PdfPTable table = new PdfPTable(4);
         table.setWidthPercentage(100);
-        table.setWidths(new float[]{8, 47, 15, 30});
+        table.setWidths(new float[] { 8, 47, 15, 30 });
         table.setSpacingBefore(10);
 
-        String[] headers = {"Top", "Sản phẩm", "Đã bán", "Doanh thu"};
+        String[] headers = { "Top", "Sản phẩm", "Đã bán", "Doanh thu" };
         for (String h : headers) {
             PdfPCell hCell = new PdfPCell(new Phrase(h, headerFont));
             hCell.setBackgroundColor(PRIMARY_COLOR);
@@ -308,19 +355,26 @@ public class DashboardReportExporter {
             Color bgColor = rank % 2 != 0 ? Color.WHITE : altRowColor;
 
             PdfPCell c1 = new PdfPCell(new Phrase("#" + rank, boldFont));
-            c1.setPadding(6); c1.setBackgroundColor(bgColor); c1.setHorizontalAlignment(Element.ALIGN_CENTER);
+            c1.setPadding(6);
+            c1.setBackgroundColor(bgColor);
+            c1.setHorizontalAlignment(Element.ALIGN_CENTER);
             table.addCell(c1);
 
             PdfPCell c2 = new PdfPCell(new Phrase(p.getName(), boldFont));
-            c2.setPadding(6); c2.setBackgroundColor(bgColor);
+            c2.setPadding(6);
+            c2.setBackgroundColor(bgColor);
             table.addCell(c2);
 
             PdfPCell c3 = new PdfPCell(new Phrase(String.valueOf(p.getTotalSold()), normalFont));
-            c3.setPadding(6); c3.setBackgroundColor(bgColor); c3.setHorizontalAlignment(Element.ALIGN_CENTER);
+            c3.setPadding(6);
+            c3.setBackgroundColor(bgColor);
+            c3.setHorizontalAlignment(Element.ALIGN_CENTER);
             table.addCell(c3);
 
             PdfPCell c4 = new PdfPCell(new Phrase(formatMoney(p.getRevenue()), greenBoldFont));
-            c4.setPadding(6); c4.setBackgroundColor(bgColor); c4.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            c4.setPadding(6);
+            c4.setBackgroundColor(bgColor);
+            c4.setHorizontalAlignment(Element.ALIGN_RIGHT);
             table.addCell(c4);
 
             rank++;
@@ -329,10 +383,10 @@ public class DashboardReportExporter {
         document.add(table);
     }
 
-    // ─── Customers Report ───
+    // Customers Report
 
     private void buildCustomersReportPdf(Document document, DashboardStatsResponse stats,
-                                          Font headerFont, Font normalFont, Font boldFont, Font purpleBoldFont, Color altRowColor) throws Exception {
+            Font headerFont, Font normalFont, Font boldFont, Font purpleBoldFont, Color altRowColor) throws Exception {
         if (stats.getTopCustomers() == null || stats.getTopCustomers().isEmpty()) {
             document.add(new Paragraph("Không có dữ liệu khách hàng.", normalFont));
             return;
@@ -340,10 +394,10 @@ public class DashboardReportExporter {
 
         PdfPTable table = new PdfPTable(5);
         table.setWidthPercentage(100);
-        table.setWidths(new float[]{8, 25, 27, 12, 28});
+        table.setWidths(new float[] { 8, 25, 27, 12, 28 });
         table.setSpacingBefore(10);
 
-        String[] headers = {"Top", "Khách hàng", "Email", "Số đơn", "Tổng chi tiêu"};
+        String[] headers = { "Top", "Khách hàng", "Email", "Số đơn", "Tổng chi tiêu" };
         for (String h : headers) {
             PdfPCell hCell = new PdfPCell(new Phrase(h, headerFont));
             hCell.setBackgroundColor(PRIMARY_COLOR);
@@ -357,23 +411,31 @@ public class DashboardReportExporter {
             Color bgColor = rank % 2 != 0 ? Color.WHITE : altRowColor;
 
             PdfPCell c1 = new PdfPCell(new Phrase("#" + rank, boldFont));
-            c1.setPadding(6); c1.setBackgroundColor(bgColor); c1.setHorizontalAlignment(Element.ALIGN_CENTER);
+            c1.setPadding(6);
+            c1.setBackgroundColor(bgColor);
+            c1.setHorizontalAlignment(Element.ALIGN_CENTER);
             table.addCell(c1);
 
             PdfPCell c2 = new PdfPCell(new Phrase(c.getName(), boldFont));
-            c2.setPadding(6); c2.setBackgroundColor(bgColor);
+            c2.setPadding(6);
+            c2.setBackgroundColor(bgColor);
             table.addCell(c2);
 
             PdfPCell c3 = new PdfPCell(new Phrase(c.getEmail() != null ? c.getEmail() : "", normalFont));
-            c3.setPadding(6); c3.setBackgroundColor(bgColor);
+            c3.setPadding(6);
+            c3.setBackgroundColor(bgColor);
             table.addCell(c3);
 
             PdfPCell c4 = new PdfPCell(new Phrase(String.valueOf(c.getTotalOrders()), normalFont));
-            c4.setPadding(6); c4.setBackgroundColor(bgColor); c4.setHorizontalAlignment(Element.ALIGN_CENTER);
+            c4.setPadding(6);
+            c4.setBackgroundColor(bgColor);
+            c4.setHorizontalAlignment(Element.ALIGN_CENTER);
             table.addCell(c4);
 
             PdfPCell c5 = new PdfPCell(new Phrase(formatMoney(c.getTotalSpent()), purpleBoldFont));
-            c5.setPadding(6); c5.setBackgroundColor(bgColor); c5.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            c5.setPadding(6);
+            c5.setBackgroundColor(bgColor);
+            c5.setHorizontalAlignment(Element.ALIGN_RIGHT);
             table.addCell(c5);
 
             rank++;
@@ -382,9 +444,10 @@ public class DashboardReportExporter {
         document.add(table);
     }
 
-    // ─── Returns Report ───
+    // Returns Report
 
-    private void buildReturnsReportPdf(Document document, DashboardStatsResponse stats, BaseFont baseFont) throws Exception {
+    private void buildReturnsReportPdf(Document document, DashboardStatsResponse stats, BaseFont baseFont)
+            throws Exception {
         Font labelFont = new Font(baseFont, 12, Font.BOLD, new Color(220, 38, 38));
         Font bigRedFont = new Font(baseFont, 48, Font.BOLD, new Color(220, 38, 38));
         Font descFont = new Font(baseFont, 10, Font.NORMAL, new Color(220, 38, 38));
@@ -424,10 +487,10 @@ public class DashboardReportExporter {
         document.add(table);
     }
 
-    // ─── Reviews Report ───
+    // Reviews Report
 
     private void buildReviewsReportPdf(Document document, DashboardStatsResponse stats,
-                                        BaseFont baseFont, Font normalFont, Font boldFont) throws Exception {
+            BaseFont baseFont, Font normalFont, Font boldFont) throws Exception {
         Font bigYellowFont = new Font(baseFont, 48, Font.BOLD, new Color(234, 179, 8));
         Font starFont = new Font(baseFont, 20, Font.NORMAL, new Color(250, 204, 21));
         Font subtitleFont = new Font(baseFont, 10, Font.NORMAL, Color.GRAY);
@@ -460,12 +523,14 @@ public class DashboardReportExporter {
         PdfPTable table = new PdfPTable(3);
         table.setWidthPercentage(60);
         table.setHorizontalAlignment(Element.ALIGN_CENTER);
-        table.setWidths(new float[]{20, 50, 30});
+        table.setWidths(new float[] { 20, 50, 30 });
         table.setSpacingBefore(15);
 
         for (int stars = 5; stars >= 1; stars--) {
-            long count = stats.getRatingDistribution() != null ? stats.getRatingDistribution().getOrDefault(stars, 0L) : 0;
-            long percent = stats.getTotalFeedbacks() > 0 ? Math.round((double) count / stats.getTotalFeedbacks() * 100) : 0;
+            long count = stats.getRatingDistribution() != null ? stats.getRatingDistribution().getOrDefault(stars, 0L)
+                    : 0;
+            long percent = stats.getTotalFeedbacks() > 0 ? Math.round((double) count / stats.getTotalFeedbacks() * 100)
+                    : 0;
 
             PdfPCell starCell = new PdfPCell(new Phrase(stars + " ★", boldFont));
             starCell.setBorder(Rectangle.NO_BORDER);
@@ -478,7 +543,8 @@ public class DashboardReportExporter {
             barCell.setPadding(6);
             table.addCell(barCell);
 
-            PdfPCell pctCell = new PdfPCell(new Phrase("█".repeat(Math.max(1, (int)(percent / 5))), new Font(baseFont, 10, Font.NORMAL, new Color(250, 204, 21))));
+            PdfPCell pctCell = new PdfPCell(new Phrase("█".repeat(Math.max(1, (int) (percent / 5))),
+                    new Font(baseFont, 10, Font.NORMAL, new Color(250, 204, 21))));
             pctCell.setBorder(Rectangle.NO_BORDER);
             pctCell.setPadding(6);
             table.addCell(pctCell);

@@ -27,8 +27,9 @@ public class OrderController {
     @PostMapping("/checkout")
     public ResponseEntity<ApiResponse<OrderResponse>> checkout(
             @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody CheckoutRequest request) {
-        OrderResponse response = orderService.checkout(userDetails.getUser().getId(), request);
+        OrderResponse response = orderService.checkout(userDetails.getUser().getId(), request, idempotencyKey);
         return ResponseEntity.ok(ApiResponse.success("Order created successfully", response));
     }
 

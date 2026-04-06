@@ -22,10 +22,13 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "orders", indexes = {
+@Table(name = "orders", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_order_user_idempotency", columnNames = {"user_id", "idempotency_key"})
+}, indexes = {
         @Index(name = "idx_order_user", columnList = "user_id"),
         @Index(name = "idx_order_status", columnList = "order_status"),
-        @Index(name = "idx_order_number", columnList = "order_number")
+        @Index(name = "idx_order_number", columnList = "order_number"),
+        @Index(name = "idx_order_idempotency_key", columnList = "idempotency_key")
 })
 public class Order extends AbstractAuditingEntity {
 
@@ -34,6 +37,9 @@ public class Order extends AbstractAuditingEntity {
 
     @Column(name = "tracking_code", length = 50)
     private String trackingCode;
+
+    @Column(name = "idempotency_key", length = 120)
+    private String idempotencyKey;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "shipping_address_json", columnDefinition = "jsonb")

@@ -60,14 +60,15 @@ public class PublicSettingController {
         config.put("taxPercent", num("DEFAULT_TAX_PERCENT", BigDecimal.TEN));
 
         String taxMode = valOrDefault("TAX_MODE", "INCLUDED").toUpperCase();
-        if (!"EXCLUDED".equals(taxMode)) taxMode = "INCLUDED";
+        if (!"EXCLUDED".equals(taxMode))
+            taxMode = "INCLUDED";
         config.put("taxMode", taxMode);
 
         config.put("applyOnShipping", bool("TAX_APPLY_ON_SHIPPING", true));
         return ResponseEntity.ok(ApiResponse.success("Tax config", config));
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────
+    // Helpers
 
     private String val(String key) {
         String v = settingService.getSettingValue(key);
@@ -86,7 +87,8 @@ public class PublicSettingController {
 
     private BigDecimal num(String key, BigDecimal fallback) {
         String v = settingService.getSettingValue(key);
-        if (v == null || v.isBlank()) return fallback;
+        if (v == null || v.isBlank())
+            return fallback;
         try {
             return new BigDecimal(v);
         } catch (NumberFormatException ignored) {
@@ -95,7 +97,7 @@ public class PublicSettingController {
     }
 
     private void addIfEnabled(java.util.List<Map<String, Object>> list,
-                              String id, String label, String enabledKey) {
+            String id, String label, String enabledKey) {
         boolean enabled = settingService.getSettingBoolean(enabledKey);
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", id);

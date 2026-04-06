@@ -1,6 +1,7 @@
 package com.hoz.hozitech.application.services.order;
 
 import com.hoz.hozitech.domain.dtos.request.CheckoutRequest;
+import com.hoz.hozitech.domain.dtos.request.PaymentWebhookRequest;
 import com.hoz.hozitech.domain.dtos.response.OrderResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 
@@ -9,7 +10,7 @@ import java.util.UUID;
 public interface OrderService {
 
     // User
-    OrderResponse checkout(UUID userId, CheckoutRequest request);
+    OrderResponse checkout(UUID userId, CheckoutRequest request, String idempotencyKey);
 
     OrderResponse getOrderByNumber(String orderNumber, UUID userId);
 
@@ -23,4 +24,7 @@ public interface OrderService {
     PageResponse<OrderResponse> getAllOrders(String status, String keyword, int page, int size);
 
     OrderResponse updateOrderStatus(UUID orderId, String status);
+
+    // Public payment webhook
+    OrderResponse handlePaymentWebhook(PaymentWebhookRequest request, String idempotencyKey);
 }

@@ -23,17 +23,19 @@ import java.time.format.DateTimeFormatter;
 
 /**
  * Shared helpers for PDF and Excel export operations.
- * Extracted from ExportServiceImpl to eliminate duplication across sub-exporters.
+ * Extracted from ExportServiceImpl to eliminate duplication across
+ * sub-exporters.
  */
 public final class ExportHelpers {
 
-    private ExportHelpers() {}
+    private ExportHelpers() {
+    }
 
     public static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     public static final DecimalFormat MONEY_FMT = new DecimalFormat("#,###");
     public static final Color PRIMARY_COLOR = new Color(37, 57, 230);
 
-    // ─── PDF Helpers ───
+    // PDF Helpers
 
     public static BaseFont loadVietnameseFont() {
         try {
@@ -50,7 +52,8 @@ public final class ExportHelpers {
     }
 
     public static String formatMoney(BigDecimal amount) {
-        if (amount == null) return "0 ₫";
+        if (amount == null)
+            return "0 ₫";
         return MONEY_FMT.format(amount) + " ₫";
     }
 
@@ -74,17 +77,22 @@ public final class ExportHelpers {
     }
 
     public static String parseAddress(String json) {
-        if (json == null || json.isEmpty()) return "Không có địa chỉ";
+        if (json == null || json.isEmpty())
+            return "Không có địa chỉ";
         try {
             String detail = extractJsonField(json, "detailAddress");
             String ward = extractJsonField(json, "ward");
             String district = extractJsonField(json, "district");
             String province = extractJsonField(json, "province");
             StringBuilder sb = new StringBuilder();
-            if (!detail.isEmpty()) sb.append(detail);
-            if (!ward.isEmpty()) sb.append(", ").append(ward);
-            if (!district.isEmpty()) sb.append(", ").append(district);
-            if (!province.isEmpty()) sb.append(", ").append(province);
+            if (!detail.isEmpty())
+                sb.append(detail);
+            if (!ward.isEmpty())
+                sb.append(", ").append(ward);
+            if (!district.isEmpty())
+                sb.append(", ").append(district);
+            if (!province.isEmpty())
+                sb.append(", ").append(province);
             return sb.length() > 0 ? sb.toString() : json;
         } catch (Exception e) {
             return json;
@@ -94,31 +102,44 @@ public final class ExportHelpers {
     public static String extractJsonField(String json, String field) {
         String key = "\"" + field + "\"";
         int idx = json.indexOf(key);
-        if (idx == -1) return "";
+        if (idx == -1)
+            return "";
         int colonIdx = json.indexOf(":", idx);
-        if (colonIdx == -1) return "";
+        if (colonIdx == -1)
+            return "";
         int start = json.indexOf("\"", colonIdx + 1);
-        if (start == -1) return "";
+        if (start == -1)
+            return "";
         int end = json.indexOf("\"", start + 1);
-        if (end == -1) return "";
+        if (end == -1)
+            return "";
         return json.substring(start + 1, end);
     }
 
     public static String mapOrderStatusVi(String status) {
-        if (status == null) return "";
+        if (status == null)
+            return "";
         switch (status.toUpperCase()) {
-            case "PENDING": return "Chờ xác nhận";
-            case "CONFIRMED": return "Đã xác nhận";
-            case "PROCESSING": return "Đang xử lý";
-            case "SHIPPING": return "Đang giao hàng";
-            case "SHIPPED": return "Đã giao hàng";
-            case "CANCELLED": return "Đã hủy";
-            case "RETURNED": return "Đã hoàn trả";
-            default: return status;
+            case "PENDING":
+                return "Chờ xác nhận";
+            case "CONFIRMED":
+                return "Đã xác nhận";
+            case "PROCESSING":
+                return "Đang xử lý";
+            case "SHIPPING":
+                return "Đang giao hàng";
+            case "SHIPPED":
+                return "Đã giao hàng";
+            case "CANCELLED":
+                return "Đã hủy";
+            case "RETURNED":
+                return "Đã hoàn trả";
+            default:
+                return status;
         }
     }
 
-    // ─── Excel Helpers ───
+    // Excel Helpers
 
     public static CellStyle createHeaderStyle(XSSFWorkbook workbook) {
         CellStyle headerStyle = workbook.createCellStyle();

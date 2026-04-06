@@ -32,7 +32,7 @@ public class CouponResponse {
     private LocalDateTime endDate;
     private CouponStatus status;
 
-    // ─── NEW ─────────────────────────────────────────
+    // NEW
     private Boolean isPublic;
     private CouponApplyType applyType;
     private List<ApplicableProductInfo> applicableProducts;

@@ -58,6 +58,14 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
+        log.warn("BusinessException code={} message={}", ex.getErrorCode(), ex.getMessage());
+        return ResponseEntity
+                .status(ex.getStatus())
+                .body(ApiResponse.error(ex.getErrorCode().name(), ex.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Map<String, String>>> handleValidationErrors(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -117,4 +125,3 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("Đã có lỗi xảy ra!"));
     }
 }
-

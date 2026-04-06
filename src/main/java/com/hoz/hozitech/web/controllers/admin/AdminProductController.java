@@ -35,166 +35,170 @@ import java.util.*;
 @RequiredArgsConstructor
 public class AdminProductController {
 
-    private final ProductService productService;
-    private final FileStorageService fileStorageService;
-    private final ProductImageRepository productImageRepository;
-    private final ProductRepository productRepository;
-    private final ProductVariantRepository productVariantRepository;
-    private final ExportService exportService;
+        private final ProductService productService;
+        private final FileStorageService fileStorageService;
+        private final ProductImageRepository productImageRepository;
+        private final ProductRepository productRepository;
+        private final ProductVariantRepository productVariantRepository;
+        private final ExportService exportService;
 
-    @GetMapping("/export")
-    public ResponseEntity<byte[]> exportProducts(
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) UUID categoryId,
-            @RequestParam(required = false) String status) {
+        @GetMapping("/export")
+        public ResponseEntity<byte[]> exportProducts(
+                        @RequestParam(required = false) String keyword,
+                        @RequestParam(required = false) UUID categoryId,
+                        @RequestParam(required = false) String status) {
 
-        byte[] excelBytes = exportService.exportProductsToExcel(keyword, categoryId, status);
+                byte[] excelBytes = exportService.exportProductsToExcel(keyword, categoryId, status);
 
-        String filename = "products_" + java.time.LocalDate.now() + ".xlsx";
+                String filename = "products_" + java.time.LocalDate.now() + ".xlsx";
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
-        headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
-        headers.setContentLength(excelBytes.length);
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.parseMediaType(
+                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+                headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
+                headers.setContentLength(excelBytes.length);
 
-        return new ResponseEntity<>(excelBytes, headers, HttpStatus.OK);
-    }
-
-    @GetMapping
-    public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> getAdminProducts(
-            @RequestParam(required = false, defaultValue = "") String keyword,
-            @RequestParam(required = false) UUID categoryId,
-            @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
-            @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_LARGE_STR) int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDir) {
-        return ResponseEntity.ok(ApiResponse.success("Fetch admin products successfully",
-                productService.getAdminProducts(keyword, categoryId, status, page, size, sortBy, sortDir)));
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.success("Fetch product successfully",
-                productService.getProductById(id)));
-    }
-
-    @PostMapping
-    public ResponseEntity<ApiResponse<ProductResponse>> createProduct(@Valid @RequestBody ProductRequest request) {
-        return ResponseEntity
-                .ok(ApiResponse.success("Product created successfully", productService.createProduct(request)));
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
-            @PathVariable UUID id,
-            @Valid @RequestBody ProductRequest request) {
-        return ResponseEntity
-                .ok(ApiResponse.success("Product updated successfully", productService.updateProduct(id, request)));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteProduct(@PathVariable UUID id) {
-        productService.deleteProduct(id);
-        return ResponseEntity.ok(ApiResponse.success("Product deleted successfully"));
-    }
-
-    @PatchMapping("/{id}/status")
-    public ResponseEntity<ApiResponse<ProductResponse>> toggleStatus(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.success("Product status toggled", productService.toggleProductStatus(id)));
-    }
-
-    // ─── Image Upload ────────────────────────────────────────────
-    @PostMapping("/{id}/images")
-    public ResponseEntity<ApiResponse<List<Map<String, String>>>> uploadImages(
-            @PathVariable UUID id,
-            @RequestParam("files") MultipartFile[] files) {
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Product", id));
-
-        int currentMaxOrder = productImageRepository.findByProductIdAndVariantIsNullOrderBySortOrder(id)
-                .stream().mapToInt(ProductImage::getSortOrder).max().orElse(-1);
-
-        List<Map<String, String>> uploaded = new ArrayList<>();
-        for (MultipartFile file : files) {
-            String url = fileStorageService.storeProductImage(file);
-            ProductImage image = ProductImage.builder()
-                    .imageUrl(url)
-                    .altText(product.getName())
-                    .sortOrder(++currentMaxOrder)
-                    .isPrimary(currentMaxOrder == 0)
-                    .product(product)
-                    .build();
-            productImageRepository.save(image);
-            uploaded.add(Map.of("id", image.getId().toString(), "imageUrl", url));
-        }
-        return ResponseEntity.ok(ApiResponse.success("Images uploaded successfully", uploaded));
-    }
-
-    @PostMapping("/{productId}/variants/{variantId}/images")
-    public ResponseEntity<ApiResponse<List<Map<String, String>>>> uploadVariantImages(
-            @PathVariable UUID productId,
-            @PathVariable UUID variantId,
-            @RequestParam("files") MultipartFile[] files) {
-        ProductVariant variant = productVariantRepository.findById(variantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Variant", variantId));
-
-        if (variant.getProduct() == null || !variant.getProduct().getId().equals(productId)) {
-            throw new ResourceNotFoundException("Variant does not belong to product", variantId);
+                return new ResponseEntity<>(excelBytes, headers, HttpStatus.OK);
         }
 
-        int currentMaxOrder = productImageRepository.findByVariantIdOrderBySortOrder(variantId)
-                .stream().mapToInt(ProductImage::getSortOrder).max().orElse(-1);
-
-        List<Map<String, String>> uploaded = new ArrayList<>();
-        for (MultipartFile file : files) {
-            String url = fileStorageService.storeProductImage(file);
-            ProductImage image = ProductImage.builder()
-                    .imageUrl(url)
-                    .altText(variant.getProduct().getName() + " - " + variant.getVariantName())
-                    .sortOrder(++currentMaxOrder)
-                    .isPrimary(currentMaxOrder == 0)
-                    .product(variant.getProduct())
-                    .variant(variant)
-                    .build();
-            productImageRepository.save(image);
-            uploaded.add(Map.of("id", image.getId().toString(), "imageUrl", url));
+        @GetMapping
+        public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> getAdminProducts(
+                        @RequestParam(required = false, defaultValue = "") String keyword,
+                        @RequestParam(required = false) UUID categoryId,
+                        @RequestParam(required = false) String status,
+                        @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
+                        @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_LARGE_STR) int size,
+                        @RequestParam(defaultValue = "createdAt") String sortBy,
+                        @RequestParam(defaultValue = "DESC") String sortDir) {
+                return ResponseEntity.ok(ApiResponse.success("Fetch admin products successfully",
+                                productService.getAdminProducts(keyword, categoryId, status, page, size, sortBy,
+                                                sortDir)));
         }
 
-        return ResponseEntity.ok(ApiResponse.success("Variant images uploaded successfully", uploaded));
-    }
-
-    @DeleteMapping("/{productId}/images/{imageId}")
-    public ResponseEntity<ApiResponse<Void>> deleteImage(
-            @PathVariable UUID productId,
-            @PathVariable UUID imageId) {
-        ProductImage image = productImageRepository.findById(imageId)
-                .orElseThrow(() -> new ResourceNotFoundException("Image", imageId));
-        fileStorageService.deleteFile(image.getImageUrl());
-        productImageRepository.delete(image);
-        return ResponseEntity.ok(ApiResponse.success("Image deleted successfully"));
-    }
-
-    @DeleteMapping("/{productId}/variants/{variantId}/images/{imageId}")
-    public ResponseEntity<ApiResponse<Void>> deleteVariantImage(
-            @PathVariable UUID productId,
-            @PathVariable UUID variantId,
-            @PathVariable UUID imageId) {
-        ProductImage image = productImageRepository.findById(imageId)
-                .orElseThrow(() -> new ResourceNotFoundException("Image", imageId));
-
-        boolean invalidTarget = image.getVariant() == null
-                || !image.getVariant().getId().equals(variantId)
-                || image.getProduct() == null
-                || !image.getProduct().getId().equals(productId);
-
-        if (invalidTarget) {
-            throw new ResourceNotFoundException("Image does not belong to variant", imageId);
+        @GetMapping("/{id}")
+        public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable UUID id) {
+                return ResponseEntity.ok(ApiResponse.success("Fetch product successfully",
+                                productService.getProductById(id)));
         }
 
-        fileStorageService.deleteFile(image.getImageUrl());
-        productImageRepository.delete(image);
-        return ResponseEntity.ok(ApiResponse.success("Variant image deleted successfully"));
-    }
+        @PostMapping
+        public ResponseEntity<ApiResponse<ProductResponse>> createProduct(@Valid @RequestBody ProductRequest request) {
+                return ResponseEntity
+                                .ok(ApiResponse.success("Product created successfully",
+                                                productService.createProduct(request)));
+        }
+
+        @PutMapping("/{id}")
+        public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
+                        @PathVariable UUID id,
+                        @Valid @RequestBody ProductRequest request) {
+                return ResponseEntity
+                                .ok(ApiResponse.success("Product updated successfully",
+                                                productService.updateProduct(id, request)));
+        }
+
+        @DeleteMapping("/{id}")
+        public ResponseEntity<ApiResponse<Void>> deleteProduct(@PathVariable UUID id) {
+                productService.deleteProduct(id);
+                return ResponseEntity.ok(ApiResponse.success("Product deleted successfully"));
+        }
+
+        @PatchMapping("/{id}/status")
+        public ResponseEntity<ApiResponse<ProductResponse>> toggleStatus(@PathVariable UUID id) {
+                return ResponseEntity.ok(
+                                ApiResponse.success("Product status toggled", productService.toggleProductStatus(id)));
+        }
+
+        // Image Upload
+        @PostMapping("/{id}/images")
+        public ResponseEntity<ApiResponse<List<Map<String, String>>>> uploadImages(
+                        @PathVariable UUID id,
+                        @RequestParam("files") MultipartFile[] files) {
+                Product product = productRepository.findById(id)
+                                .orElseThrow(() -> new ResourceNotFoundException("Product", id));
+
+                int currentMaxOrder = productImageRepository.findByProductIdAndVariantIsNullOrderBySortOrder(id)
+                                .stream().mapToInt(ProductImage::getSortOrder).max().orElse(-1);
+
+                List<Map<String, String>> uploaded = new ArrayList<>();
+                for (MultipartFile file : files) {
+                        String url = fileStorageService.storeProductImage(file);
+                        ProductImage image = ProductImage.builder()
+                                        .imageUrl(url)
+                                        .altText(product.getName())
+                                        .sortOrder(++currentMaxOrder)
+                                        .isPrimary(currentMaxOrder == 0)
+                                        .product(product)
+                                        .build();
+                        productImageRepository.save(image);
+                        uploaded.add(Map.of("id", image.getId().toString(), "imageUrl", url));
+                }
+                return ResponseEntity.ok(ApiResponse.success("Images uploaded successfully", uploaded));
+        }
+
+        @PostMapping("/{productId}/variants/{variantId}/images")
+        public ResponseEntity<ApiResponse<List<Map<String, String>>>> uploadVariantImages(
+                        @PathVariable UUID productId,
+                        @PathVariable UUID variantId,
+                        @RequestParam("files") MultipartFile[] files) {
+                ProductVariant variant = productVariantRepository.findById(variantId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Variant", variantId));
+
+                if (variant.getProduct() == null || !variant.getProduct().getId().equals(productId)) {
+                        throw new ResourceNotFoundException("Variant does not belong to product", variantId);
+                }
+
+                int currentMaxOrder = productImageRepository.findByVariantIdOrderBySortOrder(variantId)
+                                .stream().mapToInt(ProductImage::getSortOrder).max().orElse(-1);
+
+                List<Map<String, String>> uploaded = new ArrayList<>();
+                for (MultipartFile file : files) {
+                        String url = fileStorageService.storeProductImage(file);
+                        ProductImage image = ProductImage.builder()
+                                        .imageUrl(url)
+                                        .altText(variant.getProduct().getName() + " - " + variant.getVariantName())
+                                        .sortOrder(++currentMaxOrder)
+                                        .isPrimary(currentMaxOrder == 0)
+                                        .product(variant.getProduct())
+                                        .variant(variant)
+                                        .build();
+                        productImageRepository.save(image);
+                        uploaded.add(Map.of("id", image.getId().toString(), "imageUrl", url));
+                }
+
+                return ResponseEntity.ok(ApiResponse.success("Variant images uploaded successfully", uploaded));
+        }
+
+        @DeleteMapping("/{productId}/images/{imageId}")
+        public ResponseEntity<ApiResponse<Void>> deleteImage(
+                        @PathVariable UUID productId,
+                        @PathVariable UUID imageId) {
+                ProductImage image = productImageRepository.findById(imageId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Image", imageId));
+                fileStorageService.deleteFile(image.getImageUrl());
+                productImageRepository.delete(image);
+                return ResponseEntity.ok(ApiResponse.success("Image deleted successfully"));
+        }
+
+        @DeleteMapping("/{productId}/variants/{variantId}/images/{imageId}")
+        public ResponseEntity<ApiResponse<Void>> deleteVariantImage(
+                        @PathVariable UUID productId,
+                        @PathVariable UUID variantId,
+                        @PathVariable UUID imageId) {
+                ProductImage image = productImageRepository.findById(imageId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Image", imageId));
+
+                boolean invalidTarget = image.getVariant() == null
+                                || !image.getVariant().getId().equals(variantId)
+                                || image.getProduct() == null
+                                || !image.getProduct().getId().equals(productId);
+
+                if (invalidTarget) {
+                        throw new ResourceNotFoundException("Image does not belong to variant", imageId);
+                }
+
+                fileStorageService.deleteFile(image.getImageUrl());
+                productImageRepository.delete(image);
+                return ResponseEntity.ok(ApiResponse.success("Variant image deleted successfully"));
+        }
 }

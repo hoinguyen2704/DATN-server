@@ -10,8 +10,11 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -27,6 +30,7 @@ import com.hoz.hozitech.application.repositories.AddressRepository;
 import com.hoz.hozitech.application.repositories.CartRepository;
 import com.hoz.hozitech.application.repositories.CouponRepository;
 import com.hoz.hozitech.application.repositories.OrderRepository;
+import com.hoz.hozitech.application.repositories.PaymentWebhookEventRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.constant.MailTemplate;
@@ -36,22 +40,29 @@ import com.hoz.hozitech.application.services.notification.NotificationService;
 import com.hoz.hozitech.application.services.setting.SettingService;
 import com.hoz.hozitech.application.specifications.OrderSpecification;
 import com.hoz.hozitech.domain.dtos.request.CheckoutRequest;
+import com.hoz.hozitech.domain.dtos.request.PaymentWebhookRequest;
 import com.hoz.hozitech.domain.dtos.response.OrderResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.entities.Address;
 import com.hoz.hozitech.domain.entities.Coupon;
 import com.hoz.hozitech.domain.entities.Order;
 import com.hoz.hozitech.domain.entities.OrderItem;
+import com.hoz.hozitech.domain.entities.PaymentWebhookEvent;
 import com.hoz.hozitech.domain.entities.ProductImage;
 import com.hoz.hozitech.domain.entities.ProductVariant;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.entities.OrderStatusHistory;
 import com.hoz.hozitech.domain.dtos.response.OrderStatusHistoryResponse;
 import com.hoz.hozitech.application.repositories.OrderStatusHistoryRepository;
+import com.hoz.hozitech.domain.enums.BusinessErrorCode;
 import com.hoz.hozitech.domain.enums.OrderStatus;
 import com.hoz.hozitech.domain.enums.PaymentMethod;
 import com.hoz.hozitech.domain.enums.PaymentStatus;
+import com.hoz.hozitech.domain.enums.ProductStatus;
 import com.hoz.hozitech.domain.enums.TaxMode;
+import com.hoz.hozitech.web.exceptions.BusinessException;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -75,21 +86,39 @@ public class OrderServiceImpl implements OrderService {
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final SettingService settingService;
     private final NotificationService notificationService;
+    private final PaymentWebhookEventRepository paymentWebhookEventRepository;
 
-    @Value("${link.frontend:http://localhost:3000}")
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    @Value("${link.frontend}")
     private String frontendUrl;
 
     @Override
     @Transactional
-    public OrderResponse checkout(UUID userId, CheckoutRequest request) {
+    public OrderResponse checkout(UUID userId, CheckoutRequest request, String idempotencyKey) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.USER_NOT_FOUND, "User not found"));
 
         Address address = addressRepository.findById(request.getAddressId())
-                .orElseThrow(() -> new IllegalArgumentException("Address not found"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.ADDRESS_NOT_FOUND, "Address not found"));
 
         if (!address.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("Address does not belong to user");
+            throw new BusinessException(BusinessErrorCode.ADDRESS_NOT_OWNED, "Address does not belong to user");
+        }
+        if (request.getItems() == null || request.getItems().isEmpty()) {
+            throw new BusinessException(BusinessErrorCode.EMPTY_CHECKOUT_ITEMS, "Checkout items must not be empty");
+        }
+
+        String normalizedIdempotencyKey = normalizeIdempotencyKey(idempotencyKey);
+        if (normalizedIdempotencyKey != null) {
+            // Transaction-scoped lock guarantees one in-flight checkout per (user, key).
+            acquirePgAdvisoryTransactionLock("checkout:" + userId + ":" + normalizedIdempotencyKey);
+            Order existingOrder = orderRepository.findByUserIdAndIdempotencyKey(userId, normalizedIdempotencyKey)
+                    .orElse(null);
+            if (existingOrder != null) {
+                return buildCheckoutResponse(existingOrder);
+            }
         }
 
         // Snapshot address as JSON
@@ -98,18 +127,29 @@ public class OrderServiceImpl implements OrderService {
         // Build order items and calculate totals
         List<OrderItem> orderItems = new ArrayList<>();
         BigDecimal subtotal = BigDecimal.ZERO;
+        Set<UUID> checkedOutVariantIds = new LinkedHashSet<>();
 
         for (CheckoutRequest.CheckoutItem item : request.getItems()) {
-            ProductVariant variant = variantRepository.findById(item.getVariantId())
-                    .orElseThrow(() -> new IllegalArgumentException("Product variant not found: " + item.getVariantId()));
+            ProductVariant variant = variantRepository.findByIdForUpdate(item.getVariantId())
+                    .orElseThrow(() -> new BusinessException(
+                            BusinessErrorCode.VARIANT_NOT_FOUND,
+                            "Product variant not found: " + item.getVariantId()));
+            validateVariantPurchasableForCheckout(variant);
 
             if (variant.getStock() < item.getQuantity()) {
-                throw new IllegalArgumentException("Not enough stock for: " + variant.getVariantName());
+                throw new BusinessException(
+                        BusinessErrorCode.INSUFFICIENT_STOCK,
+                        "Not enough stock for: " + variant.getVariantName());
             }
 
             // Check Flash Sale first
             BigDecimal flashPrice = flashSaleService.applyFlashSaleAndReduceStock(variant.getId(), item.getQuantity());
             BigDecimal unitPrice = (flashPrice != null) ? flashPrice : variant.getPrice();
+            if (item.getExpectedUnitPrice() != null && item.getExpectedUnitPrice().compareTo(unitPrice) != 0) {
+                throw new BusinessException(
+                        BusinessErrorCode.PRICE_CHANGED,
+                        "Price has changed for: " + variant.getVariantName() + ". Latest price: " + unitPrice);
+            }
             
             BigDecimal itemSubtotal = unitPrice.multiply(BigDecimal.valueOf(item.getQuantity()));
 
@@ -124,6 +164,7 @@ public class OrderServiceImpl implements OrderService {
 
             orderItems.add(orderItem);
             subtotal = subtotal.add(itemSubtotal);
+            checkedOutVariantIds.add(variant.getId());
 
             // Reduce base stock
             variant.setStock(variant.getStock() - item.getQuantity());
@@ -139,11 +180,11 @@ public class OrderServiceImpl implements OrderService {
         // Apply product coupon
         BigDecimal discountAmount = BigDecimal.ZERO;
         if (request.getCouponCode() != null && !request.getCouponCode().isBlank()) {
-            Coupon coupon = couponRepository.findByCode(request.getCouponCode())
-                    .orElseThrow(() -> new IllegalArgumentException("Invalid product coupon code"));
+            Coupon coupon = couponRepository.findByCodeForUpdate(request.getCouponCode())
+                    .orElseThrow(() -> new BusinessException(BusinessErrorCode.INVALID_PRODUCT_COUPON, "Invalid product coupon code"));
 
             if (coupon.getCouponCategory() != CouponCategory.PRODUCT) {
-                throw new IllegalArgumentException("Voucher is not a product voucher");
+                throw new BusinessException(BusinessErrorCode.INVALID_PRODUCT_COUPON, "Voucher is not a product voucher");
             }
             validateCoupon(coupon, subtotal);
 
@@ -169,11 +210,11 @@ public class OrderServiceImpl implements OrderService {
         // Apply shipping coupon
         BigDecimal shippingDiscountAmount = BigDecimal.ZERO;
         if (request.getShippingCouponCode() != null && !request.getShippingCouponCode().isBlank()) {
-            Coupon coupon = couponRepository.findByCode(request.getShippingCouponCode())
-                    .orElseThrow(() -> new IllegalArgumentException("Invalid shipping coupon code"));
+            Coupon coupon = couponRepository.findByCodeForUpdate(request.getShippingCouponCode())
+                    .orElseThrow(() -> new BusinessException(BusinessErrorCode.INVALID_SHIPPING_COUPON, "Invalid shipping coupon code"));
 
             if (coupon.getCouponCategory() != CouponCategory.SHIPPING) {
-                throw new IllegalArgumentException("Voucher is not a freeship voucher");
+                throw new BusinessException(BusinessErrorCode.INVALID_SHIPPING_COUPON, "Voucher is not a freeship voucher");
             }
             validateCoupon(coupon, subtotal);
 
@@ -207,15 +248,18 @@ public class OrderServiceImpl implements OrderService {
         TaxSnapshot taxSnapshot = calculateTaxSnapshot(productBase, shippingBase);
         BigDecimal totalAmount = taxSnapshot.totalAmount();
 
-        PaymentMethod paymentMethod = PaymentMethod.valueOf(request.getPaymentMethod().toUpperCase());
+        PaymentMethod paymentMethod = parsePaymentMethod(request.getPaymentMethod());
 
         // Validate: phương thức thanh toán phải đang được bật trong cài đặt
         String enabledKey = paymentMethod.name() + "_ENABLED";
         if (!settingService.getSettingBoolean(enabledKey)) {
-            throw new IllegalArgumentException("Phương thức thanh toán " + paymentMethod.name() + " hiện không khả dụng");
+            throw new BusinessException(
+                    BusinessErrorCode.PAYMENT_METHOD_UNAVAILABLE,
+                    "Phương thức thanh toán " + paymentMethod.name() + " hiện không khả dụng");
         }
         Order order = Order.builder()
                 .orderNumber(generateOrderNumber())
+                .idempotencyKey(normalizedIdempotencyKey)
                 .shippingAddressJson(addressJson)
                 .note(request.getNote())
                 .orderStatus(OrderStatus.PENDING)
@@ -254,14 +298,11 @@ public class OrderServiceImpl implements OrderService {
         orderStatusHistoryRepository.save(history);
 
         // Clear cart items after successful checkout
-        cartRepository.deleteAllByUserId(userId);
-
-        OrderResponse response = mapToResponse(savedOrder);
-
-        // Generate payment URL for online payments
-        if (paymentMethod != PaymentMethod.COD) {
-            response.setPaymentUrl("https://payment.hozitech.com/pay/" + savedOrder.getOrderNumber());
+        if (!checkedOutVariantIds.isEmpty()) {
+            cartRepository.deleteByUserIdAndVariantIdIn(userId, checkedOutVariantIds);
         }
+
+        OrderResponse response = buildCheckoutResponse(savedOrder);
 
         // Send order created email
         sendOrderCreatedEmail(savedOrder, user, address);
@@ -274,6 +315,50 @@ public class OrderServiceImpl implements OrderService {
         );
 
         return response;
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse handlePaymentWebhook(PaymentWebhookRequest request, String idempotencyKey) {
+        String resolvedIdempotencyKey = resolveWebhookIdempotencyKey(request, idempotencyKey);
+        acquirePgAdvisoryTransactionLock("payment-webhook:" + resolvedIdempotencyKey);
+
+        PaymentWebhookEvent existingEvent = paymentWebhookEventRepository.findByIdempotencyKey(resolvedIdempotencyKey)
+                .orElse(null);
+        if (existingEvent != null) {
+            if (existingEvent.getOrder() != null) {
+                return mapToResponse(existingEvent.getOrder());
+            }
+            Order existingOrder = orderRepository.findByOrderNumber(existingEvent.getOrderNumber())
+                    .orElseThrow(() -> new BusinessException(
+                            BusinessErrorCode.WEBHOOK_ORDER_NOT_FOUND,
+                            "Order not found for webhook event: " + existingEvent.getOrderNumber()));
+            return mapToResponse(existingOrder);
+        }
+
+        PaymentStatus incomingStatus = parseWebhookPaymentStatus(request.getPaymentStatus());
+        Order order = orderRepository.findByOrderNumberForUpdate(request.getOrderNumber())
+                .orElseThrow(() -> new BusinessException(
+                        BusinessErrorCode.WEBHOOK_ORDER_NOT_FOUND,
+                        "Order not found: " + request.getOrderNumber()));
+
+        applyPaymentWebhookTransition(order, incomingStatus);
+        Order savedOrder = orderRepository.save(order);
+
+        PaymentWebhookEvent event = PaymentWebhookEvent.builder()
+                .idempotencyKey(resolvedIdempotencyKey)
+                .provider(normalizeProvider(request.getProvider()))
+                .eventId(trimToNull(request.getEventId()))
+                .orderNumber(savedOrder.getOrderNumber())
+                .transactionId(trimToNull(request.getTransactionId()))
+                .paymentStatus(incomingStatus)
+                .responseCode(trimToNull(request.getResponseCode()))
+                .rawPayload(trimToNull(request.getRawPayload()))
+                .order(savedOrder)
+                .build();
+        paymentWebhookEventRepository.save(event);
+
+        return mapToResponse(savedOrder);
     }
 
     @Override
@@ -329,11 +414,7 @@ public class OrderServiceImpl implements OrderService {
         order.setOrderStatus(OrderStatus.CANCELLED);
 
         // Restore stock
-        for (OrderItem item : order.getOrderItems()) {
-            ProductVariant variant = item.getVariant();
-            variant.setStock(variant.getStock() + item.getQuantity());
-            variantRepository.save(variant);
-        }
+        restoreStockForOrder(order);
 
         Order savedOrder = orderRepository.save(order);
 
@@ -504,18 +585,207 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
+    private OrderResponse buildCheckoutResponse(Order order) {
+        OrderResponse response = mapToResponse(order);
+        if (order.getPaymentMethod() != PaymentMethod.COD) {
+            response.setPaymentUrl("https://payment.hozitech.com/pay/" + order.getOrderNumber());
+        }
+        return response;
+    }
+
+    private String normalizeIdempotencyKey(String raw) {
+        String normalized = trimToNull(raw);
+        if (normalized == null) {
+            return null;
+        }
+        if (normalized.length() > 120) {
+            normalized = normalized.substring(0, 120);
+        }
+        return normalized;
+    }
+
+    private String resolveWebhookIdempotencyKey(PaymentWebhookRequest request, String webhookIdHeader) {
+        String headerKey = normalizeIdempotencyKey(webhookIdHeader);
+        if (headerKey != null) {
+            return "wh:" + headerKey;
+        }
+
+        String eventId = normalizeIdempotencyKey(request.getEventId());
+        if (eventId != null) {
+            return "event:" + normalizeProvider(request.getProvider()) + ":" + eventId;
+        }
+
+        String transactionId = trimToNull(request.getTransactionId());
+        if (transactionId != null) {
+            String combined = normalizeProvider(request.getProvider())
+                    + ":" + request.getOrderNumber()
+                    + ":" + transactionId
+                    + ":" + request.getPaymentStatus();
+            return normalizeIdempotencyKey("tx:" + combined);
+        }
+
+        throw new BusinessException(
+                BusinessErrorCode.WEBHOOK_IDEMPOTENCY_KEY_REQUIRED,
+                "Webhook idempotency key is required (X-Webhook-Id, eventId, or transactionId)");
+    }
+
+    private void acquirePgAdvisoryTransactionLock(String lockKey) {
+        entityManager.createNativeQuery("SELECT pg_advisory_xact_lock(hashtext(:lockKey)::bigint)")
+                .setParameter("lockKey", lockKey)
+                .getSingleResult();
+    }
+
+    private void applyPaymentWebhookTransition(Order order, PaymentStatus incomingStatus) {
+        PaymentStatus currentStatus = order.getPaymentStatus();
+
+        if (currentStatus == incomingStatus) {
+            return;
+        }
+        // Do not downgrade completed payments unless explicit REFUNDED.
+        if (currentStatus == PaymentStatus.COMPLETED && incomingStatus != PaymentStatus.REFUNDED) {
+            return;
+        }
+        // Once refunded, keep terminal state.
+        if (currentStatus == PaymentStatus.REFUNDED) {
+            return;
+        }
+        // Prevent re-opening a failed payment as completed without manual operation.
+        if (currentStatus == PaymentStatus.FAILED && incomingStatus == PaymentStatus.COMPLETED) {
+            return;
+        }
+
+        order.setPaymentStatus(incomingStatus);
+
+        if (incomingStatus == PaymentStatus.FAILED) {
+            if (order.getOrderStatus() != OrderStatus.CANCELLED
+                    && order.getOrderStatus() != OrderStatus.SHIPPED
+                    && order.getOrderStatus() != OrderStatus.RETURNED) {
+                restoreStockForOrder(order);
+                order.setOrderStatus(OrderStatus.CANCELLED);
+                appendOrderStatusHistory(order, OrderStatus.CANCELLED, "Thanh toán thất bại từ webhook, đơn đã huỷ");
+            }
+            notificationService.createForUser(
+                    order.getUser().getId(),
+                    "Thanh toán thất bại",
+                    "Đơn hàng " + order.getOrderNumber() + " thanh toán không thành công.",
+                    "ORDER",
+                    order.getId()
+            );
+            return;
+        }
+
+        if (incomingStatus == PaymentStatus.REFUNDED) {
+            if (order.getOrderStatus() != OrderStatus.RETURNED) {
+                order.setOrderStatus(OrderStatus.RETURNED);
+                appendOrderStatusHistory(order, OrderStatus.RETURNED, "Đơn hàng đã được hoàn tiền qua webhook");
+            }
+            notificationService.createForUser(
+                    order.getUser().getId(),
+                    "Đã hoàn tiền",
+                    "Đơn hàng " + order.getOrderNumber() + " đã được hoàn tiền.",
+                    "ORDER",
+                    order.getId()
+            );
+            return;
+        }
+
+        if (incomingStatus == PaymentStatus.COMPLETED) {
+            notificationService.createForUser(
+                    order.getUser().getId(),
+                    "Thanh toán thành công",
+                    "Đơn hàng " + order.getOrderNumber() + " đã được thanh toán.",
+                    "ORDER",
+                    order.getId()
+            );
+        }
+    }
+
+    private void restoreStockForOrder(Order order) {
+        for (OrderItem item : order.getOrderItems()) {
+            if (item.getVariant() == null) continue;
+            UUID variantId = item.getVariant().getId();
+            ProductVariant variant = variantRepository.findByIdForUpdate(variantId)
+                    .orElse(item.getVariant());
+            variant.setStock(variant.getStock() + item.getQuantity());
+            variantRepository.save(variant);
+        }
+    }
+
+    private void appendOrderStatusHistory(Order order, OrderStatus status, String description) {
+        OrderStatusHistory history = OrderStatusHistory.builder()
+                .order(order)
+                .status(status)
+                .description(description)
+                .build();
+        orderStatusHistoryRepository.save(history);
+    }
+
+    private PaymentStatus parseWebhookPaymentStatus(String rawStatus) {
+        String normalized = trimToNull(rawStatus);
+        if (normalized == null) {
+            throw new BusinessException(BusinessErrorCode.INVALID_PAYMENT_STATUS, "Payment status is required");
+        }
+
+        String upper = normalized.toUpperCase(Locale.ROOT);
+        return switch (upper) {
+            case "COMPLETED", "SUCCESS", "SUCCEEDED", "PAID" -> PaymentStatus.COMPLETED;
+            case "FAILED", "FAIL", "ERROR", "CANCELLED", "CANCELED" -> PaymentStatus.FAILED;
+            case "REFUNDED", "REFUND" -> PaymentStatus.REFUNDED;
+            case "PENDING", "PROCESSING" -> PaymentStatus.PENDING;
+            default -> throw new BusinessException(
+                    BusinessErrorCode.INVALID_PAYMENT_STATUS,
+                    "Unsupported payment status: " + rawStatus);
+        };
+    }
+
+    private String normalizeProvider(String provider) {
+        String normalized = trimToNull(provider);
+        if (normalized == null) {
+            return "UNKNOWN";
+        }
+        return normalized.toUpperCase(Locale.ROOT);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
     private void validateCoupon(Coupon coupon, BigDecimal subtotal) {
         if (coupon.getStatus() != CouponStatus.ACTIVE) {
-            throw new IllegalArgumentException("Coupon is not active");
+            throw new BusinessException(BusinessErrorCode.COUPON_NOT_ACTIVE, "Coupon is not active");
+        }
+        if (coupon.getStartDate() != null && coupon.getStartDate().isAfter(LocalDateTime.now())) {
+            throw new BusinessException(BusinessErrorCode.COUPON_NOT_STARTED, "Coupon is not valid yet");
         }
         if (coupon.getEndDate() != null && coupon.getEndDate().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Coupon has expired");
+            throw new BusinessException(BusinessErrorCode.COUPON_EXPIRED, "Coupon has expired");
         }
         if (coupon.getUsageLimit() != null && coupon.getUsedCount() >= coupon.getUsageLimit()) {
-            throw new IllegalArgumentException("Coupon usage limit exceeded");
+            throw new BusinessException(BusinessErrorCode.COUPON_USAGE_LIMIT_EXCEEDED, "Coupon usage limit exceeded");
         }
         if (coupon.getMinOrderValue() != null && subtotal.compareTo(coupon.getMinOrderValue()) < 0) {
-            throw new IllegalArgumentException("Order does not meet minimum value for coupon");
+            throw new BusinessException(BusinessErrorCode.COUPON_MIN_ORDER_NOT_MET, "Order does not meet minimum value for coupon");
+        }
+    }
+
+    private void validateVariantPurchasableForCheckout(ProductVariant variant) {
+        if (variant.getProduct() == null || variant.getProduct().getStatus() != ProductStatus.ACTIVE) {
+            throw new BusinessException(BusinessErrorCode.PRODUCT_NOT_AVAILABLE, "Product is not available for purchase");
+        }
+        if (!Boolean.TRUE.equals(variant.getActive())) {
+            throw new BusinessException(BusinessErrorCode.VARIANT_NOT_AVAILABLE, "Product variant is not available for purchase");
+        }
+    }
+
+    private PaymentMethod parsePaymentMethod(String paymentMethodRaw) {
+        try {
+            return PaymentMethod.valueOf(paymentMethodRaw.toUpperCase());
+        } catch (Exception ex) {
+            throw new BusinessException(BusinessErrorCode.INVALID_PAYMENT_METHOD, "Invalid payment method: " + paymentMethodRaw);
         }
     }
 

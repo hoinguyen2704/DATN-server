@@ -43,8 +43,8 @@ public class CouponRequest {
     private LocalDateTime startDate;
     private LocalDateTime endDate;
 
-    // ─── NEW ─────────────────────────────────────────
-    private Boolean isPublic;          // true = hiển thị trên storefront
-    private String applyType;          // ALL | SPECIFIC_PRODUCTS
+    // NEW
+    private Boolean isPublic; // true = hiển thị trên storefront
+    private String applyType; // ALL | SPECIFIC_PRODUCTS
     private List<UUID> applicableProductIds; // danh sách SP áp dụng
 }

@@ -24,16 +24,16 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class FileStorageService {
 
-    @Value("${AWS_ACCESS_KEY:}")
+    @Value("${AWS_ACCESS_KEY}")
     private String accessKey;
 
-    @Value("${AWS_SECRET_KEY:}")
+    @Value("${AWS_SECRET_KEY}")
     private String secretKey;
 
-    @Value("${AWS_REGION:ap-southeast-1}")
+    @Value("${AWS_REGION}")
     private String region;
 
-    @Value("${AWS_BUCKET_NAME:}")
+    @Value("${AWS_BUCKET_NAME}")
     private String bucketName;
 
     private AmazonS3 s3Client;

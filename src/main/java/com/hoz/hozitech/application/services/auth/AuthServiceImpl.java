@@ -50,13 +50,13 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtService;
     private final AuthenticationManager authenticationManager;
 
-    @Value("${spring.security.oauth2.client.registration.google.client-id:dummy}")
+    @Value("${spring.security.oauth2.client.registration.google.client-id}")
     private String googleClientId;
 
-    @Value("${jwt.access-expiration:604800}")
+    @Value("${jwt.access-expiration}")
     private long accessTokenExpirationSeconds;
 
-    @Value("${jwt.refresh-expiration:2592000}")
+    @Value("${jwt.refresh-expiration}")
     private long refreshTokenExpirationSeconds;
 
     @Override

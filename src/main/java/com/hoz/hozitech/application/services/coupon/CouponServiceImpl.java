@@ -38,7 +38,7 @@ public class CouponServiceImpl implements CouponService {
     private final UserSavedCouponRepository userSavedCouponRepository;
     private final UserRepository userRepository;
 
-    @Value("${app.timezone:Asia/Ho_Chi_Minh}")
+    @Value("${app.timezone}")
     private String appTimezone;
 
     // ═══════════════════════════════════════════════════════════════

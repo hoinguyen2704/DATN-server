@@ -62,14 +62,14 @@ public class DataExcelExporter {
             "Giá gốc", "Tồn kho", "Đã bán", "Trạng thái", "Ngày tạo"
     };
 
-    // ─── Orders Export ───
+    // Orders Export
 
     public byte[] exportOrdersToExcel(String status, String keyword, LocalDateTime from, LocalDateTime to) {
         Specification<Order> spec = OrderSpecification.filterForExport(status, keyword, from, to);
         List<Order> orders = orderRepository.findAll(spec);
 
         try (XSSFWorkbook workbook = new XSSFWorkbook();
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
             CellStyle headerStyle = createHeaderStyle(workbook);
             CellStyle currencyStyle = workbook.createCellStyle();
@@ -105,14 +105,18 @@ public class DataExcelExporter {
                 row.createCell(0).setCellValue(order.getOrderNumber());
                 row.createCell(1).setCellValue(order.getUser() != null ? order.getUser().getFullName() : "");
                 row.createCell(2).setCellValue(order.getUser() != null ? order.getUser().getEmail() : "");
-                row.createCell(3).setCellValue(order.getUser() != null && order.getUser().getPhoneNumber() != null ? order.getUser().getPhoneNumber() : "");
+                row.createCell(3)
+                        .setCellValue(order.getUser() != null && order.getUser().getPhoneNumber() != null
+                                ? order.getUser().getPhoneNumber()
+                                : "");
 
                 Cell subtotalCell = row.createCell(4);
                 subtotalCell.setCellValue(order.getSubtotal() != null ? order.getSubtotal().doubleValue() : 0);
                 subtotalCell.setCellStyle(currencyStyle);
 
                 Cell discountCell = row.createCell(5);
-                discountCell.setCellValue(order.getDiscountAmount() != null ? order.getDiscountAmount().doubleValue() : 0);
+                discountCell
+                        .setCellValue(order.getDiscountAmount() != null ? order.getDiscountAmount().doubleValue() : 0);
                 discountCell.setCellStyle(currencyStyle);
 
                 Cell shippingCell = row.createCell(6);
@@ -147,13 +151,13 @@ public class DataExcelExporter {
         }
     }
 
-    // ─── Users Export ───
+    // Users Export
 
     public byte[] exportUsersToExcel(String keyword, String role) {
         List<User> users = userRepository.findAll();
 
         try (XSSFWorkbook workbook = new XSSFWorkbook();
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
             CellStyle headerStyle = createHeaderStyle(workbook);
 
@@ -186,12 +190,14 @@ public class DataExcelExporter {
                     String kw = keyword.toLowerCase();
                     boolean match = (user.getFullName() != null && user.getFullName().toLowerCase().contains(kw))
                             || (user.getEmail() != null && user.getEmail().toLowerCase().contains(kw));
-                    if (!match) continue;
+                    if (!match)
+                        continue;
                 }
                 if (role != null && !role.isEmpty()) {
                     boolean hasRole = user.getRole() != null
                             && user.getRole().getId().name().equalsIgnoreCase(role);
-                    if (!hasRole) continue;
+                    if (!hasRole)
+                        continue;
                 }
 
                 Row row = sheet.createRow(rowIdx++);
@@ -217,13 +223,13 @@ public class DataExcelExporter {
         }
     }
 
-    // ─── Feedbacks Export ───
+    // Feedbacks Export
 
     public byte[] exportFeedbacksToExcel(String status, UUID productId) {
         List<Feedback> feedbacks = feedbackRepository.findAll();
 
         try (XSSFWorkbook workbook = new XSSFWorkbook();
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
             CellStyle headerStyle = createHeaderStyle(workbook);
 
@@ -252,8 +258,10 @@ public class DataExcelExporter {
 
             int rowIdx = 4;
             for (Feedback fb : feedbacks) {
-                if (status != null && !status.isEmpty() && !status.equalsIgnoreCase(fb.getStatus().name())) continue;
-                if (productId != null && !productId.equals(fb.getProduct().getId())) continue;
+                if (status != null && !status.isEmpty() && !status.equalsIgnoreCase(fb.getStatus().name()))
+                    continue;
+                if (productId != null && !productId.equals(fb.getProduct().getId()))
+                    continue;
 
                 Row row = sheet.createRow(rowIdx++);
                 row.createCell(0).setCellValue(fb.getId().toString());
@@ -280,7 +288,7 @@ public class DataExcelExporter {
         }
     }
 
-    // ─── Products Export ───
+    // Products Export
 
     public byte[] exportProductsToExcel(String keyword, UUID categoryId, String status) {
         List<Product> products = productRepository.findAll(
@@ -289,7 +297,7 @@ public class DataExcelExporter {
                         org.springframework.data.domain.Sort.Order.desc("createdAt")));
 
         try (XSSFWorkbook workbook = new XSSFWorkbook();
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
             CellStyle headerStyle = createHeaderStyle(workbook);
             CellStyle currencyStyle = workbook.createCellStyle();
@@ -347,7 +355,8 @@ public class DataExcelExporter {
                 totalSoldSum += sold;
 
                 row.createCell(8).setCellValue(
-                        com.hoz.hozitech.domain.enums.ProductStatus.ACTIVE == product.getStatus() ? "Đang bán" : "Đã ẩn");
+                        com.hoz.hozitech.domain.enums.ProductStatus.ACTIVE == product.getStatus() ? "Đang bán"
+                                : "Đã ẩn");
                 row.createCell(9).setCellValue(
                         product.getCreatedAt() != null ? product.getCreatedAt().format(DATE_FMT) : "");
 

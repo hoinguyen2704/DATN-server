@@ -2,8 +2,10 @@ package com.hoz.hozitech.application.repositories;
 
 import com.hoz.hozitech.domain.entities.Order;
 import com.hoz.hozitech.domain.enums.OrderStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,6 +21,12 @@ import java.util.UUID;
 public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecificationExecutor<Order> {
 
     Optional<Order> findByOrderNumber(String orderNumber);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT o FROM Order o WHERE o.orderNumber = :orderNumber")
+    Optional<Order> findByOrderNumberForUpdate(@Param("orderNumber") String orderNumber);
+
+    Optional<Order> findByUserIdAndIdempotencyKey(UUID userId, String idempotencyKey);
 
     List<Order> findByUserIdAndOrderStatusOrderByCreatedAtDesc(UUID userId, OrderStatus orderStatus);
 
@@ -62,4 +70,3 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
             "GROUP BY o.user.id, o.user.fullName, o.user.email ORDER BY SUM(o.totalAmount) DESC")
     List<Object[]> findTopCustomers(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to, Pageable pageable);
 }
-
