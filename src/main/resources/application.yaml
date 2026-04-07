@@ -90,3 +90,15 @@ spring.mail:
         starttls:
           enable: true
           required: true
+
+payment:
+  webhook:
+    # Set true only for local testing when provider signatures are not available
+    allow-unsigned: ${PAYMENT_WEBHOOK_ALLOW_UNSIGNED:false}
+    max-timestamp-skew-seconds: ${PAYMENT_WEBHOOK_MAX_SKEW_SECONDS:300}
+    # Shared fallback secret for unknown/custom providers
+    default-secret: ${PAYMENT_WEBHOOK_SECRET:}
+    # Provider-specific secrets
+    vnpay-secret: ${VNPAY_WEBHOOK_SECRET:}
+    momo-secret: ${MOMO_WEBHOOK_SECRET:}
+    bank-transfer-secret: ${BANK_TRANSFER_WEBHOOK_SECRET:}
