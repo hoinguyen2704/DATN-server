@@ -11,6 +11,8 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Repository
 public interface FlashSaleItemRepository extends JpaRepository<FlashSaleItem, UUID> {
@@ -33,4 +35,17 @@ public interface FlashSaleItemRepository extends JpaRepository<FlashSaleItem, UU
             "AND fs.startTime <= CURRENT_TIMESTAMP AND fs.endTime >= CURRENT_TIMESTAMP " +
             "AND fsi.soldCount < fsi.flashStock")
     Optional<FlashSaleItem> findActiveFlashSaleItemByVariantIdForUpdate(@Param("variantId") UUID variantId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT fsi FROM FlashSaleItem fsi " +
+            "JOIN fsi.flashSale fs " +
+            "WHERE fsi.variant.id = :variantId " +
+            "AND fsi.flashPrice = :soldUnitPrice " +
+            "AND fs.startTime <= :soldAt " +
+            "AND fs.endTime >= :soldAt " +
+            "ORDER BY fs.startTime DESC")
+    List<FlashSaleItem> findRollbackCandidatesForUpdate(
+            @Param("variantId") UUID variantId,
+            @Param("soldUnitPrice") BigDecimal soldUnitPrice,
+            @Param("soldAt") LocalDateTime soldAt);
 }

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
@@ -21,7 +22,7 @@ class PaymentWebhookSignatureVerifierTest {
         PaymentWebhookRequest request = sampleRequest();
         long timestamp = Instant.now().getEpochSecond();
 
-        String payload = timestamp + "." + "VNPAY|ORD-001|COMPLETED|evt-001|txn-001|00";
+        String payload = timestamp + "." + "VNPAY|ORD-001|COMPLETED|evt-001|txn-001|00|1000000|VND";
         String signature = hmacSha256Hex("secret-123", payload);
 
         assertDoesNotThrow(() -> verifier.verifyOrThrow(request, signature, String.valueOf(timestamp)));
@@ -34,7 +35,7 @@ class PaymentWebhookSignatureVerifierTest {
         PaymentWebhookRequest request = sampleRequest();
         long timestamp = Instant.now().getEpochSecond();
 
-        String payload = timestamp + "." + "VNPAY|ORD-001|COMPLETED|evt-001|txn-001|00";
+        String payload = timestamp + "." + "VNPAY|ORD-001|COMPLETED|evt-001|txn-001|00|1000000|VND";
         String signature = java.util.Base64.getEncoder().encodeToString(
                 hmacSha256("secret-123", payload));
 
@@ -73,7 +74,7 @@ class PaymentWebhookSignatureVerifierTest {
         PaymentWebhookRequest request = sampleRequest();
         long oldTimestamp = Instant.now().minusSeconds(3600).getEpochSecond();
 
-        String payload = oldTimestamp + "." + "VNPAY|ORD-001|COMPLETED|evt-001|txn-001|00";
+        String payload = oldTimestamp + "." + "VNPAY|ORD-001|COMPLETED|evt-001|txn-001|00|1000000|VND";
         String signature = hmacSha256Hex("secret-123", payload);
 
         assertThrows(
@@ -97,6 +98,8 @@ class PaymentWebhookSignatureVerifierTest {
                 .eventId("evt-001")
                 .transactionId("txn-001")
                 .responseCode("00")
+                .amount(new BigDecimal("1000000"))
+                .currency("VND")
                 .build();
     }
 

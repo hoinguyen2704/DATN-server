@@ -6,6 +6,7 @@ import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.enums.FlashSaleStatus;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,4 +31,9 @@ public interface FlashSaleService {
      * If so, reduces flash stock and returns flash price. Otherwise returns null.
      */
     BigDecimal applyFlashSaleAndReduceStock(UUID variantId, int quantity);
+
+    /**
+     * Restores flash-sale sold count for a previously checked out order item.
+     */
+    void restoreFlashSaleSoldCount(UUID variantId, BigDecimal soldUnitPrice, int quantity, LocalDateTime soldAt);
 }

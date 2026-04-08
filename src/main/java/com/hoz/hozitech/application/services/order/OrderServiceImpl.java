@@ -2,6 +2,7 @@ package com.hoz.hozitech.application.services.order;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.domain.enums.CouponCategory;
+import com.hoz.hozitech.domain.enums.CouponApplyType;
 import com.hoz.hozitech.domain.enums.DiscountType;
 import com.hoz.hozitech.domain.enums.CouponStatus;
 import java.math.BigDecimal;
@@ -9,6 +10,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -73,6 +75,29 @@ import lombok.extern.slf4j.Slf4j;
 public class OrderServiceImpl implements OrderService {
     private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
     private static final int MONEY_SCALE = 2;
+    private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_STATUS_TRANSITIONS = Map.of(
+            OrderStatus.PENDING, EnumSet.of(
+                    OrderStatus.CONFIRMED,
+                    OrderStatus.PROCESSING,
+                    OrderStatus.SHIPPING,
+                    OrderStatus.SHIPPED,
+                    OrderStatus.CANCELLED),
+            OrderStatus.CONFIRMED, EnumSet.of(
+                    OrderStatus.PROCESSING,
+                    OrderStatus.SHIPPING,
+                    OrderStatus.SHIPPED,
+                    OrderStatus.CANCELLED),
+            OrderStatus.PROCESSING, EnumSet.of(
+                    OrderStatus.SHIPPING,
+                    OrderStatus.SHIPPED,
+                    OrderStatus.CANCELLED),
+            OrderStatus.SHIPPING, EnumSet.of(
+                    OrderStatus.SHIPPED,
+                    OrderStatus.RETURNED),
+            OrderStatus.SHIPPED, EnumSet.of(OrderStatus.RETURNED),
+            OrderStatus.CANCELLED, EnumSet.noneOf(OrderStatus.class),
+            OrderStatus.RETURNED, EnumSet.noneOf(OrderStatus.class)
+    );
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
@@ -111,14 +136,18 @@ public class OrderServiceImpl implements OrderService {
         }
 
         String normalizedIdempotencyKey = normalizeIdempotencyKey(idempotencyKey);
-        if (normalizedIdempotencyKey != null) {
-            // Transaction-scoped lock guarantees one in-flight checkout per (user, key).
-            acquirePgAdvisoryTransactionLock("checkout:" + userId + ":" + normalizedIdempotencyKey);
-            Order existingOrder = orderRepository.findByUserIdAndIdempotencyKey(userId, normalizedIdempotencyKey)
-                    .orElse(null);
-            if (existingOrder != null) {
-                return buildCheckoutResponse(existingOrder);
-            }
+        if (normalizedIdempotencyKey == null) {
+            throw new BusinessException(
+                    BusinessErrorCode.IDEMPOTENCY_KEY_REQUIRED,
+                    "Idempotency key is required for checkout");
+        }
+
+        // Transaction-scoped lock guarantees one in-flight checkout per (user, key).
+        acquirePgAdvisoryTransactionLock("checkout:" + userId + ":" + normalizedIdempotencyKey);
+        Order existingOrder = orderRepository.findByUserIdAndIdempotencyKey(userId, normalizedIdempotencyKey)
+                .orElse(null);
+        if (existingOrder != null) {
+            return buildCheckoutResponse(existingOrder);
         }
 
         // Snapshot address as JSON
@@ -128,6 +157,7 @@ public class OrderServiceImpl implements OrderService {
         List<OrderItem> orderItems = new ArrayList<>();
         BigDecimal subtotal = BigDecimal.ZERO;
         Set<UUID> checkedOutVariantIds = new LinkedHashSet<>();
+        Set<UUID> checkedOutProductIds = new LinkedHashSet<>();
 
         for (CheckoutRequest.CheckoutItem item : request.getItems()) {
             ProductVariant variant = variantRepository.findByIdForUpdate(item.getVariantId())
@@ -165,6 +195,9 @@ public class OrderServiceImpl implements OrderService {
             orderItems.add(orderItem);
             subtotal = subtotal.add(itemSubtotal);
             checkedOutVariantIds.add(variant.getId());
+            if (variant.getProduct() != null && variant.getProduct().getId() != null) {
+                checkedOutProductIds.add(variant.getProduct().getId());
+            }
 
             // Reduce base stock
             variant.setStock(variant.getStock() - item.getQuantity());
@@ -186,7 +219,7 @@ public class OrderServiceImpl implements OrderService {
             if (coupon.getCouponCategory() != CouponCategory.PRODUCT) {
                 throw new BusinessException(BusinessErrorCode.INVALID_PRODUCT_COUPON, "Voucher is not a product voucher");
             }
-            validateCoupon(coupon, subtotal);
+            validateCoupon(coupon, subtotal, checkedOutProductIds, userId);
 
             if (coupon.getDiscountType() == DiscountType.PERCENTAGE) {
                 discountAmount = subtotal.multiply(coupon.getDiscountValue()).divide(BigDecimal.valueOf(100));
@@ -216,7 +249,7 @@ public class OrderServiceImpl implements OrderService {
             if (coupon.getCouponCategory() != CouponCategory.SHIPPING) {
                 throw new BusinessException(BusinessErrorCode.INVALID_SHIPPING_COUPON, "Voucher is not a freeship voucher");
             }
-            validateCoupon(coupon, subtotal);
+            validateCoupon(coupon, subtotal, checkedOutProductIds, userId);
 
             if (coupon.getDiscountType() == DiscountType.PERCENTAGE) {
                 shippingDiscountAmount = shippingFee.multiply(coupon.getDiscountValue()).divide(BigDecimal.valueOf(100));
@@ -341,6 +374,7 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new BusinessException(
                         BusinessErrorCode.WEBHOOK_ORDER_NOT_FOUND,
                         "Order not found: " + request.getOrderNumber()));
+        validateWebhookMonetaryData(order, request, incomingStatus);
 
         applyPaymentWebhookTransition(order, incomingStatus);
         Order savedOrder = orderRepository.save(order);
@@ -413,8 +447,8 @@ public class OrderServiceImpl implements OrderService {
 
         order.setOrderStatus(OrderStatus.CANCELLED);
 
-        // Restore stock
-        restoreStockForOrder(order);
+        // Restore inventory and coupon usage
+        rollbackOrderAllocations(order);
 
         Order savedOrder = orderRepository.save(order);
 
@@ -458,8 +492,17 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
         OrderStatus oldStatus = order.getOrderStatus();
 
-        OrderStatus newStatus = OrderStatus.valueOf(status.toUpperCase());
+        OrderStatus newStatus = parseOrderStatus(status);
+        if (oldStatus == newStatus) {
+            return mapToResponse(order);
+        }
+
+        validateOrderStatusTransition(oldStatus, newStatus);
         order.setOrderStatus(newStatus);
+
+        if (newStatus == OrderStatus.CANCELLED) {
+            rollbackOrderAllocations(order);
+        }
 
         if (newStatus == OrderStatus.SHIPPED) {
             order.setPaymentStatus(PaymentStatus.COMPLETED);
@@ -660,7 +703,7 @@ public class OrderServiceImpl implements OrderService {
             if (order.getOrderStatus() != OrderStatus.CANCELLED
                     && order.getOrderStatus() != OrderStatus.SHIPPED
                     && order.getOrderStatus() != OrderStatus.RETURNED) {
-                restoreStockForOrder(order);
+                rollbackOrderAllocations(order);
                 order.setOrderStatus(OrderStatus.CANCELLED);
                 appendOrderStatusHistory(order, OrderStatus.CANCELLED, "Thanh toán thất bại từ webhook, đơn đã huỷ");
             }
@@ -700,6 +743,11 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
+    private void rollbackOrderAllocations(Order order) {
+        restoreStockForOrder(order);
+        restoreCouponUsageForOrder(order);
+    }
+
     private void restoreStockForOrder(Order order) {
         for (OrderItem item : order.getOrderItems()) {
             if (item.getVariant() == null) continue;
@@ -708,6 +756,34 @@ public class OrderServiceImpl implements OrderService {
                     .orElse(item.getVariant());
             variant.setStock(variant.getStock() + item.getQuantity());
             variantRepository.save(variant);
+
+            flashSaleService.restoreFlashSaleSoldCount(
+                    variantId,
+                    item.getUnitPrice(),
+                    item.getQuantity(),
+                    order.getCreatedAt());
+        }
+    }
+
+    private void restoreCouponUsageForOrder(Order order) {
+        Set<String> couponCodesToRestore = new LinkedHashSet<>();
+        String productCouponCode = trimToNull(order.getCouponCode());
+        String shippingCouponCode = trimToNull(order.getShippingCouponCode());
+        if (productCouponCode != null) {
+            couponCodesToRestore.add(productCouponCode);
+        }
+        if (shippingCouponCode != null) {
+            couponCodesToRestore.add(shippingCouponCode);
+        }
+
+        for (String code : couponCodesToRestore) {
+            couponRepository.findByCodeForUpdate(code).ifPresent(coupon -> {
+                int currentUsedCount = coupon.getUsedCount() != null ? coupon.getUsedCount() : 0;
+                if (currentUsedCount > 0) {
+                    coupon.setUsedCount(currentUsedCount - 1);
+                    couponRepository.save(coupon);
+                }
+            });
         }
     }
 
@@ -738,6 +814,31 @@ public class OrderServiceImpl implements OrderService {
         };
     }
 
+    private OrderStatus parseOrderStatus(String rawStatus) {
+        String normalized = trimToNull(rawStatus);
+        if (normalized == null) {
+            throw new BusinessException(BusinessErrorCode.INVALID_ORDER_STATUS, "Order status is required");
+        }
+        try {
+            return OrderStatus.valueOf(normalized.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(
+                    BusinessErrorCode.INVALID_ORDER_STATUS,
+                    "Unsupported order status: " + rawStatus);
+        }
+    }
+
+    private void validateOrderStatusTransition(OrderStatus currentStatus, OrderStatus nextStatus) {
+        Set<OrderStatus> allowedStatuses = ALLOWED_STATUS_TRANSITIONS.getOrDefault(
+                currentStatus,
+                EnumSet.noneOf(OrderStatus.class));
+        if (!allowedStatuses.contains(nextStatus)) {
+            throw new BusinessException(
+                    BusinessErrorCode.ORDER_STATUS_TRANSITION_NOT_ALLOWED,
+                    "Cannot transition order status from " + currentStatus.name() + " to " + nextStatus.name());
+        }
+    }
+
     private String normalizeProvider(String provider) {
         String normalized = trimToNull(provider);
         if (normalized == null) {
@@ -754,7 +855,7 @@ public class OrderServiceImpl implements OrderService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private void validateCoupon(Coupon coupon, BigDecimal subtotal) {
+    private void validateCoupon(Coupon coupon, BigDecimal subtotal, Set<UUID> checkedOutProductIds, UUID userId) {
         if (coupon.getStatus() != CouponStatus.ACTIVE) {
             throw new BusinessException(BusinessErrorCode.COUPON_NOT_ACTIVE, "Coupon is not active");
         }
@@ -767,9 +868,70 @@ public class OrderServiceImpl implements OrderService {
         if (coupon.getUsageLimit() != null && coupon.getUsedCount() >= coupon.getUsageLimit()) {
             throw new BusinessException(BusinessErrorCode.COUPON_USAGE_LIMIT_EXCEEDED, "Coupon usage limit exceeded");
         }
+        if (userId != null && orderRepository.existsCouponUsedByUser(userId, coupon.getCode())) {
+            throw new BusinessException(
+                    BusinessErrorCode.COUPON_ALREADY_USED_BY_USER,
+                    "Mỗi khách hàng chỉ được sử dụng mã giảm giá này một lần");
+        }
         if (coupon.getMinOrderValue() != null && subtotal.compareTo(coupon.getMinOrderValue()) < 0) {
             throw new BusinessException(BusinessErrorCode.COUPON_MIN_ORDER_NOT_MET, "Order does not meet minimum value for coupon");
         }
+        if (coupon.getApplyType() == CouponApplyType.SPECIFIC_PRODUCTS) {
+            boolean applicable = coupon.getApplicableProducts() != null
+                    && checkedOutProductIds != null
+                    && !checkedOutProductIds.isEmpty()
+                    && coupon.getApplicableProducts().stream()
+                    .map(product -> product.getId())
+                    .anyMatch(checkedOutProductIds::contains);
+            if (!applicable) {
+                throw new BusinessException(
+                        BusinessErrorCode.COUPON_NOT_APPLICABLE_TO_ITEMS,
+                        "Coupon is not applicable to selected products");
+            }
+        }
+    }
+
+    private void validateWebhookMonetaryData(Order order, PaymentWebhookRequest request, PaymentStatus incomingStatus) {
+        if (incomingStatus != PaymentStatus.COMPLETED && incomingStatus != PaymentStatus.REFUNDED) {
+            return;
+        }
+
+        if (request.getAmount() == null) {
+            throw new BusinessException(
+                    BusinessErrorCode.WEBHOOK_PAYMENT_DATA_REQUIRED,
+                    "Webhook amount is required for payment status: " + incomingStatus.name());
+        }
+        String currency = normalizeCurrency(request.getCurrency());
+        if (currency == null) {
+            throw new BusinessException(
+                    BusinessErrorCode.WEBHOOK_PAYMENT_DATA_REQUIRED,
+                    "Webhook currency is required for payment status: " + incomingStatus.name());
+        }
+
+        BigDecimal expectedAmount = nz(order.getTotalAmount()).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        BigDecimal receivedAmount = request.getAmount().setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        if (expectedAmount.compareTo(receivedAmount) != 0) {
+            throw new BusinessException(
+                    BusinessErrorCode.WEBHOOK_AMOUNT_MISMATCH,
+                    "Webhook amount mismatch for order " + order.getOrderNumber()
+                            + ". expected=" + expectedAmount + ", received=" + receivedAmount);
+        }
+
+        String expectedCurrency = normalizeCurrency(textSettingWithFallback("CURRENCY", "VND"));
+        if (!expectedCurrency.equals(currency)) {
+            throw new BusinessException(
+                    BusinessErrorCode.WEBHOOK_CURRENCY_MISMATCH,
+                    "Webhook currency mismatch for order " + order.getOrderNumber()
+                            + ". expected=" + expectedCurrency + ", received=" + currency);
+        }
+    }
+
+    private String normalizeCurrency(String currency) {
+        String normalized = trimToNull(currency);
+        if (normalized == null) {
+            return null;
+        }
+        return normalized.toUpperCase(Locale.ROOT);
     }
 
     private void validateVariantPurchasableForCheckout(ProductVariant variant) {

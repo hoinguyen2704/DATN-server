@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -159,6 +160,24 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                     return null;
                 })
                 .orElse(null);
+    }
+
+    @Override
+    @Transactional
+    public void restoreFlashSaleSoldCount(UUID variantId, BigDecimal soldUnitPrice, int quantity, LocalDateTime soldAt) {
+        if (variantId == null || soldUnitPrice == null || soldAt == null || quantity <= 0) {
+            return;
+        }
+
+        flashSaleItemRepository.findRollbackCandidatesForUpdate(variantId, soldUnitPrice, soldAt)
+                .stream()
+                .filter(item -> item.getSoldCount() != null && item.getSoldCount() > 0)
+                .findFirst()
+                .ifPresent(item -> {
+                    int restored = Math.max(0, item.getSoldCount() - quantity);
+                    item.setSoldCount(restored);
+                    flashSaleItemRepository.save(item);
+                });
     }
 
     // --- Mapper ---

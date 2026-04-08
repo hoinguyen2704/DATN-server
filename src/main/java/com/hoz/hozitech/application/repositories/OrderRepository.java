@@ -28,6 +28,14 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
 
     Optional<Order> findByUserIdAndIdempotencyKey(UUID userId, String idempotencyKey);
 
+    @Query("SELECT COUNT(o) > 0 FROM Order o " +
+            "WHERE o.user.id = :userId " +
+            "AND (" +
+            "  (o.couponCode IS NOT NULL AND UPPER(o.couponCode) = UPPER(:couponCode)) " +
+            "  OR (o.shippingCouponCode IS NOT NULL AND UPPER(o.shippingCouponCode) = UPPER(:couponCode))" +
+            ")")
+    boolean existsCouponUsedByUser(@Param("userId") UUID userId, @Param("couponCode") String couponCode);
+
     List<Order> findByUserIdAndOrderStatusOrderByCreatedAtDesc(UUID userId, OrderStatus orderStatus);
 
     List<Order> findByUserIdOrderByCreatedAtDesc(UUID userId);

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
@@ -140,7 +141,9 @@ public class PaymentWebhookSignatureVerifier {
                 safe(request.getPaymentStatus()),
                 safe(request.getEventId()),
                 safe(request.getTransactionId()),
-                safe(request.getResponseCode()));
+                safe(request.getResponseCode()),
+                safeAmount(request.getAmount()),
+                safe(request.getCurrency()));
     }
 
     private byte[] computeHmac(String secret, String payload) {
@@ -181,5 +184,10 @@ public class PaymentWebhookSignatureVerifier {
 
     private String safe(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private String safeAmount(BigDecimal value) {
+        if (value == null) return "";
+        return value.stripTrailingZeros().toPlainString();
     }
 }
