@@ -27,6 +27,9 @@ import com.hoz.hozitech.domain.entities.Token;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.enums.RoleType;
 import com.hoz.hozitech.web.exceptions.ResourceNotFoundException;
+import com.hoz.hozitech.config.exceptions.ConflictException;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -63,10 +66,10 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email is already in use");
+            throw new ConflictException("Email is already in use");
         }
         if (userRepository.existsByUserName(request.getUserName())) {
-            throw new IllegalArgumentException("Username is already in use");
+            throw new ConflictException("Username is already in use");
         }
 
         Role userRole = roleRepository.findById(RoleType.USER)
@@ -126,17 +129,17 @@ public class AuthServiceImpl implements AuthService {
 
             CustomUserDetails userDetails = new CustomUserDetails(user);
             Token refreshTokenEntity = tokenRepository.findByToken(refreshToken)
-                    .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
+                    .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
 
             if (!refreshTokenEntity.getUser().getId().equals(user.getId())) {
-                throw new IllegalArgumentException("Invalid refresh token");
+                throw new UnauthorizedException("Invalid refresh token");
             }
 
             if (Boolean.TRUE.equals(refreshTokenEntity.getExpired())
                     || Boolean.TRUE.equals(refreshTokenEntity.getRevoked())
                     || refreshTokenEntity.getExpirationDate() == null
                     || refreshTokenEntity.getExpirationDate().isBefore(LocalDateTime.now())) {
-                throw new IllegalArgumentException("Invalid refresh token");
+                throw new UnauthorizedException("Invalid refresh token");
             }
 
             if (jwtService.isTokenValid(refreshToken, userDetails)) {
@@ -148,7 +151,7 @@ public class AuthServiceImpl implements AuthService {
                 return buildAuthResponse(user, accessToken, newRefreshToken);
             }
         }
-        throw new IllegalArgumentException("Invalid refresh token");
+        throw new UnauthorizedException("Invalid refresh token");
     }
 
     @Override
@@ -156,12 +159,13 @@ public class AuthServiceImpl implements AuthService {
     public void forgotPassword(String email) {
         if (!userRepository.existsByEmail(email)) {
             // Silently return or decide based on security posture
-            throw new IllegalArgumentException("User with this email not found");
+            throw new InvalidParamException("User with this email not found");
         }
 
-        String otpCode = String.format("%06d", new java.util.Random().nextInt(999999));
+        String otpCode = String.format("%06d", new java.security.SecureRandom().nextInt(999999));
         
-        // Invalidate previous OTPs for this email?
+        // Invalidate all previous unused OTPs for this email
+        otpTokenRepository.invalidateAllByEmail(email);
         
         com.hoz.hozitech.domain.entities.OtpToken otpToken = com.hoz.hozitech.domain.entities.OtpToken.builder()
                 .email(email)
@@ -177,10 +181,10 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public boolean verifyOtp(String email, String otpCode) {
         com.hoz.hozitech.domain.entities.OtpToken otpToken = otpTokenRepository.findByEmailAndOtpCodeAndIsUsedFalse(email, otpCode)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid OTP Code"));
+                .orElseThrow(() -> new InvalidParamException("Invalid OTP Code"));
 
         if (otpToken.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("OTP code has expired");
+            throw new InvalidParamException("OTP code has expired");
         }
         
         return true;
@@ -190,14 +194,14 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void resetPassword(String email, String otpCode, String newPassword) {
         com.hoz.hozitech.domain.entities.OtpToken otpToken = otpTokenRepository.findByEmailAndOtpCodeAndIsUsedFalse(email, otpCode)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid OTP Code"));
+                .orElseThrow(() -> new InvalidParamException("Invalid OTP Code"));
 
         if (otpToken.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("OTP code has expired");
+            throw new InvalidParamException("OTP code has expired");
         }
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", email));
 
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
@@ -227,15 +231,15 @@ public class AuthServiceImpl implements AuthService {
                     name = (String) payload.get("name");
                     avatarUrl = (String) payload.get("picture");
                 } else {
-                    throw new IllegalArgumentException("Invalid Google token");
+                    throw new UnauthorizedException("Invalid Google token");
                 }
             } catch (Exception e) {
-                throw new IllegalArgumentException("Google login failed (" + e.getMessage() + "). Check client-id configuration.");
+                throw new UnauthorizedException("Google login failed (" + e.getMessage() + "). Check client-id configuration.");
             }
         } else if ("FACEBOOK".equalsIgnoreCase(request.getProvider())) {
-            throw new IllegalArgumentException("Facebook login is not yet configured on backend");
+            throw new InvalidParamException("Facebook login is not yet configured on backend");
         } else {
-            throw new IllegalArgumentException("Unsupported social provider: " + request.getProvider());
+            throw new InvalidParamException("Unsupported social provider: " + request.getProvider());
         }
 
         // Check if user exists

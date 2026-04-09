@@ -9,10 +9,10 @@ import com.hoz.hozitech.domain.entities.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 
 import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -84,7 +84,7 @@ public class AddressServiceImpl implements AddressService {
         Address address = getAddressIfBelongsToUser(addressId);
 
         if (Boolean.TRUE.equals(address.getIsDefault())) {
-            throw new IllegalArgumentException("Cannot delete default address");
+            throw new InvalidParamException("Cannot delete default address");
         }
 
         addressRepository.delete(address);
@@ -110,7 +110,7 @@ public class AddressServiceImpl implements AddressService {
                 .orElseThrow(() -> new IllegalArgumentException("Address not found"));
 
         if (!address.getUser().getId().equals(user.getId())) {
-            throw new IllegalArgumentException("You don't have permission to modify this address");
+            throw new UnauthorizedException("You don't have permission to modify this address");
         }
         return address;
     }

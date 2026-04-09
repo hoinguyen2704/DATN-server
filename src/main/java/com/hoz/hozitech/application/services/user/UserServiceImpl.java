@@ -22,6 +22,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
+import com.hoz.hozitech.config.exceptions.ConflictException;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 
 @Service
 @RequiredArgsConstructor
@@ -34,7 +37,7 @@ public class UserServiceImpl implements UserService {
     public User getCurrentUserEntity() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new IllegalArgumentException("User is not authenticated");
+            throw new UnauthorizedException("User is not authenticated");
         }
 
         String identifier = authentication.getName(); // the loaded username logic defaults to email
@@ -69,7 +72,7 @@ public class UserServiceImpl implements UserService {
         User user = getCurrentUserEntity();
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("Current password is incorrect");
+            throw new InvalidParamException("Current password is incorrect");
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
@@ -123,7 +126,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         if (user.getRole().getId() == RoleType.ADMIN) {
-            throw new IllegalArgumentException("Cannot lock an admin account");
+            throw new InvalidParamException("Cannot lock an admin account");
         }
 
         if (UserStatus.ACTIVE == user.getStatus()) {

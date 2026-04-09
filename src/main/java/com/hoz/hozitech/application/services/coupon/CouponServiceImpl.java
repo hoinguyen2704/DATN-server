@@ -1,5 +1,8 @@
 package com.hoz.hozitech.application.services.coupon;
 
+import com.hoz.hozitech.config.exceptions.ConflictException;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.domain.enums.CouponStatus;
 import com.hoz.hozitech.domain.enums.CouponCategory;
@@ -73,7 +76,7 @@ public class CouponServiceImpl implements CouponService {
     @Transactional
     public CouponResponse createCoupon(CouponRequest request) {
         if (couponRepository.existsByCode(request.getCode().toUpperCase())) {
-            throw new IllegalArgumentException("Coupon code already exists");
+            throw new ConflictException("Coupon code already exists");
         }
 
         Coupon coupon = Coupon.builder()
@@ -104,7 +107,7 @@ public class CouponServiceImpl implements CouponService {
                 .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
 
         if (!coupon.getCode().equalsIgnoreCase(request.getCode()) && couponRepository.existsByCode(request.getCode().toUpperCase())) {
-            throw new IllegalArgumentException("Coupon code already exists");
+            throw new ConflictException("Coupon code already exists");
         }
 
         coupon.setCode(request.getCode().toUpperCase());
@@ -227,7 +230,7 @@ public class CouponServiceImpl implements CouponService {
 
         validateCouponAvailability(coupon);
         if (coupon.getMinOrderValue() != null && orderAmount.compareTo(coupon.getMinOrderValue()) < 0) {
-            throw new IllegalArgumentException("Order does not meet minimum value for coupon. Minimum is: " + coupon.getMinOrderValue());
+            throw new InvalidParamException("Order does not meet minimum value for coupon. Minimum is: " + coupon.getMinOrderValue());
         }
 
         return mapToResponse(coupon);
@@ -240,23 +243,23 @@ public class CouponServiceImpl implements CouponService {
     private void validateCouponAvailability(Coupon coupon) {
         LocalDateTime now = LocalDateTime.now(ZoneId.of(appTimezone));
         if (CouponStatus.ACTIVE != coupon.getStatus()) {
-            throw new IllegalArgumentException("Coupon is not active");
+            throw new InvalidParamException("Coupon is not active");
         }
         if (coupon.getEndDate() != null && coupon.getEndDate().isBefore(now)) {
-            throw new IllegalArgumentException("Coupon has expired");
+            throw new InvalidParamException("Coupon has expired");
         }
         if (coupon.getStartDate() != null && coupon.getStartDate().isAfter(now)) {
-            throw new IllegalArgumentException("Coupon is not valid yet");
+            throw new InvalidParamException("Coupon is not valid yet");
         }
         if (coupon.getUsageLimit() != null && coupon.getUsedCount() >= coupon.getUsageLimit()) {
-            throw new IllegalArgumentException("Coupon usage limit exceeded");
+            throw new InvalidParamException("Coupon usage limit exceeded");
         }
     }
 
     private void validateCouponSavable(Coupon coupon) {
         validateCouponAvailability(coupon);
         if (!Boolean.TRUE.equals(coupon.getIsPublic())) {
-            throw new IllegalArgumentException("Coupon is not public and cannot be saved");
+            throw new InvalidParamException("Coupon is not public and cannot be saved");
         }
     }
 

@@ -24,6 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import com.hoz.hozitech.config.exceptions.ConflictException;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 
 @Service
 @RequiredArgsConstructor
@@ -60,7 +63,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             
             // Check if user actually ordered this
             if (order != null && !order.getUser().getId().equals(userId)) {
-                throw new IllegalArgumentException("Order does not belong to user");
+                throw new UnauthorizedException("Order does not belong to user");
             }
         }
 
@@ -76,7 +79,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         }
 
         if (existingFeedbacks != null && existingFeedbacks.size() >= 2) {
-            throw new IllegalArgumentException("Bạn đã đạt giới hạn 2 lần đánh giá cho phân loại này");
+            throw new InvalidParamException("Bạn đã đạt giới hạn 2 lần đánh giá cho phân loại này");
         }
 
         Feedback feedback = Feedback.builder()
@@ -127,7 +130,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         Feedback feedback = feedbackRepository.findById(feedbackId)
                 .orElseThrow(() -> new IllegalArgumentException("Feedback not found"));
         if (!feedback.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("You can only delete your own feedback");
+            throw new UnauthorizedException("You can only delete your own feedback");
         }
         feedbackRepository.delete(feedback);
     }

@@ -1,5 +1,8 @@
 package com.hoz.hozitech.application.services.category;
 
+import com.hoz.hozitech.config.exceptions.ConflictException;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.CategoryRepository;
 import com.hoz.hozitech.application.repositories.SpecAttributeRepository;
@@ -134,7 +137,7 @@ public class CategoryServiceImpl implements CategoryService {
 
         if (request.getParentId() != null) {
             if (request.getParentId().equals(id)) {
-                throw new IllegalArgumentException("A category cannot be its own parent");
+                throw new InvalidParamException("A category cannot be its own parent");
             }
             Category parent = categoryRepository.findById(request.getParentId())
                     .orElseThrow(() -> new IllegalArgumentException("Parent category not found"));
@@ -159,7 +162,7 @@ public class CategoryServiceImpl implements CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Category not found"));
         if (!category.getChildren().isEmpty()) {
-            throw new IllegalArgumentException(
+            throw new InvalidParamException(
                     "Cannot delete category with children. Please reassign or delete children first.");
         }
         categoryRepository.delete(category);

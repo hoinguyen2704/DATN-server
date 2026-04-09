@@ -27,8 +27,14 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.hoz.hozitech.config.exceptions.ConflictException;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 
 import jakarta.persistence.EntityManager;
+import com.hoz.hozitech.config.exceptions.ConflictException;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 
 import java.text.Normalizer;
 import java.util.*;
@@ -108,7 +114,7 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new IllegalArgumentException("Brand not found"));
 
         if (productRepository.existsByName(request.getName())) {
-            throw new IllegalArgumentException("Product name already exists");
+            throw new ConflictException("Product name already exists");
         }
 
         String slug = toSlug(request.getName());
@@ -182,7 +188,7 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new IllegalArgumentException("Category not found"));
 
         if (!product.getName().equals(request.getName()) && productRepository.existsByName(request.getName())) {
-             throw new IllegalArgumentException("Product name already exists");
+             throw new ConflictException("Product name already exists");
         }
 
         product.setName(request.getName());
@@ -278,7 +284,7 @@ public class ProductServiceImpl implements ProductService {
                 .getSingleResult();
 
         if (orderItemCount.longValue() > 0) {
-            throw new IllegalArgumentException("Sản phẩm này đã phát sinh đơn hàng, không thể xoá cứng. Vui lòng chuyển trạng thái thành Bản Nháp hoặc Đã Ẩn!");
+            throw new ConflictException("Sản phẩm này đã phát sinh đơn hàng, không thể xoá cứng. Vui lòng chuyển trạng thái thành Bản Nháp hoặc Đã Ẩn!");
         }
 
         // Preemptively wipe carts containing any variants of this product to bypass strict postgres FK restrictions

@@ -18,6 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
+import com.hoz.hozitech.config.exceptions.ConflictException;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 
 @Service
 @RequiredArgsConstructor
@@ -49,7 +52,7 @@ public class NotificationServiceImpl implements NotificationService {
                 .orElseThrow(() -> new IllegalArgumentException("Notification not found"));
                 
         if (!notification.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("Notification does not belong to user");
+            throw new UnauthorizedException("Notification does not belong to user");
         }
         
         notification.setIsRead(true);

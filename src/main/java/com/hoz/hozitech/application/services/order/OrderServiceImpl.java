@@ -21,6 +21,9 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hoz.hozitech.config.exceptions.ConflictException;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -402,7 +405,7 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
 
         if (!order.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("Order does not belong to user");
+            throw new UnauthorizedException("Order does not belong to user");
         }
 
         return mapToResponse(order);
@@ -412,7 +415,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public OrderResponse getOrderByNumberForAdmin(String orderNumber) {
         Order order = orderRepository.findByOrderNumber(orderNumber)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+                .orElseThrow(() -> new InvalidParamException("Order not found"));
         return mapToResponse(order);
     }
 
@@ -438,11 +441,11 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
 
         if (!order.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("Order does not belong to user");
+            throw new UnauthorizedException("Order does not belong to user");
         }
 
         if (order.getOrderStatus() != OrderStatus.PENDING) {
-            throw new IllegalArgumentException("Only pending orders can be cancelled");
+            throw new InvalidParamException("Only pending orders can be cancelled");
         }
 
         order.setOrderStatus(OrderStatus.CANCELLED);

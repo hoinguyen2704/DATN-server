@@ -1,5 +1,8 @@
 package com.hoz.hozitech.application.services.ticket;
 
+import com.hoz.hozitech.config.exceptions.ConflictException;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 import com.hoz.hozitech.domain.enums.TicketStatus;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.constant.RealtimeEventType;
@@ -111,7 +114,7 @@ public class TicketServiceImpl implements TicketService {
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
 
         if (!ticket.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("Ticket does not belong to you");
+            throw new UnauthorizedException("Ticket does not belong to you");
         }
 
         return mapToResponse(ticket);
@@ -124,7 +127,7 @@ public class TicketServiceImpl implements TicketService {
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
 
         if (!ticket.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("Ticket does not belong to you");
+            throw new UnauthorizedException("Ticket does not belong to you");
         }
 
         TicketMessage reply = TicketMessage.builder()

@@ -11,6 +11,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.hoz.hozitech.config.exceptions.ConflictException;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 
 import java.text.Normalizer;
 import java.util.List;
@@ -67,7 +70,7 @@ public class BrandServiceImpl implements BrandService {
     public BrandResponse createBrand(BrandRequest request) {
         String slug = toSlug(request.getName());
         if (brandRepository.findBySlug(slug).isPresent()) {
-            throw new IllegalArgumentException("Brand with this name already exists");
+            throw new ConflictException("Brand with this name already exists");
         }
 
         Brand brand = Brand.builder()
@@ -101,7 +104,7 @@ public class BrandServiceImpl implements BrandService {
                 .orElseThrow(() -> new IllegalArgumentException("Brand not found"));
 
         if (brand.getProducts() != null && !brand.getProducts().isEmpty()) {
-            throw new IllegalArgumentException("Cannot delete brand with associated products");
+            throw new InvalidParamException("Cannot delete brand with associated products");
         }
 
         brandRepository.delete(brand);
