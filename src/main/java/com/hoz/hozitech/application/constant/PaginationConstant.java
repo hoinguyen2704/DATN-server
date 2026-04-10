@@ -4,20 +4,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
-/**
- * Hằng số và tiện ích phân trang mặc định.
- * <p>
- * Tất cả controller/service sử dụng chung để đảm bảo:
- * <ul>
- * <li>Client không truyền page/size → dùng giá trị mặc định an toàn</li>
- * <li>Client truyền size quá lớn → bị giới hạn tại MAX_PAGE_SIZE</li>
- * <li>Giảm code trùng lặp: không cần viết PageRequest.of(...) rải rác</li>
- * </ul>
- */
-public final class PaginationConstant {
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
-    private PaginationConstant() {
-    }
+@NoArgsConstructor(access = AccessLevel.PRIVATE) // Không cho phép tạo instance
+public final class PaginationConstant {
 
     // Giá trị số
     public static final int DEFAULT_PAGE = 0;

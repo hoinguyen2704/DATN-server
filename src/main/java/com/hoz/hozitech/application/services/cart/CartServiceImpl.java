@@ -171,11 +171,14 @@ public class CartServiceImpl implements CartService {
     }
 
     private void validateVariantPurchasable(ProductVariant variant) {
-        if (variant.getProduct().getStatus() != ProductStatus.ACTIVE) {
+        if (variant.getProduct() == null || variant.getProduct().getStatus() != ProductStatus.ACTIVE) {
             throw new BusinessException(BusinessErrorCode.PRODUCT_NOT_AVAILABLE, "Product is not available for purchase");
         }
         if (!Boolean.TRUE.equals(variant.getActive())) {
             throw new BusinessException(BusinessErrorCode.VARIANT_NOT_AVAILABLE, "Product variant is not available for purchase");
+        }
+        if (variant.getPrice() == null || variant.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(BusinessErrorCode.PRODUCT_NOT_AVAILABLE, "Product price is invalid or requires contact");
         }
     }
 }

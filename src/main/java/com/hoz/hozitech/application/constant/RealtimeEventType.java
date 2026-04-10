@@ -1,9 +1,10 @@
 package com.hoz.hozitech.application.constant;
 
-public final class RealtimeEventType {
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
-    private RealtimeEventType() {
-    }
+@NoArgsConstructor(access = AccessLevel.PRIVATE) // Không cho phép tạo instance
+public final class RealtimeEventType {
 
     public static final String SUPPORT_TICKET_CREATED = "SUPPORT_TICKET_CREATED";
     public static final String SUPPORT_MESSAGE_CREATED = "SUPPORT_MESSAGE_CREATED";

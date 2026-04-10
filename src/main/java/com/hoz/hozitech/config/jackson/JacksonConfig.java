@@ -1,4 +1,4 @@
-package com.hoz.hozitech.config;
+package com.hoz.hozitech.config.jackson;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -1,0 +1,168 @@
+package com.hoz.hozitech.application.services.storage;
+
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.CannedAccessControlList;
+import com.amazonaws.services.s3.model.DeleteObjectRequest;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
+
+import com.hoz.hozitech.web.exceptions.ConfigurationException;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+public class S3FileStorageServiceImpl implements FileStorageService {
+
+    @Value("${AWS_ACCESS_KEY}")
+    private String accessKey;
+
+    @Value("${AWS_SECRET_KEY}")
+    private String secretKey;
+
+    @Value("${AWS_REGION}")
+    private String region;
+
+    @Value("${AWS_BUCKET_NAME}")
+    private String bucketName;
+
+    private AmazonS3 s3Client;
+
+    @PostConstruct
+    public void init() {
+        if (!accessKey.isEmpty() && !secretKey.isEmpty()) {
+            BasicAWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
+            s3Client = AmazonS3ClientBuilder.standard()
+                    .withCredentials(new AWSStaticCredentialsProvider(credentials))
+                    .withRegion(region)
+                    .build();
+        }
+    }
+
+    public String storeProductImage(MultipartFile file) {
+        if (s3Client == null) {
+            throw new ConfigurationException("AWS S3 is not configured. Please set AWS_ACCESS_KEY, AWS_SECRET_KEY, and AWS_BUCKET_NAME environment variables.");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        String extension = "";
+        if (originalFilename != null && originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        }
+        String key = "products/" + UUID.randomUUID().toString() + extension;
+
+        try {
+            ObjectMetadata metadata = new ObjectMetadata();
+            metadata.setContentLength(file.getSize());
+            metadata.setContentType(file.getContentType());
+
+            s3Client.putObject(new PutObjectRequest(bucketName, key, file.getInputStream(), metadata)
+                    .withCannedAcl(CannedAccessControlList.PublicRead));
+        } catch (IOException e) {
+            throw new ConfigurationException("Failed to upload file to S3: " + key, e);
+        }
+
+        return s3Client.getUrl(bucketName, key).toString();
+    }
+
+    /**
+     * Generic file upload to a specified S3 folder (e.g. "avatars", "banners").
+     */
+    public String uploadFile(MultipartFile file, String folder) {
+        if (s3Client == null) {
+            throw new ConfigurationException("AWS S3 is not configured.");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        String extension = "";
+        if (originalFilename != null && originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        }
+        String key = folder + "/" + UUID.randomUUID().toString() + extension;
+
+        try {
+            ObjectMetadata metadata = new ObjectMetadata();
+            metadata.setContentLength(file.getSize());
+            metadata.setContentType(file.getContentType());
+
+            s3Client.putObject(new PutObjectRequest(bucketName, key, file.getInputStream(), metadata)
+                    .withCannedAcl(CannedAccessControlList.PublicRead));
+        } catch (IOException e) {
+            throw new ConfigurationException("Failed to upload file to S3: " + key, e);
+        }
+
+        return s3Client.getUrl(bucketName, key).toString();
+    }
+
+    public void deleteFile(String fileUrl) {
+        if (s3Client == null || fileUrl == null || fileUrl.isEmpty()) return;
+
+        try {
+            String key = extractObjectKey(fileUrl, bucketName);
+            if (key == null || key.isBlank()) {
+                log.warn("Skip deleting S3 file because object key could not be resolved: {}", fileUrl);
+                return;
+            }
+            s3Client.deleteObject(new DeleteObjectRequest(bucketName, key));
+        } catch (Exception e) {
+            log.error("Failed to delete file from S3: {} - {}", fileUrl, e.getMessage());
+        }
+    }
+
+    static String extractObjectKey(String fileUrl, String bucketName) {
+        if (fileUrl == null || fileUrl.isBlank()) {
+            return null;
+        }
+
+        String normalizedBucket = bucketName == null ? "" : bucketName.trim();
+
+        try {
+            URI uri = URI.create(fileUrl.trim());
+            String path = uri.getPath();
+            if (path == null || path.isBlank()) {
+                return null;
+            }
+
+            // Remove leading slash from URI path.
+            String key = path.startsWith("/") ? path.substring(1) : path;
+
+            // Path-style S3 URL: https://s3.region.amazonaws.com/<bucket>/<key>
+            if (!normalizedBucket.isEmpty()) {
+                String bucketPrefix = normalizedBucket + "/";
+                if (key.startsWith(bucketPrefix)) {
+                    key = key.substring(bucketPrefix.length());
+                }
+            }
+
+            key = URLDecoder.decode(key, StandardCharsets.UTF_8);
+            return key.isBlank() ? null : key;
+        } catch (IllegalArgumentException ignored) {
+            // fallback below for direct key or malformed URL
+        }
+
+        String fallback = fileUrl.trim();
+        if (fallback.startsWith("/")) {
+            fallback = fallback.substring(1);
+        }
+        if (!normalizedBucket.isEmpty()) {
+            String bucketPrefix = normalizedBucket + "/";
+            if (fallback.startsWith(bucketPrefix)) {
+                fallback = fallback.substring(bucketPrefix.length());
+            }
+        }
+        return fallback.isBlank() ? null : fallback;
+    }
+}

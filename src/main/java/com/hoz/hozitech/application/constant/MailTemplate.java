@@ -1,12 +1,10 @@
 package com.hoz.hozitech.application.constant;
 
-/**
- * Hằng số tên template email dùng trong hệ thống gửi mail.
- */
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+
+@NoArgsConstructor(access = AccessLevel.PRIVATE) // Không cho phép tạo instance
 public final class MailTemplate {
-
-    private MailTemplate() {}
-
     public static final String ORDER_CREATED = "order-created";
     public static final String ORDER_CONFIRMED = "order-confirmed";
     public static final String ORDER_SHIPPED = "order-shipped";

@@ -1,18 +1,18 @@
 package com.hoz.hozitech.domain.dtos.request;
 
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.UUID;
+
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.UUID;
 
 @Data
 @Builder
@@ -48,7 +48,6 @@ public class CheckoutRequest {
         @Min(value = 1, message = "Quantity must be at least 1")
         private Integer quantity;
 
-        // Optional snapshot price sent by frontend to detect cart staleness before checkout.
         private BigDecimal expectedUnitPrice;
     }
 }
