@@ -1,26 +1,27 @@
 package com.hoz.hozitech.application.services.brand;
 
-import com.hoz.hozitech.application.constant.PaginationConstant;
-import com.hoz.hozitech.application.repositories.BrandRepository;
-import com.hoz.hozitech.domain.dtos.request.BrandRequest;
-import com.hoz.hozitech.domain.dtos.response.BrandResponse;
-import com.hoz.hozitech.domain.dtos.response.PageResponse;
-import com.hoz.hozitech.domain.entities.Brand;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import com.hoz.hozitech.config.exceptions.ConflictException;
-import com.hoz.hozitech.config.exceptions.InvalidParamException;
-import com.hoz.hozitech.config.exceptions.UnauthorizedException;
-
 import java.text.Normalizer;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.hoz.hozitech.application.constant.PaginationConstant;
+import com.hoz.hozitech.application.repositories.BrandRepository;
+import com.hoz.hozitech.config.exceptions.ConflictException;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.domain.dtos.request.BrandRequest;
+import com.hoz.hozitech.domain.dtos.response.BrandResponse;
+import com.hoz.hozitech.domain.dtos.response.PageResponse;
+import com.hoz.hozitech.domain.entities.Brand;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor

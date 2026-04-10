@@ -2,7 +2,6 @@ package com.hoz.hozitech.application.services.coupon;
 
 import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
-import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.domain.enums.CouponStatus;
 import com.hoz.hozitech.domain.enums.CouponCategory;

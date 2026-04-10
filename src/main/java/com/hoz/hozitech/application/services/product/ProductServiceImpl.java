@@ -1,11 +1,29 @@
 package com.hoz.hozitech.application.services.product;
 
-import com.hoz.hozitech.domain.enums.ProductStatus;
+import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.BrandRepository;
 import com.hoz.hozitech.application.repositories.CategoryRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.specifications.ProductSpecification;
+import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.domain.dtos.request.ProductImageRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductVariantRequest;
@@ -19,27 +37,10 @@ import com.hoz.hozitech.domain.entities.Category;
 import com.hoz.hozitech.domain.entities.Product;
 import com.hoz.hozitech.domain.entities.ProductImage;
 import com.hoz.hozitech.domain.entities.ProductVariant;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import com.hoz.hozitech.config.exceptions.ConflictException;
-import com.hoz.hozitech.config.exceptions.InvalidParamException;
-import com.hoz.hozitech.config.exceptions.UnauthorizedException;
+import com.hoz.hozitech.domain.enums.ProductStatus;
 
 import jakarta.persistence.EntityManager;
-import com.hoz.hozitech.config.exceptions.ConflictException;
-import com.hoz.hozitech.config.exceptions.InvalidParamException;
-import com.hoz.hozitech.config.exceptions.UnauthorizedException;
-
-import java.text.Normalizer;
-import java.util.*;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor

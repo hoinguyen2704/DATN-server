@@ -1,9 +1,16 @@
 package com.hoz.hozitech.application.services.ticket;
 
-import com.hoz.hozitech.config.exceptions.ConflictException;
-import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.config.exceptions.UnauthorizedException;
-import com.hoz.hozitech.domain.enums.TicketStatus;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.constant.RealtimeEventType;
 import com.hoz.hozitech.application.repositories.TicketMessageRepository;
@@ -20,17 +27,9 @@ import com.hoz.hozitech.domain.dtos.response.TicketResponse;
 import com.hoz.hozitech.domain.entities.Ticket;
 import com.hoz.hozitech.domain.entities.TicketMessage;
 import com.hoz.hozitech.domain.entities.User;
+import com.hoz.hozitech.domain.enums.TicketStatus;
+
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
 @Service
 @RequiredArgsConstructor
 public class TicketServiceImpl implements TicketService {

@@ -1,16 +1,7 @@
 package com.hoz.hozitech.application.services.user;
 
-import com.hoz.hozitech.application.constant.PaginationConstant;
-import com.hoz.hozitech.application.repositories.UserRepository;
-import com.hoz.hozitech.domain.enums.UserStatus;
-import com.hoz.hozitech.application.specifications.UserSpecification;
-import com.hoz.hozitech.domain.dtos.request.ChangePasswordRequest;
-import com.hoz.hozitech.domain.dtos.request.UpdateUserRequest;
-import com.hoz.hozitech.domain.dtos.response.PageResponse;
-import com.hoz.hozitech.domain.dtos.response.UserResponse;
-import com.hoz.hozitech.domain.entities.User;
-import com.hoz.hozitech.domain.enums.RoleType;
-import lombok.RequiredArgsConstructor;
+import java.util.UUID;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -21,10 +12,20 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
-import com.hoz.hozitech.config.exceptions.ConflictException;
+import com.hoz.hozitech.application.constant.PaginationConstant;
+import com.hoz.hozitech.application.repositories.UserRepository;
+import com.hoz.hozitech.application.specifications.UserSpecification;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.config.exceptions.UnauthorizedException;
+import com.hoz.hozitech.domain.dtos.request.ChangePasswordRequest;
+import com.hoz.hozitech.domain.dtos.request.UpdateUserRequest;
+import com.hoz.hozitech.domain.dtos.response.PageResponse;
+import com.hoz.hozitech.domain.dtos.response.UserResponse;
+import com.hoz.hozitech.domain.entities.User;
+import com.hoz.hozitech.domain.enums.RoleType;
+import com.hoz.hozitech.domain.enums.UserStatus;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
