@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.UUID;
 
@@ -28,8 +29,10 @@ public class OrderController {
     public ResponseEntity<ApiResponse<OrderResponse>> checkout(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
-            @Valid @RequestBody CheckoutRequest request) {
-        OrderResponse response = orderService.checkout(userDetails.getUser().getId(), request, idempotencyKey);
+            @Valid @RequestBody CheckoutRequest request,
+            HttpServletRequest httpServletRequest) {
+        String ipAddress = getClientIp(httpServletRequest);
+        OrderResponse response = orderService.checkout(userDetails.getUser().getId(), request, idempotencyKey, ipAddress);
         return ResponseEntity.ok(ApiResponse.success("Order created successfully", response));
     }
 
@@ -58,5 +61,17 @@ public class OrderController {
             @PathVariable UUID orderId) {
         return ResponseEntity.ok(ApiResponse.success("Order cancelled",
                 orderService.cancelOrder(userDetails.getUser().getId(), orderId)));
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String ipAddress = request.getHeader("X-Forwarded-For");
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+            ipAddress = request.getRemoteAddr();
+        }
+        // In case of multiple IPs (e.g. "client-ip, proxy1, proxy2"), get the first one
+        if (ipAddress != null && ipAddress.contains(",")) {
+            ipAddress = ipAddress.split(",")[0].trim();
+        }
+        return ipAddress;
     }
 }

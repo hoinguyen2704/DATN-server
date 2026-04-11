@@ -1,12 +1,12 @@
 package com.hoz.hozitech.application.services.coupon;
 
-import com.hoz.hozitech.domain.dtos.request.CouponRequest;
-import com.hoz.hozitech.domain.dtos.response.CouponResponse;
-import com.hoz.hozitech.domain.dtos.response.PageResponse;
-
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+
+import com.hoz.hozitech.domain.dtos.request.CouponRequest;
+import com.hoz.hozitech.domain.dtos.response.CouponResponse;
+import com.hoz.hozitech.domain.dtos.response.PageResponse;
 
 public interface CouponService {
     // Admin

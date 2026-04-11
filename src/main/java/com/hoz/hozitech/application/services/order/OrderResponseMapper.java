@@ -20,6 +20,8 @@ import com.hoz.hozitech.domain.enums.TaxMode;
 import lombok.RequiredArgsConstructor;
 
 
+import com.hoz.hozitech.application.services.payment.VnpayPaymentService;
+
 //  Maps Order entity to OrderResponse DTO.
 //  Centralizes all response-building and formatting logic for orders.
  
@@ -28,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 class OrderResponseMapper {
 
     private final ObjectMapper objectMapper;
+    private final VnpayPaymentService vnpayPaymentService;
 
     OrderResponse mapToResponse(Order order) {
         List<OrderResponse.OrderItemResponse> items = order.getOrderItems().stream()
@@ -120,9 +123,17 @@ class OrderResponseMapper {
                 .build();
     }
 
-    OrderResponse buildCheckoutResponse(Order order) {
+    OrderResponse buildCheckoutResponse(Order order, String ipAddress) {
         OrderResponse response = mapToResponse(order);
-        if (order.getPaymentMethod() != PaymentMethod.COD) {
+        if (order.getPaymentMethod() == PaymentMethod.VNPAY) {
+            String url = vnpayPaymentService.createPaymentUrl(order, ipAddress);
+            if (url != null) {
+                response.setPaymentUrl(url);
+            } else {
+                // Fallback for development if config is missing
+                response.setPaymentUrl("https://payment.hozitech.com/pay/vnpay/" + order.getOrderNumber());
+            }
+        } else if (order.getPaymentMethod() != PaymentMethod.COD) {
             response.setPaymentUrl("https://payment.hozitech.com/pay/" + order.getOrderNumber());
         }
         return response;

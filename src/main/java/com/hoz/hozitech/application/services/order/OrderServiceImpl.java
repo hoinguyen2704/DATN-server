@@ -95,7 +95,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderResponse checkout(UUID userId, CheckoutRequest request, String idempotencyKey) {
+    public OrderResponse checkout(UUID userId, CheckoutRequest request, String idempotencyKey, String ipAddress) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(BusinessErrorCode.USER_NOT_FOUND, "User not found"));
 
@@ -118,7 +118,7 @@ public class OrderServiceImpl implements OrderService {
         acquirePgAdvisoryTransactionLock("checkout:" + userId + ":" + normalizedKey);
         Order existingOrder = orderRepository.findByUserIdAndIdempotencyKey(userId, normalizedKey).orElse(null);
         if (existingOrder != null) {
-            return responseMapper.buildCheckoutResponse(existingOrder);
+            return responseMapper.buildCheckoutResponse(existingOrder, ipAddress);
         }
 
         // Build order items, validate variants, reduce stock
@@ -193,7 +193,7 @@ public class OrderServiceImpl implements OrderService {
         notificationService.createForUser(userId, "Đặt hàng thành công",
                 "Đơn hàng " + savedOrder.getOrderNumber() + " đã được tạo thành công.", "ORDER", savedOrder.getId());
 
-        return responseMapper.buildCheckoutResponse(savedOrder);
+        return responseMapper.buildCheckoutResponse(savedOrder, ipAddress);
     }
 
     @Override

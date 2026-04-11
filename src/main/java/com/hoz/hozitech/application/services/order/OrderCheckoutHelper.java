@@ -37,7 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-class OrderCheckoutHelper {
+public class OrderCheckoutHelper {
 
     private final ProductVariantRepository variantRepository;
     private final FlashSaleService flashSaleService;
@@ -158,7 +158,7 @@ class OrderCheckoutHelper {
     /**
      * Restores stock and flash sale counts for all items in a cancelled order.
      */
-    void restoreStock(Order order) {
+    public void restoreStock(Order order) {
         for (OrderItem item : order.getOrderItems()) {
             if (item.getVariant() == null) continue;
             UUID variantId = item.getVariant().getId();

@@ -122,6 +122,6 @@ public class GlobalExceptionHandler {
         log.error("Unexpected error: ", ex);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Đã có lỗi xảy ra!"));
+                .body(ApiResponse.error("Đã có lỗi xảy ra: " + ex.getMessage()));
     }
 }

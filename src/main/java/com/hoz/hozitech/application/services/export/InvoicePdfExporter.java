@@ -1,25 +1,39 @@
 package com.hoz.hozitech.application.services.export;
 
-import com.hoz.hozitech.application.repositories.OrderRepository;
-import com.hoz.hozitech.domain.entities.Order;
-import com.hoz.hozitech.domain.entities.OrderItem;
-import com.hoz.hozitech.domain.enums.PaymentStatus;
-import com.hoz.hozitech.web.exceptions.ExportException;
-import com.hoz.hozitech.web.exceptions.ResourceNotFoundException;
-import com.lowagie.text.*;
-import com.lowagie.text.pdf.BaseFont;
-import com.lowagie.text.pdf.PdfPCell;
-import com.lowagie.text.pdf.PdfPTable;
-import com.lowagie.text.pdf.PdfWriter;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
+import static com.hoz.hozitech.application.services.export.ExportHelpers.DATE_FMT;
+import static com.hoz.hozitech.application.services.export.ExportHelpers.PRIMARY_COLOR;
+import static com.hoz.hozitech.application.services.export.ExportHelpers.addTotalRow;
+import static com.hoz.hozitech.application.services.export.ExportHelpers.createCenteredParagraph;
+import static com.hoz.hozitech.application.services.export.ExportHelpers.formatMoney;
+import static com.hoz.hozitech.application.services.export.ExportHelpers.loadVietnameseFont;
+import static com.hoz.hozitech.application.services.export.ExportHelpers.parseAddress;
 
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-import static com.hoz.hozitech.application.services.export.ExportHelpers.*;
+import org.springframework.stereotype.Component;
+
+import com.hoz.hozitech.application.repositories.OrderRepository;
+import com.hoz.hozitech.domain.entities.Order;
+import com.hoz.hozitech.domain.entities.OrderItem;
+import com.hoz.hozitech.domain.enums.PaymentStatus;
+import com.hoz.hozitech.web.exceptions.ExportException;
+import com.hoz.hozitech.web.exceptions.ResourceNotFoundException;
+import com.lowagie.text.Document;
+import com.lowagie.text.Element;
+import com.lowagie.text.Font;
+import com.lowagie.text.PageSize;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.Phrase;
+import com.lowagie.text.Rectangle;
+import com.lowagie.text.pdf.BaseFont;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * Generates PDF invoices for individual orders.
@@ -47,10 +61,10 @@ public class InvoicePdfExporter {
             Font smallFont = new Font(baseFont, 9, Font.NORMAL, Color.GRAY);
             Font bigBoldFont = new Font(baseFont, 13, Font.BOLD, PRIMARY_COLOR);
 
-            // ═══ HEADER: Shop info + Invoice title ═══
+            // HEADER: Shop info + Invoice title
             PdfPTable headerTable = new PdfPTable(2);
             headerTable.setWidthPercentage(100);
-            headerTable.setWidths(new float[]{55, 45});
+            headerTable.setWidths(new float[] { 55, 45 });
 
             PdfPCell shopCell = new PdfPCell();
             shopCell.setBorder(Rectangle.NO_BORDER);
@@ -68,7 +82,8 @@ public class InvoicePdfExporter {
             Paragraph invoiceLabel = new Paragraph("HÓA ĐƠN", new Font(baseFont, 20, Font.BOLD, PRIMARY_COLOR));
             invoiceLabel.setAlignment(Element.ALIGN_RIGHT);
             invoiceCell.addElement(invoiceLabel);
-            Paragraph orderNum = new Paragraph("#" + order.getOrderNumber(), new Font(baseFont, 14, Font.BOLD, Color.BLACK));
+            Paragraph orderNum = new Paragraph("#" + order.getOrderNumber(),
+                    new Font(baseFont, 14, Font.BOLD, Color.BLACK));
             orderNum.setAlignment(Element.ALIGN_RIGHT);
             invoiceCell.addElement(orderNum);
             String dateStr = order.getCreatedAt() != null ? order.getCreatedAt().format(DATE_FMT) : "";
@@ -79,7 +94,7 @@ public class InvoicePdfExporter {
 
             document.add(headerTable);
 
-            // ═══ SEPARATOR LINE ═══
+            // SEPARATOR LINE
             PdfPTable line = new PdfPTable(1);
             line.setWidthPercentage(100);
             PdfPCell lineCell = new PdfPCell();
@@ -91,10 +106,10 @@ public class InvoicePdfExporter {
             document.add(line);
             document.add(new Paragraph(" "));
 
-            // ═══ CUSTOMER + PAYMENT INFO ═══
+            // CUSTOMER + PAYMENT INFO
             PdfPTable infoTable = new PdfPTable(2);
             infoTable.setWidthPercentage(100);
-            infoTable.setWidths(new float[]{50, 50});
+            infoTable.setWidths(new float[] { 50, 50 });
 
             PdfPCell custCell = new PdfPCell();
             custCell.setBorder(Rectangle.NO_BORDER);
@@ -110,22 +125,25 @@ public class InvoicePdfExporter {
             payCell.setBorder(Rectangle.NO_BORDER);
             payCell.setPaddingBottom(10);
             payCell.addElement(new Paragraph("THANH TOÁN", new Font(baseFont, 9, Font.BOLD, Color.GRAY)));
-            payCell.addElement(new Paragraph(order.getPaymentMethod() != null ? order.getPaymentMethod().name() : "N/A", boldFont));
-            String payStatus = order.getPaymentStatus() == PaymentStatus.COMPLETED ? "Đã thanh toán ✓" : "Chưa thanh toán";
+            payCell.addElement(new Paragraph(order.getPaymentMethod() != null ? order.getPaymentMethod().name() : "N/A",
+                    boldFont));
+            String payStatus = order.getPaymentStatus() == PaymentStatus.COMPLETED ? "Đã thanh toán ✓"
+                    : "Chưa thanh toán";
             Font payStatusFont = new Font(baseFont, 10, Font.BOLD,
-                    order.getPaymentStatus() == PaymentStatus.COMPLETED ? new Color(5, 150, 105) : new Color(220, 38, 38));
+                    order.getPaymentStatus() == PaymentStatus.COMPLETED ? new Color(5, 150, 105)
+                            : new Color(220, 38, 38));
             payCell.addElement(new Paragraph(payStatus, payStatusFont));
             infoTable.addCell(payCell);
 
             document.add(infoTable);
             document.add(new Paragraph(" "));
 
-            // ═══ ORDER ITEMS TABLE ═══
+            // ORDER ITEMS TABLE
             PdfPTable itemTable = new PdfPTable(5);
             itemTable.setWidthPercentage(100);
-            itemTable.setWidths(new float[]{8, 37, 15, 15, 25});
+            itemTable.setWidths(new float[] { 8, 37, 15, 15, 25 });
 
-            String[] itemHeaders = {"#", "Sản phẩm", "Đơn giá", "SL", "Thành tiền"};
+            String[] itemHeaders = { "#", "Sản phẩm", "Đơn giá", "SL", "Thành tiền" };
             for (String h : itemHeaders) {
                 PdfPCell hCell = new PdfPCell(new Phrase(h, headerFont));
                 hCell.setBackgroundColor(PRIMARY_COLOR);
@@ -140,7 +158,9 @@ public class InvoicePdfExporter {
                 Color bgColor = idx % 2 == 0 ? altRowColor : Color.WHITE;
 
                 PdfPCell c1 = new PdfPCell(new Phrase(String.valueOf(idx), normalFont));
-                c1.setPadding(6); c1.setBackgroundColor(bgColor); c1.setHorizontalAlignment(Element.ALIGN_CENTER);
+                c1.setPadding(6);
+                c1.setBackgroundColor(bgColor);
+                c1.setHorizontalAlignment(Element.ALIGN_CENTER);
                 itemTable.addCell(c1);
 
                 String name = item.getProductName();
@@ -148,19 +168,26 @@ public class InvoicePdfExporter {
                     name += "\n(" + item.getVariantName() + ")";
                 }
                 PdfPCell c2 = new PdfPCell(new Phrase(name, normalFont));
-                c2.setPadding(6); c2.setBackgroundColor(bgColor);
+                c2.setPadding(6);
+                c2.setBackgroundColor(bgColor);
                 itemTable.addCell(c2);
 
                 PdfPCell c3 = new PdfPCell(new Phrase(formatMoney(item.getUnitPrice()), normalFont));
-                c3.setPadding(6); c3.setBackgroundColor(bgColor); c3.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                c3.setPadding(6);
+                c3.setBackgroundColor(bgColor);
+                c3.setHorizontalAlignment(Element.ALIGN_RIGHT);
                 itemTable.addCell(c3);
 
                 PdfPCell c4 = new PdfPCell(new Phrase(String.valueOf(item.getQuantity()), normalFont));
-                c4.setPadding(6); c4.setBackgroundColor(bgColor); c4.setHorizontalAlignment(Element.ALIGN_CENTER);
+                c4.setPadding(6);
+                c4.setBackgroundColor(bgColor);
+                c4.setHorizontalAlignment(Element.ALIGN_CENTER);
                 itemTable.addCell(c4);
 
                 PdfPCell c5 = new PdfPCell(new Phrase(formatMoney(item.getSubtotal()), boldFont));
-                c5.setPadding(6); c5.setBackgroundColor(bgColor); c5.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                c5.setPadding(6);
+                c5.setBackgroundColor(bgColor);
+                c5.setHorizontalAlignment(Element.ALIGN_RIGHT);
                 itemTable.addCell(c5);
 
                 idx++;
@@ -168,7 +195,7 @@ public class InvoicePdfExporter {
 
             document.add(itemTable);
 
-            // ═══ TOTALS ═══
+            // TOTALS
             document.add(new Paragraph(" "));
             PdfPTable totalsTable = new PdfPTable(2);
             totalsTable.setWidthPercentage(50);
@@ -177,12 +204,15 @@ public class InvoicePdfExporter {
             addTotalRow(totalsTable, "Tạm tính:", formatMoney(order.getSubtotal()), normalFont, normalFont);
             if (order.getDiscountAmount() != null && order.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
                 Font greenFont = new Font(baseFont, 10, Font.BOLD, new Color(5, 150, 105));
-                addTotalRow(totalsTable, "Giảm giá:", "-" + formatMoney(order.getDiscountAmount()), normalFont, greenFont);
+                addTotalRow(totalsTable, "Giảm giá:", "-" + formatMoney(order.getDiscountAmount()), normalFont,
+                        greenFont);
             }
             addTotalRow(totalsTable, "Phí ship:", formatMoney(order.getShippingFee()), normalFont, normalFont);
-            if (order.getShippingDiscountAmount() != null && order.getShippingDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
+            if (order.getShippingDiscountAmount() != null
+                    && order.getShippingDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
                 Font greenFont = new Font(baseFont, 10, Font.BOLD, new Color(5, 150, 105));
-                addTotalRow(totalsTable, "Giảm phí ship:", "-" + formatMoney(order.getShippingDiscountAmount()), normalFont, greenFont);
+                addTotalRow(totalsTable, "Giảm phí ship:", "-" + formatMoney(order.getShippingDiscountAmount()),
+                        normalFont, greenFont);
             }
             if (order.getTaxAmount() != null && order.getTaxAmount().compareTo(BigDecimal.ZERO) > 0) {
                 String taxLabel = "Thuế VAT";
@@ -206,7 +236,7 @@ public class InvoicePdfExporter {
 
             document.add(totalsTable);
 
-            // ═══ SIGNATURES ═══
+            // SIGNATURES
             document.add(new Paragraph(" "));
             document.add(new Paragraph(" "));
 
@@ -230,7 +260,7 @@ public class InvoicePdfExporter {
 
             document.add(sigTable);
 
-            // ═══ FOOTER ═══
+            // FOOTER
             document.add(new Paragraph(" "));
             document.add(new Paragraph(" "));
             Paragraph thankYou = new Paragraph("Cảm ơn quý khách đã mua hàng tại HoziTech!", smallFont);

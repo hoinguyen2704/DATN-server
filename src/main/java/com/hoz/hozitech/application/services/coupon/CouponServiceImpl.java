@@ -1,15 +1,28 @@
 package com.hoz.hozitech.application.services.coupon;
 
-import com.hoz.hozitech.config.exceptions.ConflictException;
-import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.hoz.hozitech.application.constant.PaginationConstant;
-import com.hoz.hozitech.domain.enums.CouponStatus;
-import com.hoz.hozitech.domain.enums.CouponCategory;
-import com.hoz.hozitech.domain.enums.DiscountType;
-import com.hoz.hozitech.domain.enums.CouponApplyType;
 import com.hoz.hozitech.application.repositories.CouponRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
+import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.repositories.UserSavedCouponRepository;
+import com.hoz.hozitech.config.exceptions.ConflictException;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.domain.dtos.request.CouponRequest;
 import com.hoz.hozitech.domain.dtos.response.CouponResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -18,18 +31,12 @@ import com.hoz.hozitech.domain.entities.Product;
 import com.hoz.hozitech.domain.entities.ProductImage;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.entities.UserSavedCoupon;
-import com.hoz.hozitech.application.repositories.UserRepository;
+import com.hoz.hozitech.domain.enums.CouponApplyType;
+import com.hoz.hozitech.domain.enums.CouponCategory;
+import com.hoz.hozitech.domain.enums.CouponStatus;
+import com.hoz.hozitech.domain.enums.DiscountType;
+
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.beans.factory.annotation.Value;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -43,9 +50,9 @@ public class CouponServiceImpl implements CouponService {
     @Value("${app.timezone}")
     private String appTimezone;
 
-    // ═══════════════════════════════════════════════════════════════
+    //
     // ADMIN
-    // ═══════════════════════════════════════════════════════════════
+    //
 
     @Override
     @Transactional(readOnly = true)
@@ -89,8 +96,12 @@ public class CouponServiceImpl implements CouponService {
                 .endDate(request.getEndDate())
                 .status(CouponStatus.ACTIVE)
                 .isPublic(request.getIsPublic() != null ? request.getIsPublic() : false)
-                .applyType(request.getApplyType() != null ? CouponApplyType.valueOf(request.getApplyType().toUpperCase()) : CouponApplyType.ALL)
-                .couponCategory(request.getCouponCategory() != null ? CouponCategory.valueOf(request.getCouponCategory().toUpperCase()) : CouponCategory.PRODUCT)
+                .applyType(
+                        request.getApplyType() != null ? CouponApplyType.valueOf(request.getApplyType().toUpperCase())
+                                : CouponApplyType.ALL)
+                .couponCategory(request.getCouponCategory() != null
+                        ? CouponCategory.valueOf(request.getCouponCategory().toUpperCase())
+                        : CouponCategory.PRODUCT)
                 .build();
 
         // Link applicable products
@@ -105,7 +116,8 @@ public class CouponServiceImpl implements CouponService {
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
 
-        if (!coupon.getCode().equalsIgnoreCase(request.getCode()) && couponRepository.existsByCode(request.getCode().toUpperCase())) {
+        if (!coupon.getCode().equalsIgnoreCase(request.getCode())
+                && couponRepository.existsByCode(request.getCode().toUpperCase())) {
             throw new ConflictException("Coupon code already exists");
         }
 
@@ -118,8 +130,12 @@ public class CouponServiceImpl implements CouponService {
         coupon.setStartDate(request.getStartDate());
         coupon.setEndDate(request.getEndDate());
         coupon.setIsPublic(request.getIsPublic() != null ? request.getIsPublic() : coupon.getIsPublic());
-        coupon.setApplyType(request.getApplyType() != null ? CouponApplyType.valueOf(request.getApplyType().toUpperCase()) : coupon.getApplyType());
-        coupon.setCouponCategory(request.getCouponCategory() != null ? CouponCategory.valueOf(request.getCouponCategory().toUpperCase()) : coupon.getCouponCategory());
+        coupon.setApplyType(
+                request.getApplyType() != null ? CouponApplyType.valueOf(request.getApplyType().toUpperCase())
+                        : coupon.getApplyType());
+        coupon.setCouponCategory(
+                request.getCouponCategory() != null ? CouponCategory.valueOf(request.getCouponCategory().toUpperCase())
+                        : coupon.getCouponCategory());
 
         // Re-link applicable products
         applyProductScope(coupon, request);
@@ -142,9 +158,9 @@ public class CouponServiceImpl implements CouponService {
         return mapToResponse(couponRepository.save(coupon));
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    //
     // USER - PUBLIC VOUCHERS
-    // ═══════════════════════════════════════════════════════════════
+    //
 
     @Override
     @Transactional(readOnly = true)
@@ -152,7 +168,8 @@ public class CouponServiceImpl implements CouponService {
         LocalDateTime now = LocalDateTime.now(ZoneId.of(appTimezone));
 
         // Fetch public + active vouchers (with or without end date)
-        List<Coupon> withEndDate = couponRepository.findByIsPublicTrueAndStatusAndEndDateAfter(CouponStatus.ACTIVE, now);
+        List<Coupon> withEndDate = couponRepository.findByIsPublicTrueAndStatusAndEndDateAfter(CouponStatus.ACTIVE,
+                now);
         List<Coupon> withoutEndDate = couponRepository.findByIsPublicTrueAndStatusAndEndDateIsNull(CouponStatus.ACTIVE);
 
         List<Coupon> all = new ArrayList<>(withEndDate);
@@ -177,9 +194,9 @@ public class CouponServiceImpl implements CouponService {
                 .collect(Collectors.toList());
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    //
     // USER - SAVE / UNSAVE
-    // ═══════════════════════════════════════════════════════════════
+    //
 
     @Override
     @Transactional
@@ -218,9 +235,9 @@ public class CouponServiceImpl implements CouponService {
                 .collect(Collectors.toList());
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    //
     // USER - VALIDATE
-    // ═══════════════════════════════════════════════════════════════
+    //
 
     @Override
     public CouponResponse validateCoupon(String code, BigDecimal orderAmount) {
@@ -229,15 +246,16 @@ public class CouponServiceImpl implements CouponService {
 
         validateCouponAvailability(coupon);
         if (coupon.getMinOrderValue() != null && orderAmount.compareTo(coupon.getMinOrderValue()) < 0) {
-            throw new InvalidParamException("Order does not meet minimum value for coupon. Minimum is: " + coupon.getMinOrderValue());
+            throw new InvalidParamException(
+                    "Order does not meet minimum value for coupon. Minimum is: " + coupon.getMinOrderValue());
         }
 
         return mapToResponse(coupon);
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    //
     // PRIVATE HELPERS
-    // ═══════════════════════════════════════════════════════════════
+    //
 
     private void validateCouponAvailability(Coupon coupon) {
         LocalDateTime now = LocalDateTime.now(ZoneId.of(appTimezone));

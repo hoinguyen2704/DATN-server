@@ -27,7 +27,7 @@ import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
-class CouponApplier {
+public class CouponApplier {
 
     private final CouponRepository couponRepository;
     private final OrderRepository orderRepository;
@@ -116,7 +116,7 @@ class CouponApplier {
     /**
      * Restores coupon usage counts when an order is cancelled.
      */
-    void restoreCouponUsage(String productCouponCode, String shippingCouponCode) {
+    public void restoreCouponUsage(String productCouponCode, String shippingCouponCode) {
         Set<String> couponCodesToRestore = new LinkedHashSet<>();
         String normalizedProduct = trimToNull(productCouponCode);
         String normalizedShipping = trimToNull(shippingCouponCode);

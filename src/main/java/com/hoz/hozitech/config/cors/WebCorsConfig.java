@@ -32,7 +32,8 @@ public class WebCorsConfig {
                 SecurityConstant.HEADER_CONTENT_TYPE,
                 SecurityConstant.HEADER_ACCEPT,
                 SecurityConstant.HEADER_X_REQUESTED_WITH,
-                "Origin"
+                "Origin",
+                "Idempotency-Key"
         ));
         configuration.setExposedHeaders(List.of("Content-Disposition"));
         configuration.setAllowCredentials(true);

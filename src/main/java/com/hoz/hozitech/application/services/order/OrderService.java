@@ -9,8 +9,7 @@ import java.util.UUID;
 
 public interface OrderService {
 
-    // User
-    OrderResponse checkout(UUID userId, CheckoutRequest request, String idempotencyKey);
+    OrderResponse checkout(UUID userId, CheckoutRequest request, String idempotencyKey, String ipAddress);
 
     OrderResponse getOrderByNumber(String orderNumber, UUID userId);
 
