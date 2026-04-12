@@ -10,10 +10,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class SocialLoginRequest {
-    @NotBlank(message = "Provider is required (GOOGLE)")
-    private String provider;
-
-    @NotBlank(message = "Token is required")
-    private String token;
+public class UnlinkSocialAccountRequest {
+    @NotBlank(message = "Current password is required")
+    private String currentPassword;
 }

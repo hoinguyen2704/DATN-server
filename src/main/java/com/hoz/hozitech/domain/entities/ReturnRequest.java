@@ -85,4 +85,9 @@ public class ReturnRequest extends AbstractAuditingEntity {
     @OneToMany(mappedBy = "returnRequest", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("createdAt DESC")
     private List<RefundTransaction> refundTransactions = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "returnRequest", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("createdAt DESC")
+    private List<ReturnStatusHistory> statusHistories = new ArrayList<>();
 }

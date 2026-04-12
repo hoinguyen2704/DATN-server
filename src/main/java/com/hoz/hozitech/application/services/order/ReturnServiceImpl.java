@@ -6,6 +6,7 @@ import com.hoz.hozitech.application.repositories.OrderStatusHistoryRepository;
 import com.hoz.hozitech.application.repositories.RefundTransactionRepository;
 import com.hoz.hozitech.application.repositories.ReturnItemRepository;
 import com.hoz.hozitech.application.repositories.ReturnRequestRepository;
+import com.hoz.hozitech.application.repositories.ReturnStatusHistoryRepository;
 import com.hoz.hozitech.application.services.notification.NotificationService;
 import com.hoz.hozitech.application.services.setting.SettingService;
 import com.hoz.hozitech.application.specifications.ReturnRequestSpecification;
@@ -21,6 +22,7 @@ import com.hoz.hozitech.domain.entities.OrderStatusHistory;
 import com.hoz.hozitech.domain.entities.RefundTransaction;
 import com.hoz.hozitech.domain.entities.ReturnItem;
 import com.hoz.hozitech.domain.entities.ReturnRequest;
+import com.hoz.hozitech.domain.entities.ReturnStatusHistory;
 import com.hoz.hozitech.domain.enums.BusinessErrorCode;
 import com.hoz.hozitech.domain.enums.OrderStatus;
 import com.hoz.hozitech.domain.enums.PaymentStatus;
@@ -74,6 +76,7 @@ public class ReturnServiceImpl implements ReturnService {
     private final RefundTransactionRepository refundTransactionRepository;
     private final OrderRepository orderRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
+    private final ReturnStatusHistoryRepository returnStatusHistoryRepository;
     private final NotificationService notificationService;
     private final SettingService settingService;
 
@@ -177,6 +180,8 @@ public class ReturnServiceImpl implements ReturnService {
 
         ReturnRequest saved = returnRequestRepository.save(returnRequest);
 
+        appendReturnStatusHistory(saved, ReturnRequestStatus.REQUESTED, "Yêu cầu trả hàng mới đã được tạo");
+
         notificationService.createForUser(
                 userId,
                 "Yêu cầu trả hàng đã tạo",
@@ -231,6 +236,7 @@ public class ReturnServiceImpl implements ReturnService {
         rr.setResolvedAt(LocalDateTime.now());
 
         ReturnRequest saved = returnRequestRepository.save(rr);
+        appendReturnStatusHistory(saved, ReturnRequestStatus.CANCELLED, "Khách hàng tự hủy yêu cầu trả hàng");
         return mapToResponse(saved);
     }
 
@@ -310,6 +316,13 @@ public class ReturnServiceImpl implements ReturnService {
         }
 
         ReturnRequest saved = returnRequestRepository.save(rr);
+
+        if (Boolean.TRUE.equals(request.getApproved())) {
+            appendReturnStatusHistory(saved, ReturnRequestStatus.APPROVED, "Admin đã duyệt yêu cầu trả hàng");
+        } else {
+            appendReturnStatusHistory(saved, ReturnRequestStatus.REJECTED, "Admin đã từ chối yêu cầu trả hàng" + (note != null ? ": " + note : ""));
+        }
+
         return mapToResponse(saved);
     }
 
@@ -359,6 +372,8 @@ public class ReturnServiceImpl implements ReturnService {
         }
 
         ReturnRequest saved = returnRequestRepository.save(rr);
+
+        appendReturnStatusHistory(saved, targetStatus, targetStatus.getDescription());
 
         notificationService.createForUser(
                 saved.getUser().getId(),
@@ -439,6 +454,8 @@ public class ReturnServiceImpl implements ReturnService {
         markOrderAsRefunded(rr.getOrder(), "Hoàn tiền thành công cho yêu cầu " + rr.getReturnNumber());
         ReturnRequest saved = returnRequestRepository.save(rr);
 
+        appendReturnStatusHistory(saved, ReturnRequestStatus.REFUNDED, "Hoàn tiền thành công");
+
         notificationService.createForUser(
                 saved.getUser().getId(),
                 "Hoàn tiền thành công",
@@ -477,6 +494,15 @@ public class ReturnServiceImpl implements ReturnService {
                         .build())
                 .collect(Collectors.toList());
 
+        List<ReturnRequestResponse.ReturnStatusHistoryData> historyResponses = rr.getStatusHistories().stream()
+                .map(h -> ReturnRequestResponse.ReturnStatusHistoryData.builder()
+                        .id(h.getId())
+                        .status(h.getStatus().name())
+                        .description(h.getDescription())
+                        .createdAt(h.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+
         return ReturnRequestResponse.builder()
                 .id(rr.getId())
                 .returnNumber(rr.getReturnNumber())
@@ -498,7 +524,16 @@ public class ReturnServiceImpl implements ReturnService {
                 .resolvedAt(rr.getResolvedAt())
                 .items(itemResponses)
                 .refunds(refundResponses)
+                .statusHistories(historyResponses)
                 .build();
+    }
+
+    private void appendReturnStatusHistory(ReturnRequest rr, ReturnRequestStatus status, String description) {
+        returnStatusHistoryRepository.save(ReturnStatusHistory.builder()
+                .returnRequest(rr)
+                .status(status)
+                .description(description)
+                .build());
     }
 
     private void markOrderAsRefunded(Order order, String historyDescription) {

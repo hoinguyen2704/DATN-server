@@ -22,4 +22,7 @@ public interface ExportService {
 
     /** Xuất báo cáo dashboard dạng PDF theo loại (orders, revenue, products, customers, returns, reviews) */
     byte[] exportDashboardReportPdf(String reportType, String period);
+
+    /** Xuất danh sách đơn hoàn hủy dạng Excel */
+    byte[] exportReturnsToExcel(String status, String keyword);
 }

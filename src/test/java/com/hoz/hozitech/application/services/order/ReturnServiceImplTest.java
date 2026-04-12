@@ -5,6 +5,7 @@ import com.hoz.hozitech.application.repositories.OrderStatusHistoryRepository;
 import com.hoz.hozitech.application.repositories.RefundTransactionRepository;
 import com.hoz.hozitech.application.repositories.ReturnItemRepository;
 import com.hoz.hozitech.application.repositories.ReturnRequestRepository;
+import com.hoz.hozitech.application.repositories.ReturnStatusHistoryRepository;
 import com.hoz.hozitech.application.services.notification.NotificationService;
 import com.hoz.hozitech.application.services.setting.SettingService;
 import com.hoz.hozitech.domain.dtos.request.CreateReturnRequest;
@@ -15,6 +16,7 @@ import com.hoz.hozitech.domain.entities.Order;
 import com.hoz.hozitech.domain.entities.OrderItem;
 import com.hoz.hozitech.domain.entities.RefundTransaction;
 import com.hoz.hozitech.domain.entities.ReturnRequest;
+import com.hoz.hozitech.domain.entities.ReturnStatusHistory;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.enums.BusinessErrorCode;
 import com.hoz.hozitech.domain.enums.OrderStatus;
@@ -68,6 +70,8 @@ class ReturnServiceImplTest {
     @Mock
     private SettingService settingService;
     @Mock
+    private ReturnStatusHistoryRepository returnStatusHistoryRepository;
+    @Mock
     private EntityManager entityManager;
     @Mock
     private Query lockQuery;
@@ -82,6 +86,7 @@ class ReturnServiceImplTest {
                 refundTransactionRepository,
                 orderRepository,
                 orderStatusHistoryRepository,
+                returnStatusHistoryRepository,
                 notificationService,
                 settingService);
 
@@ -90,6 +95,12 @@ class ReturnServiceImplTest {
         lenient().when(entityManager.createNativeQuery(anyString())).thenReturn(lockQuery);
         lenient().when(lockQuery.setParameter(eq("lockKey"), any())).thenReturn(lockQuery);
         lenient().when(lockQuery.getSingleResult()).thenReturn(1);
+        lenient().when(returnStatusHistoryRepository.save(any(ReturnStatusHistory.class))).thenAnswer(invocation -> {
+            ReturnStatusHistory h = invocation.getArgument(0);
+            h.setId(UUID.randomUUID());
+            h.setCreatedAt(LocalDateTime.now());
+            return h;
+        });
     }
 
     @Test

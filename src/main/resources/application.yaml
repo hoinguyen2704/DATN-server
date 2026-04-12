@@ -112,3 +112,8 @@ vnpay:
   version: "2.1.0"
   command: pay
   expire-minutes: 15
+
+social:
+  google:
+    # ISO datetime (e.g. 2026-05-12T00:00:00) to support temporary legacy fallback
+    legacy-fallback-until: ${SOCIAL_GOOGLE_LEGACY_FALLBACK_UNTIL:}

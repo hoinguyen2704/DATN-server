@@ -43,6 +43,7 @@ public class ReturnRequestResponse {
 
     private List<ReturnItemData> items;
     private List<RefundTransactionData> refunds;
+    private List<ReturnStatusHistoryData> statusHistories;
 
     @Data
     @Builder
@@ -72,6 +73,17 @@ public class ReturnRequestResponse {
         private BigDecimal amount;
         private String currency;
         private String failureReason;
+        private LocalDateTime createdAt;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReturnStatusHistoryData {
+        private UUID id;
+        private String status;
+        private String description;
         private LocalDateTime createdAt;
     }
 }

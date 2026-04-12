@@ -1,10 +1,19 @@
 package com.hoz.hozitech.application.services.auth;
 
+import com.hoz.hozitech.domain.enums.BusinessErrorCode;
 import com.hoz.hozitech.domain.enums.UserStatus;
+import com.hoz.hozitech.web.exceptions.BusinessException;
+import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,6 +24,7 @@ import com.hoz.hozitech.application.repositories.OtpTokenRepository;
 import com.hoz.hozitech.application.repositories.RoleRepository;
 import com.hoz.hozitech.application.repositories.TokenRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
+import com.hoz.hozitech.application.repositories.UserSocialAccountRepository;
 import com.hoz.hozitech.application.services.email.EmailService;
 import com.hoz.hozitech.security.CustomUserDetails;
 import com.hoz.hozitech.security.JwtTokenProvider;
@@ -25,42 +35,73 @@ import com.hoz.hozitech.domain.dtos.response.AuthResponse;
 import com.hoz.hozitech.domain.entities.Role;
 import com.hoz.hozitech.domain.entities.Token;
 import com.hoz.hozitech.domain.entities.User;
+import com.hoz.hozitech.domain.entities.UserSocialAccount;
 import com.hoz.hozitech.domain.enums.RoleType;
 import com.hoz.hozitech.web.exceptions.ResourceNotFoundException;
 import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
-import org.springframework.beans.factory.annotation.Value;
-
 
 import lombok.RequiredArgsConstructor;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
+
+    private static final String PROVIDER_GOOGLE = "GOOGLE";
+    private static final String AUTH_PROVIDER_LOCAL = "LOCAL";
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final TokenRepository tokenRepository;
     private final OtpTokenRepository otpTokenRepository;
+    private final UserSocialAccountRepository userSocialAccountRepository;
+    private final GoogleTokenVerifierService googleTokenVerifierService;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtService;
     private final AuthenticationManager authenticationManager;
 
-    @Value("${spring.security.oauth2.client.registration.google.client-id}")
-    private String googleClientId;
+    @Value("${social.google.legacy-fallback-until:}")
+    private String googleLegacyFallbackUntilRaw;
 
     @Value("${jwt.access-expiration}")
     private long accessTokenExpirationSeconds;
 
     @Value("${jwt.refresh-expiration}")
     private long refreshTokenExpirationSeconds;
+
+    private LocalDateTime googleLegacyFallbackUntil;
+
+    @PostConstruct
+    void initLegacyFallbackWindow() {
+        if (googleLegacyFallbackUntilRaw == null || googleLegacyFallbackUntilRaw.isBlank()) {
+            googleLegacyFallbackUntil = LocalDateTime.now().plusDays(30);
+            log.info("google_legacy_fallback_until={} source=default_plus_30_days", googleLegacyFallbackUntil);
+            return;
+        }
+
+        String value = googleLegacyFallbackUntilRaw.trim();
+        try {
+            googleLegacyFallbackUntil = LocalDateTime.parse(value);
+            log.info("google_legacy_fallback_until={} source=config_local_datetime", googleLegacyFallbackUntil);
+            return;
+        } catch (DateTimeParseException ignored) {
+            // Try with timezone offset format.
+        }
+
+        try {
+            googleLegacyFallbackUntil = OffsetDateTime.parse(value).toLocalDateTime();
+            log.info("google_legacy_fallback_until={} source=config_offset_datetime", googleLegacyFallbackUntil);
+            return;
+        } catch (DateTimeParseException ex) {
+            throw new IllegalStateException(
+                    "Invalid SOCIAL_GOOGLE_LEGACY_FALLBACK_UNTIL format. Use ISO datetime.",
+                    ex);
+        }
+    }
 
     @Override
     @Transactional
@@ -215,52 +256,134 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse socialLogin(SocialLoginRequest request) {
-        String email;
-        String name;
-        String avatarUrl = null;
+        String provider = normalizeProvider(request.getProvider());
+        if (!PROVIDER_GOOGLE.equals(provider)) {
+            throw new BusinessException(BusinessErrorCode.UNSUPPORTED_PROVIDER,
+                    "Only GOOGLE is supported in this release",
+                    HttpStatus.BAD_REQUEST);
+        }
 
-        if ("GOOGLE".equalsIgnoreCase(request.getProvider())) {
-            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
-                    .setAudience(java.util.Collections.singletonList(googleClientId))
-                    .build();
-            try {
-                GoogleIdToken idToken = verifier.verify(request.getToken());
-                if (idToken != null) {
-                    GoogleIdToken.Payload payload = idToken.getPayload();
-                    email = payload.getEmail();
-                    name = (String) payload.get("name");
-                    avatarUrl = (String) payload.get("picture");
-                } else {
-                    throw new UnauthorizedException("Invalid Google token");
-                }
-            } catch (Exception e) {
-                throw new UnauthorizedException("Google login failed (" + e.getMessage() + "). Check client-id configuration.");
+        GoogleTokenVerifierService.GoogleTokenPayload googlePayload = googleTokenVerifierService.verify(request.getToken());
+        User user = resolveUserForGoogleSocialLogin(googlePayload);
+        return issueAuthTokens(user);
+    }
+
+    private User resolveUserForGoogleSocialLogin(GoogleTokenVerifierService.GoogleTokenPayload googlePayload) {
+        String providerUserId = googlePayload.providerUserId();
+        String email = googlePayload.email();
+
+        UserSocialAccount linkedAccount = userSocialAccountRepository
+                .findByProviderAndProviderUserId(PROVIDER_GOOGLE, providerUserId)
+                .orElse(null);
+        if (linkedAccount != null) {
+            return linkedAccount.getUser();
+        }
+
+        User existingUser = userRepository.findByEmail(email).orElse(null);
+        if (existingUser == null) {
+            User newUser = createUserFromGooglePayload(googlePayload);
+            ensureGoogleLink(newUser, googlePayload);
+            return newUser;
+        }
+
+        if (isLocalAccount(existingUser)) {
+            throw new BusinessException(BusinessErrorCode.SOCIAL_NOT_LINKED,
+                    "Google account is not linked. Please sign in with password and link in Settings.",
+                    HttpStatus.CONFLICT);
+        }
+
+        if (isLegacyGoogleUser(existingUser) && isLegacyFallbackEnabled()) {
+            ensureGoogleLink(existingUser, googlePayload);
+            return existingUser;
+        }
+
+        throw new BusinessException(BusinessErrorCode.SOCIAL_NOT_LINKED,
+                "Google account is not linked. Please sign in with password and link in Settings.",
+                HttpStatus.CONFLICT);
+    }
+
+    private User createUserFromGooglePayload(GoogleTokenVerifierService.GoogleTokenPayload googlePayload) {
+        Role userRole = roleRepository.findById(RoleType.USER)
+                .orElseThrow(() -> new ResourceNotFoundException("Role", RoleType.USER));
+
+        String emailPrefix = googlePayload.email().split("@")[0];
+        if (emailPrefix.isBlank()) {
+            emailPrefix = "user";
+        }
+
+        User user = User.builder()
+                .fullName(googlePayload.name() == null || googlePayload.name().isBlank() ? emailPrefix : googlePayload.name())
+                .userName(emailPrefix + "_" + System.currentTimeMillis())
+                .email(googlePayload.email())
+                .avatarUrl(googlePayload.avatarUrl())
+                .password(passwordEncoder.encode(UUID.randomUUID().toString()))
+                .role(userRole)
+                .status(UserStatus.ACTIVE)
+                .authProvider(PROVIDER_GOOGLE)
+                .build();
+        return userRepository.save(user);
+    }
+
+    private void ensureGoogleLink(User user, GoogleTokenVerifierService.GoogleTokenPayload googlePayload) {
+        String providerUserId = googlePayload.providerUserId();
+        String providerEmail = googlePayload.email();
+
+        UserSocialAccount byProviderUserId = userSocialAccountRepository
+                .findByProviderAndProviderUserId(PROVIDER_GOOGLE, providerUserId)
+                .orElse(null);
+        if (byProviderUserId != null && !byProviderUserId.getUser().getId().equals(user.getId())) {
+            throw new BusinessException(BusinessErrorCode.SOCIAL_ACCOUNT_ALREADY_LINKED,
+                    "This Google account is already linked to another user",
+                    HttpStatus.CONFLICT);
+        }
+
+        UserSocialAccount byUserProvider = userSocialAccountRepository
+                .findByUserIdAndProvider(user.getId(), PROVIDER_GOOGLE)
+                .orElse(null);
+        if (byUserProvider != null) {
+            if (!byUserProvider.getProviderUserId().equals(providerUserId)) {
+                throw new BusinessException(BusinessErrorCode.SOCIAL_ACCOUNT_ALREADY_LINKED,
+                        "This account is already linked to another Google identity",
+                        HttpStatus.CONFLICT);
             }
-        } else if ("FACEBOOK".equalsIgnoreCase(request.getProvider())) {
-            throw new InvalidParamException("Facebook login is not yet configured on backend");
-        } else {
-            throw new InvalidParamException("Unsupported social provider: " + request.getProvider());
+            if (providerEmail != null && !providerEmail.isBlank()
+                    && !providerEmail.equalsIgnoreCase(byUserProvider.getProviderEmail())) {
+                byUserProvider.setProviderEmail(providerEmail);
+                byUserProvider.setLinkedAt(LocalDateTime.now());
+                userSocialAccountRepository.save(byUserProvider);
+            }
+            return;
         }
 
-        // Check if user exists
-        User user = userRepository.findByEmail(email).orElse(null);
-        if (user == null) {
-            Role userRole = roleRepository.findById(RoleType.USER)
-                    .orElseThrow(() -> new ResourceNotFoundException("Role", RoleType.USER));
+        UserSocialAccount socialAccount = UserSocialAccount.builder()
+                .user(user)
+                .provider(PROVIDER_GOOGLE)
+                .providerUserId(providerUserId)
+                .providerEmail(providerEmail)
+                .linkedAt(LocalDateTime.now())
+                .build();
+        userSocialAccountRepository.save(socialAccount);
+    }
 
-            user = User.builder()
-                    .fullName(name)
-                    .userName(email.split("@")[0] + "_" + System.currentTimeMillis())
-                    .email(email)
-                    .avatarUrl(avatarUrl)
-                    .password(passwordEncoder.encode(java.util.UUID.randomUUID().toString()))
-                    .role(userRole)
-                    .status(UserStatus.ACTIVE)
-                    .authProvider(request.getProvider().toUpperCase())
-                    .build();
-            user = userRepository.save(user);
-        }
+    private boolean isLegacyFallbackEnabled() {
+        return !LocalDateTime.now().isAfter(googleLegacyFallbackUntil);
+    }
 
+    private boolean isLocalAccount(User user) {
+        return user.getAuthProvider() != null
+                && AUTH_PROVIDER_LOCAL.equalsIgnoreCase(user.getAuthProvider());
+    }
+
+    private boolean isLegacyGoogleUser(User user) {
+        return user.getAuthProvider() != null
+                && PROVIDER_GOOGLE.equalsIgnoreCase(user.getAuthProvider());
+    }
+
+    private String normalizeProvider(String provider) {
+        return provider == null ? "" : provider.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private AuthResponse issueAuthTokens(User user) {
         CustomUserDetails userDetails = new CustomUserDetails(user);
         String accessToken = jwtService.generateToken(userDetails);
         String refreshToken = jwtService.generateRefreshToken(userDetails);

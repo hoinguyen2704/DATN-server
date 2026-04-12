@@ -4,14 +4,19 @@ import com.hoz.hozitech.application.services.user.UserService;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.Authenticated;
 import com.hoz.hozitech.domain.dtos.request.ChangePasswordRequest;
+import com.hoz.hozitech.domain.dtos.request.LinkSocialAccountRequest;
+import com.hoz.hozitech.domain.dtos.request.UnlinkSocialAccountRequest;
 import com.hoz.hozitech.domain.dtos.request.UpdateUserRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
+import com.hoz.hozitech.domain.dtos.response.LinkedSocialAccountResponse;
 import com.hoz.hozitech.domain.dtos.response.UserResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @RestAPI("${api.prefix-client}/users")
 @Authenticated
@@ -41,5 +46,27 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserResponse>> uploadAvatar(@RequestParam("file") MultipartFile file) {
         String avatarUrl = fileStorageService.uploadFile(file, "avatars");
         return ResponseEntity.ok(ApiResponse.success("Avatar uploaded successfully", userService.uploadAvatar(avatarUrl)));
+    }
+
+    @GetMapping("/me/social-accounts")
+    public ResponseEntity<ApiResponse<List<LinkedSocialAccountResponse>>> getCurrentUserSocialAccounts() {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Load social accounts success",
+                userService.getCurrentUserSocialAccounts()));
+    }
+
+    @PostMapping("/me/social-accounts/link")
+    public ResponseEntity<ApiResponse<LinkedSocialAccountResponse>> linkCurrentUserSocialAccount(
+            @Valid @RequestBody LinkSocialAccountRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Link social account successfully",
+                userService.linkCurrentUserSocialAccount(request)));
+    }
+
+    @DeleteMapping("/me/social-accounts/GOOGLE")
+    public ResponseEntity<ApiResponse<Void>> unlinkGoogleSocialAccount(
+            @Valid @RequestBody UnlinkSocialAccountRequest request) {
+        userService.unlinkCurrentUserSocialAccount("GOOGLE", request);
+        return ResponseEntity.ok(ApiResponse.success("Unlink social account successfully"));
     }
 }

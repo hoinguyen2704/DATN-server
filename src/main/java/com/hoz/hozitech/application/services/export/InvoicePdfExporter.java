@@ -16,6 +16,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 import com.hoz.hozitech.application.repositories.OrderRepository;
+import com.hoz.hozitech.application.services.setting.SettingService;
 import com.hoz.hozitech.domain.entities.Order;
 import com.hoz.hozitech.domain.entities.OrderItem;
 import com.hoz.hozitech.domain.enums.PaymentStatus;
@@ -43,10 +44,17 @@ import lombok.RequiredArgsConstructor;
 public class InvoicePdfExporter {
 
     private final OrderRepository orderRepository;
+    private final SettingService settingService;
 
     public byte[] exportOrderInvoicePdf(UUID orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", orderId));
+
+        // Read dynamic shop info from database settings
+        String shopName = valOrDefault("SHOP_NAME", "Hozitech");
+        String shopAddress = valOrDefault("SHOP_ADDRESS", "");
+        String shopHotline = valOrDefault("HOTLINE", "");
+        String shopEmail = valOrDefault("SHOP_EMAIL", "");
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A4, 40, 40, 40, 40);
@@ -69,10 +77,10 @@ public class InvoicePdfExporter {
             PdfPCell shopCell = new PdfPCell();
             shopCell.setBorder(Rectangle.NO_BORDER);
             shopCell.setPaddingBottom(15);
-            Paragraph shopName = new Paragraph("HoziTech", titleFont);
-            shopCell.addElement(shopName);
-            shopCell.addElement(new Paragraph("123 Đường Công Nghệ, Quận IT, TP.HCM", smallFont));
-            shopCell.addElement(new Paragraph("SĐT: 0123.456.789 | Email: contact@hozitech.com", smallFont));
+            Paragraph shopNamePara = new Paragraph(shopName, titleFont);
+            shopCell.addElement(shopNamePara);
+            shopCell.addElement(new Paragraph(shopAddress, smallFont));
+            shopCell.addElement(new Paragraph("SĐT: " + shopHotline + " | Email: " + shopEmail, smallFont));
             headerTable.addCell(shopCell);
 
             PdfPCell invoiceCell = new PdfPCell();
@@ -119,6 +127,11 @@ public class InvoicePdfExporter {
             custCell.addElement(new Paragraph(custName, boldFont));
             String address = parseAddress(order.getShippingAddressJson());
             custCell.addElement(new Paragraph(address, normalFont));
+            String custPhone = order.getUser() != null && order.getUser().getPhoneNumber() != null
+                    ? order.getUser().getPhoneNumber() : "";
+            if (!custPhone.isEmpty()) {
+                custCell.addElement(new Paragraph("SĐT: " + custPhone, normalFont));
+            }
             infoTable.addCell(custCell);
 
             PdfPCell payCell = new PdfPCell();
@@ -263,10 +276,10 @@ public class InvoicePdfExporter {
             // FOOTER
             document.add(new Paragraph(" "));
             document.add(new Paragraph(" "));
-            Paragraph thankYou = new Paragraph("Cảm ơn quý khách đã mua hàng tại HoziTech!", smallFont);
+            Paragraph thankYou = new Paragraph("Cảm ơn quý khách đã mua hàng tại " + shopName + "!", smallFont);
             thankYou.setAlignment(Element.ALIGN_CENTER);
             document.add(thankYou);
-            Paragraph contact = new Paragraph("Hotline: 0123.456.789 | Website: www.hozitech.com", smallFont);
+            Paragraph contact = new Paragraph("Hotline: " + shopHotline + " | Email: " + shopEmail, smallFont);
             contact.setAlignment(Element.ALIGN_CENTER);
             document.add(contact);
 
@@ -278,5 +291,10 @@ public class InvoicePdfExporter {
         } catch (Exception e) {
             throw new ExportException("Failed to generate invoice PDF", e);
         }
+    }
+
+    private String valOrDefault(String key, String fallback) {
+        String v = settingService.getSettingValue(key);
+        return (v == null || v.isBlank()) ? fallback : v;
     }
 }

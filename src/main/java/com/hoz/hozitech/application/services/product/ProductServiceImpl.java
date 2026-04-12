@@ -396,14 +396,12 @@ public class ProductServiceImpl implements ProductService {
                             .build()
             ).collect(Collectors.toList());
 
-            String vName = v.getVariantName() != null ? v.getVariantName() : "";
-            
             return ProductVariantResponse.builder()
                     .id(v.getId())
                     .sku(v.getSku())
-                    .variantName(vName)
-                    .color(vName.contains("-") ? vName.split("-")[0].trim() : null)
-                    .storageCapacity(vName.contains("-") && vName.split("-").length > 1 ? vName.split("-")[1].trim() : null)
+                    .variantName(v.getVariantName() != null ? v.getVariantName() : "")
+                    .color(v.getColor())
+                    .storageCapacity(v.getCapacity())
                     .price(v.getPrice())
                     .compareAtPrice(v.getCompareAtPrice())
                     .stockQuantity(v.getStock())

@@ -3,14 +3,18 @@ package com.hoz.hozitech.application.services.export;
 import com.hoz.hozitech.application.repositories.FeedbackRepository;
 import com.hoz.hozitech.application.repositories.OrderRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
+import com.hoz.hozitech.application.repositories.ReturnRequestRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.specifications.OrderSpecification;
 import com.hoz.hozitech.application.specifications.ProductSpecification;
+import com.hoz.hozitech.application.specifications.ReturnRequestSpecification;
 import com.hoz.hozitech.domain.entities.Feedback;
 import com.hoz.hozitech.domain.entities.Order;
 
 import com.hoz.hozitech.domain.entities.Product;
+import com.hoz.hozitech.domain.entities.ReturnRequest;
 import com.hoz.hozitech.domain.entities.User;
+import com.hoz.hozitech.domain.enums.ReturnRequestStatus;
 import com.hoz.hozitech.web.exceptions.ExportException;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Cell;
@@ -31,7 +35,7 @@ import java.util.UUID;
 import static com.hoz.hozitech.application.services.export.ExportHelpers.*;
 
 /**
- * Excel data exports for Orders, Users, Feedbacks, and Products.
+ * Excel data exports for Orders, Users, Feedbacks, Products, and Return Requests.
  */
 @Component
 @RequiredArgsConstructor
@@ -41,6 +45,7 @@ public class DataExcelExporter {
     private final UserRepository userRepository;
     private final FeedbackRepository feedbackRepository;
     private final ProductRepository productRepository;
+    private final ReturnRequestRepository returnRequestRepository;
 
     private static final String[] ORDER_HEADERS = {
             "Mã đơn", "Khách hàng", "Email", "SĐT",
@@ -60,6 +65,12 @@ public class DataExcelExporter {
     private static final String[] PRODUCT_HEADERS = {
             "STT", "Tên sản phẩm", "SKU/Slug", "Danh mục", "Thương hiệu",
             "Giá gốc", "Tồn kho", "Đã bán", "Trạng thái", "Ngày tạo"
+    };
+
+    private static final String[] RETURN_HEADERS = {
+            "STT", "Mã yêu cầu", "Mã đơn hàng", "Khách hàng", "Email",
+            "Lý do", "Số tiền yêu cầu", "Số tiền duyệt", "Số tiền hoàn",
+            "Trạng thái", "Hoàn tiền", "Ngày tạo", "Ngày xử lý"
     };
 
     // Orders Export
@@ -390,5 +401,171 @@ public class DataExcelExporter {
         } catch (IOException e) {
             throw new ExportException("Failed to export products to Excel", e);
         }
+    }
+
+    // Returns Export
+
+    public byte[] exportReturnsToExcel(String status, String keyword) {
+        ReturnRequestStatus statusEnum = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                statusEnum = ReturnRequestStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                // invalid status string → skip filter
+            }
+        }
+
+        Specification<ReturnRequest> spec = ReturnRequestSpecification.filter(null, statusEnum, keyword);
+        List<ReturnRequest> returns = returnRequestRepository.findAll(spec,
+                org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Order.desc("createdAt")));
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook();
+                ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle currencyStyle = workbook.createCellStyle();
+            DataFormat dataFormat = workbook.createDataFormat();
+            currencyStyle.setDataFormat(dataFormat.getFormat("#,##0"));
+
+            CellStyle titleStyle = workbook.createCellStyle();
+            org.apache.poi.ss.usermodel.Font titleFontPoi = workbook.createFont();
+            titleFontPoi.setBold(true);
+            titleFontPoi.setFontHeightInPoints((short) 14);
+            titleStyle.setFont(titleFontPoi);
+
+            Sheet sheet = workbook.createSheet("Đơn hoàn hủy");
+
+            Row titleRow = sheet.createRow(0);
+            Cell titleCell = titleRow.createCell(0);
+            titleCell.setCellValue("BÁO CÁO ĐƠN HOÀN HỦY");
+            titleCell.setCellStyle(titleStyle);
+
+            Row dateRow = sheet.createRow(1);
+            dateRow.createCell(0).setCellValue("Ngày xuất: " + LocalDateTime.now().format(DATE_FMT));
+
+            Row headerRow = sheet.createRow(3);
+            for (int i = 0; i < RETURN_HEADERS.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(RETURN_HEADERS[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            int rowIdx = 4;
+            double totalRequested = 0;
+            double totalApproved = 0;
+            double totalRefunded = 0;
+
+            for (ReturnRequest rr : returns) {
+                Row row = sheet.createRow(rowIdx);
+
+                row.createCell(0).setCellValue(rowIdx - 3);
+                row.createCell(1).setCellValue(rr.getReturnNumber());
+                row.createCell(2).setCellValue(
+                        rr.getOrder() != null ? rr.getOrder().getOrderNumber() : "");
+                row.createCell(3).setCellValue(
+                        rr.getUser() != null ? rr.getUser().getFullName() : "");
+                row.createCell(4).setCellValue(
+                        rr.getUser() != null ? rr.getUser().getEmail() : "");
+                row.createCell(5).setCellValue(
+                        rr.getReason() != null ? rr.getReason() : "");
+
+                double requested = rr.getRequestedAmount() != null ? rr.getRequestedAmount().doubleValue() : 0;
+                Cell reqCell = row.createCell(6);
+                reqCell.setCellValue(requested);
+                reqCell.setCellStyle(currencyStyle);
+                totalRequested += requested;
+
+                double approved = rr.getApprovedAmount() != null ? rr.getApprovedAmount().doubleValue() : 0;
+                Cell approvedCell = row.createCell(7);
+                approvedCell.setCellValue(approved);
+                approvedCell.setCellStyle(currencyStyle);
+                totalApproved += approved;
+
+                double refunded = rr.getRefundAmount() != null ? rr.getRefundAmount().doubleValue() : 0;
+                Cell refundCell = row.createCell(8);
+                refundCell.setCellValue(refunded);
+                refundCell.setCellStyle(currencyStyle);
+                totalRefunded += refunded;
+
+                row.createCell(9).setCellValue(mapReturnStatusVi(
+                        rr.getStatus() != null ? rr.getStatus().name() : ""));
+                row.createCell(10).setCellValue(mapRefundStatusVi(
+                        rr.getRefundStatus() != null ? rr.getRefundStatus().name() : ""));
+                row.createCell(11).setCellValue(
+                        rr.getCreatedAt() != null ? rr.getCreatedAt().format(DATE_FMT) : "");
+                row.createCell(12).setCellValue(
+                        rr.getResolvedAt() != null ? rr.getResolvedAt().format(DATE_FMT) : "");
+
+                rowIdx++;
+            }
+
+            // Summary row
+            Row summaryRow = sheet.createRow(rowIdx + 1);
+            CellStyle boldStyle = workbook.createCellStyle();
+            org.apache.poi.ss.usermodel.Font boldFontPoi = workbook.createFont();
+            boldFontPoi.setBold(true);
+            boldStyle.setFont(boldFontPoi);
+
+            Cell sumLabel = summaryRow.createCell(0);
+            sumLabel.setCellValue("TỔNG CỘNG: " + returns.size() + " yêu cầu");
+            sumLabel.setCellStyle(boldStyle);
+
+            CellStyle boldCurrency = workbook.createCellStyle();
+            boldCurrency.cloneStyleFrom(currencyStyle);
+            boldCurrency.setFont(boldFontPoi);
+
+            Cell sumReq = summaryRow.createCell(6);
+            sumReq.setCellValue(totalRequested);
+            sumReq.setCellStyle(boldCurrency);
+
+            Cell sumApp = summaryRow.createCell(7);
+            sumApp.setCellValue(totalApproved);
+            sumApp.setCellStyle(boldCurrency);
+
+            Cell sumRef = summaryRow.createCell(8);
+            sumRef.setCellValue(totalRefunded);
+            sumRef.setCellStyle(boldCurrency);
+
+            for (int i = 0; i < RETURN_HEADERS.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
+
+        } catch (IOException e) {
+            throw new ExportException("Failed to export returns to Excel", e);
+        }
+    }
+
+    private static String mapReturnStatusVi(String status) {
+        if (status == null) return "";
+        return switch (status.toUpperCase()) {
+            case "REQUESTED" -> "Yêu cầu trả hàng";
+            case "APPROVED" -> "Đã duyệt";
+            case "REJECTED" -> "Đã từ chối";
+            case "IN_TRANSIT" -> "Đang gửi hàng hoàn";
+            case "RECEIVED" -> "Đã nhận hàng hoàn";
+            case "QC_PASSED" -> "QC đạt";
+            case "QC_FAILED" -> "QC không đạt";
+            case "REFUND_PENDING" -> "Chờ hoàn tiền";
+            case "REFUNDED" -> "Đã hoàn tiền";
+            case "CANCELLED" -> "Đã hủy yêu cầu";
+            case "CLOSED" -> "Đã đóng";
+            default -> status;
+        };
+    }
+
+    private static String mapRefundStatusVi(String status) {
+        if (status == null) return "";
+        return switch (status.toUpperCase()) {
+            case "PENDING" -> "Chờ hoàn tiền";
+            case "PROCESSING" -> "Đang xử lý";
+            case "SUCCESS" -> "Hoàn tiền thành công";
+            case "FAILED" -> "Hoàn tiền thất bại";
+            case "REVERSED" -> "Hoàn tiền bị đảo ngược";
+            default -> status;
+        };
     }
 }

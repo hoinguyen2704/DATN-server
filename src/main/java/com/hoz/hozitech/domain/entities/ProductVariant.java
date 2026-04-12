@@ -21,16 +21,16 @@ import java.util.List;
 })
 public class ProductVariant extends AbstractAuditingEntity {
 
-    @Column(name = "sku", nullable = false, length = 50)
+    @Column(name = "sku", nullable = false, length = 100)
     private String sku;
 
     @Column(name = "variant_name", nullable = false, length = 255)
     private String variantName;
 
-    @Column(name = "color", length = 50)
+    @Column(name = "color", length = 255)
     private String color;
 
-    @Column(name = "capacity", length = 50)
+    @Column(name = "capacity", length = 255)
     private String capacity;
 
     @Column(name = "price", nullable = false, precision = 15, scale = 2)

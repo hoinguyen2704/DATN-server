@@ -1,11 +1,15 @@
 package com.hoz.hozitech.application.services.user;
 
 import com.hoz.hozitech.domain.dtos.request.ChangePasswordRequest;
+import com.hoz.hozitech.domain.dtos.request.LinkSocialAccountRequest;
+import com.hoz.hozitech.domain.dtos.request.UnlinkSocialAccountRequest;
 import com.hoz.hozitech.domain.dtos.request.UpdateUserRequest;
+import com.hoz.hozitech.domain.dtos.response.LinkedSocialAccountResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.UserResponse;
 import com.hoz.hozitech.domain.entities.User;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface UserService {
@@ -27,6 +31,12 @@ public interface UserService {
     UserResponse getUserById(UUID id);
 
     UserResponse toggleUserStatus(UUID id);
+
+    List<LinkedSocialAccountResponse> getCurrentUserSocialAccounts();
+
+    LinkedSocialAccountResponse linkCurrentUserSocialAccount(LinkSocialAccountRequest request);
+
+    void unlinkCurrentUserSocialAccount(String provider, UnlinkSocialAccountRequest request);
 
     // Helper
     User getCurrentUserEntity();

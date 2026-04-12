@@ -1,6 +1,23 @@
 package com.hoz.hozitech.web.controllers.admin;
 
+import java.time.LocalDate;
+import java.util.UUID;
+
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
+
 import com.hoz.hozitech.application.constant.PaginationConstant;
+import com.hoz.hozitech.application.services.export.ExportService;
 import com.hoz.hozitech.application.services.order.ReturnService;
 import com.hoz.hozitech.domain.dtos.request.ProcessRefundRequest;
 import com.hoz.hozitech.domain.dtos.request.ReviewReturnRequest;
@@ -10,12 +27,9 @@ import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.ReturnRequestResponse;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.UUID;
 
 @RestAPI("${api.prefix-admin}/returns")
 @RoleAdmin
@@ -23,6 +37,7 @@ import java.util.UUID;
 public class AdminReturnController {
 
     private final ReturnService returnService;
+    private final ExportService exportService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<ReturnRequestResponse>>> getAllReturnRequests(
@@ -38,6 +53,24 @@ public class AdminReturnController {
     public ResponseEntity<ApiResponse<ReturnRequestResponse>> getReturnByNumber(@PathVariable String returnNumber) {
         return ResponseEntity.ok(ApiResponse.success("Return request fetched",
                 returnService.getReturnByNumberForAdmin(returnNumber)));
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportReturns(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword) {
+
+        byte[] excelBytes = exportService.exportReturnsToExcel(status, keyword);
+
+        String filename = "returns_" + LocalDate.now() + ".xlsx";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
+        headers.setContentLength(excelBytes.length);
+
+        return new ResponseEntity<>(excelBytes, headers, HttpStatus.OK);
     }
 
     @PatchMapping("/{returnRequestId}/review")

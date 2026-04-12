@@ -62,4 +62,9 @@ public class ExportServiceImpl implements ExportService {
     public byte[] exportProductsToExcel(String keyword, UUID categoryId, String status) {
         return dataExcelExporter.exportProductsToExcel(keyword, categoryId, status);
     }
+
+    @Override
+    public byte[] exportReturnsToExcel(String status, String keyword) {
+        return dataExcelExporter.exportReturnsToExcel(status, keyword);
+    }
 }
