@@ -79,6 +79,7 @@ public class ReturnServiceImpl implements ReturnService {
     private final ReturnStatusHistoryRepository returnStatusHistoryRepository;
     private final NotificationService notificationService;
     private final SettingService settingService;
+    private final ReturnEmailSender returnEmailSender;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -189,6 +190,11 @@ public class ReturnServiceImpl implements ReturnService {
                 "RETURN",
                 order.getId());
 
+        returnEmailSender.sendReturnUpdatedEmail(
+                saved,
+                "Yêu cầu trả hàng đã được tiếp nhận",
+                "Yêu cầu " + saved.getReturnNumber() + " của bạn đã được tạo thành công.");
+
         return mapToResponse(saved);
     }
 
@@ -237,6 +243,12 @@ public class ReturnServiceImpl implements ReturnService {
 
         ReturnRequest saved = returnRequestRepository.save(rr);
         appendReturnStatusHistory(saved, ReturnRequestStatus.CANCELLED, "Khách hàng tự hủy yêu cầu trả hàng");
+
+        returnEmailSender.sendReturnUpdatedEmail(
+                saved,
+                "Yêu cầu trả hàng đã được hủy",
+                "Bạn đã hủy yêu cầu " + saved.getReturnNumber() + " thành công.");
+
         return mapToResponse(saved);
     }
 
@@ -319,8 +331,16 @@ public class ReturnServiceImpl implements ReturnService {
 
         if (Boolean.TRUE.equals(request.getApproved())) {
             appendReturnStatusHistory(saved, ReturnRequestStatus.APPROVED, "Admin đã duyệt yêu cầu trả hàng");
+            returnEmailSender.sendReturnUpdatedEmail(
+                    saved,
+                    "Yêu cầu trả hàng đã được duyệt",
+                    "Yêu cầu " + saved.getReturnNumber() + " đã được admin duyệt.");
         } else {
             appendReturnStatusHistory(saved, ReturnRequestStatus.REJECTED, "Admin đã từ chối yêu cầu trả hàng" + (note != null ? ": " + note : ""));
+            returnEmailSender.sendReturnUpdatedEmail(
+                    saved,
+                    "Yêu cầu trả hàng bị từ chối",
+                    "Yêu cầu " + saved.getReturnNumber() + " đã bị từ chối.");
         }
 
         return mapToResponse(saved);
@@ -381,6 +401,11 @@ public class ReturnServiceImpl implements ReturnService {
                 "Yêu cầu " + saved.getReturnNumber() + " chuyển sang trạng thái " + saved.getStatus().getDescription() + ".",
                 "RETURN",
                 saved.getOrder().getId());
+
+        returnEmailSender.sendReturnUpdatedEmail(
+                saved,
+                "Trạng thái yêu cầu trả hàng đã cập nhật",
+                "Yêu cầu " + saved.getReturnNumber() + " chuyển sang trạng thái " + saved.getStatus().getDescription() + ".");
 
         return mapToResponse(saved);
     }
@@ -462,6 +487,11 @@ public class ReturnServiceImpl implements ReturnService {
                 "Yêu cầu " + saved.getReturnNumber() + " đã được hoàn tiền thành công.",
                 "RETURN",
                 saved.getOrder().getId());
+
+        returnEmailSender.sendReturnUpdatedEmail(
+                saved,
+                "Hoàn tiền thành công",
+                "Yêu cầu " + saved.getReturnNumber() + " đã được hoàn tiền thành công.");
 
         return mapToResponse(saved);
     }

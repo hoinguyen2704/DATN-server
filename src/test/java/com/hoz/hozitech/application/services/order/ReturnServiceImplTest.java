@@ -70,6 +70,8 @@ class ReturnServiceImplTest {
     @Mock
     private SettingService settingService;
     @Mock
+    private ReturnEmailSender returnEmailSender;
+    @Mock
     private ReturnStatusHistoryRepository returnStatusHistoryRepository;
     @Mock
     private EntityManager entityManager;
@@ -88,7 +90,8 @@ class ReturnServiceImplTest {
                 orderStatusHistoryRepository,
                 returnStatusHistoryRepository,
                 notificationService,
-                settingService);
+                settingService,
+                returnEmailSender);
 
         ReflectionTestUtils.setField(service, "entityManager", entityManager);
 
