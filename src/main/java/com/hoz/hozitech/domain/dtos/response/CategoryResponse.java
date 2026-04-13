@@ -20,6 +20,7 @@ public class CategoryResponse {
     private String description;
     private String imageUrl;
     private Boolean active;
+    private Long productCount;
     private LocalDateTime createdAt;
 
     // For Tree View

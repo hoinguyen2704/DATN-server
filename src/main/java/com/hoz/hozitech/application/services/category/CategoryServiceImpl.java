@@ -196,6 +196,7 @@ public class CategoryServiceImpl implements CategoryService {
                 .description(category.getDescription())
                 .imageUrl(category.getImageUrl())
                 .active(category.getStatus())
+                .productCount(category.getProducts() != null ? (long) category.getProducts().size() : 0L)
                 .createdAt(category.getCreatedAt())
                 .children(new java.util.ArrayList<>())
                 .specTemplates(templates)

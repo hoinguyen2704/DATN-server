@@ -1,9 +1,14 @@
 package com.hoz.hozitech.application.services.user;
 
 import com.hoz.hozitech.domain.dtos.request.ChangePasswordRequest;
+import com.hoz.hozitech.domain.dtos.request.EmailChangeRequest;
 import com.hoz.hozitech.domain.dtos.request.LinkSocialAccountRequest;
+import com.hoz.hozitech.domain.dtos.request.AdminUpdatePhoneRequest;
+import com.hoz.hozitech.domain.dtos.request.ResendEmailChangeOtpRequest;
 import com.hoz.hozitech.domain.dtos.request.UnlinkSocialAccountRequest;
 import com.hoz.hozitech.domain.dtos.request.UpdateUserRequest;
+import com.hoz.hozitech.domain.dtos.request.VerifyEmailChangeRequest;
+import com.hoz.hozitech.domain.dtos.response.AuditLogResponse;
 import com.hoz.hozitech.domain.dtos.response.LinkedSocialAccountResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.UserResponse;
@@ -24,6 +29,12 @@ public interface UserService {
     UserResponse uploadAvatar(String avatarUrl); // Typically requires multipart file handling, keeping simple signature
                                                  // for now.
 
+    void requestEmailChange(EmailChangeRequest request);
+
+    UserResponse verifyEmailChange(VerifyEmailChangeRequest request);
+
+    void resendEmailChangeOtp(ResendEmailChangeOtpRequest request);
+
     // Admin APIs
     PageResponse<UserResponse> getDetailedUsers(String keyword, String role, int page, int size, String sortBy,
             String sortDir);
@@ -31,6 +42,11 @@ public interface UserService {
     UserResponse getUserById(UUID id);
 
     UserResponse toggleUserStatus(UUID id);
+
+    UserResponse adminUpdatePhone(UUID id, AdminUpdatePhoneRequest request);
+
+    PageResponse<AuditLogResponse> getAuditLogs(String targetType, UUID targetId, int page, int size, String sortBy,
+                                                String sortDir);
 
     List<LinkedSocialAccountResponse> getCurrentUserSocialAccounts();
 

@@ -5,9 +5,11 @@ import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
 import com.hoz.hozitech.application.services.export.ExportService;
 import com.hoz.hozitech.application.services.user.UserService;
+import com.hoz.hozitech.domain.dtos.request.AdminUpdatePhoneRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.UserResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -48,6 +50,15 @@ public class AdminUserController {
         UserResponse response = userService.toggleUserStatus(id);
         String msg = UserStatus.LOCKED == response.getStatus() ? "User has been locked successfully" : "User has been unlocked successfully";
         return ResponseEntity.ok(ApiResponse.success(msg, response));
+    }
+
+    @PatchMapping("/{id}/phone")
+    public ResponseEntity<ApiResponse<UserResponse>> updatePhone(
+            @PathVariable UUID id,
+            @Valid @RequestBody AdminUpdatePhoneRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "User phone updated successfully",
+                userService.adminUpdatePhone(id, request)));
     }
 
     @GetMapping("/export")

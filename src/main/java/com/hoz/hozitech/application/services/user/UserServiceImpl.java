@@ -3,8 +3,10 @@ package com.hoz.hozitech.application.services.user;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.security.SecureRandom;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.Page;
@@ -18,19 +20,29 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
+import com.hoz.hozitech.application.repositories.EmailChangeOtpRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.repositories.UserSocialAccountRepository;
 import com.hoz.hozitech.application.services.auth.GoogleTokenVerifierService;
+import com.hoz.hozitech.application.services.audit.AuditLogService;
+import com.hoz.hozitech.application.services.email.EmailService;
 import com.hoz.hozitech.application.specifications.UserSpecification;
+import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.config.exceptions.UnauthorizedException;
+import com.hoz.hozitech.domain.dtos.request.AdminUpdatePhoneRequest;
 import com.hoz.hozitech.domain.dtos.request.ChangePasswordRequest;
+import com.hoz.hozitech.domain.dtos.request.EmailChangeRequest;
 import com.hoz.hozitech.domain.dtos.request.LinkSocialAccountRequest;
+import com.hoz.hozitech.domain.dtos.request.ResendEmailChangeOtpRequest;
 import com.hoz.hozitech.domain.dtos.request.UnlinkSocialAccountRequest;
 import com.hoz.hozitech.domain.dtos.request.UpdateUserRequest;
+import com.hoz.hozitech.domain.dtos.request.VerifyEmailChangeRequest;
+import com.hoz.hozitech.domain.dtos.response.AuditLogResponse;
 import com.hoz.hozitech.domain.dtos.response.LinkedSocialAccountResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.UserResponse;
+import com.hoz.hozitech.domain.entities.EmailChangeOtp;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.entities.UserSocialAccount;
 import com.hoz.hozitech.domain.enums.BusinessErrorCode;
@@ -46,10 +58,17 @@ public class UserServiceImpl implements UserService {
 
     private static final String PROVIDER_GOOGLE = "GOOGLE";
     private static final String AUTH_PROVIDER_LOCAL = "LOCAL";
+    private static final int EMAIL_CHANGE_OTP_TTL_MINUTES = 5;
+    private static final int EMAIL_CHANGE_OTP_RATE_WINDOW_MINUTES = 15;
+    private static final int EMAIL_CHANGE_OTP_MAX_REQUESTS = 3;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserRepository userRepository;
+    private final EmailChangeOtpRepository emailChangeOtpRepository;
     private final UserSocialAccountRepository userSocialAccountRepository;
     private final GoogleTokenVerifierService googleTokenVerifierService;
+    private final AuditLogService auditLogService;
+    private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -107,6 +126,80 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
+    public void requestEmailChange(EmailChangeRequest request) {
+        User user = getCurrentUserEntity();
+        String newEmail = normalizeEmail(request.getNewEmail());
+
+        if (newEmail.equalsIgnoreCase(user.getEmail())) {
+            throw new InvalidParamException("New email must be different from current email");
+        }
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new InvalidParamException("Current password is incorrect");
+        }
+        if (userRepository.existsByEmail(newEmail)) {
+            throw new ConflictException("Email is already in use");
+        }
+
+        enforceEmailChangeRateLimit(user.getId());
+        issueEmailChangeOtp(user, newEmail);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse verifyEmailChange(VerifyEmailChangeRequest request) {
+        User user = getCurrentUserEntity();
+        String newEmail = normalizeEmail(request.getNewEmail());
+
+        EmailChangeOtp otp = emailChangeOtpRepository.findValidOtp(user.getId(), newEmail, request.getOtpCode())
+                .orElseThrow(() -> new InvalidParamException("Invalid OTP code"));
+        if (otp.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new InvalidParamException("OTP code has expired");
+        }
+
+        if (!newEmail.equalsIgnoreCase(user.getEmail()) && userRepository.existsByEmail(newEmail)) {
+            throw new ConflictException("Email is already in use");
+        }
+
+        String oldEmail = user.getEmail();
+        user.setEmail(newEmail);
+        User savedUser = userRepository.save(user);
+
+        otp.setIsUsed(true);
+        emailChangeOtpRepository.save(otp);
+        emailChangeOtpRepository.invalidateAllByUserId(user.getId());
+
+        auditLogService.record(
+                savedUser,
+                "USER_CHANGE_EMAIL",
+                "USER",
+                savedUser.getId(),
+                oldEmail,
+                newEmail,
+                "SELF_SERVICE");
+
+        return mapToResponse(savedUser);
+    }
+
+    @Override
+    @Transactional
+    public void resendEmailChangeOtp(ResendEmailChangeOtpRequest request) {
+        User user = getCurrentUserEntity();
+        String newEmail = normalizeEmail(request.getNewEmail());
+
+        List<EmailChangeOtp> pendingRequests = emailChangeOtpRepository.findPendingRequests(user.getId(), newEmail);
+        if (pendingRequests.isEmpty()) {
+            throw new InvalidParamException("No pending email change request for this email");
+        }
+        if (!newEmail.equalsIgnoreCase(user.getEmail()) && userRepository.existsByEmail(newEmail)) {
+            throw new ConflictException("Email is already in use");
+        }
+
+        enforceEmailChangeRateLimit(user.getId());
+        issueEmailChangeOtp(user, newEmail);
+    }
+
+    @Override
     public PageResponse<UserResponse> getDetailedUsers(String keyword, String role, int page, int size, String sortBy,
             String sortDir) {
         Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(sortBy).ascending()
@@ -141,6 +234,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse toggleUserStatus(UUID id) {
+        User actor = getCurrentUserEntity();
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
@@ -148,12 +242,64 @@ public class UserServiceImpl implements UserService {
             throw new InvalidParamException("Cannot lock an admin account");
         }
 
+        UserStatus previousStatus = user.getStatus();
         if (UserStatus.ACTIVE == user.getStatus()) {
             user.setStatus(UserStatus.LOCKED);
         } else {
             user.setStatus(UserStatus.ACTIVE);
         }
-        return mapToResponse(userRepository.save(user));
+        User savedUser = userRepository.save(user);
+
+        auditLogService.record(
+                actor,
+                "ADMIN_TOGGLE_USER_STATUS",
+                "USER",
+                savedUser.getId(),
+                previousStatus.name(),
+                savedUser.getStatus().name(),
+                null);
+
+        return mapToResponse(savedUser);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse adminUpdatePhone(UUID id, AdminUpdatePhoneRequest request) {
+        User actor = getCurrentUserEntity();
+        User target = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        String normalizedPhone = request.getPhoneNumber().trim();
+        userRepository.findByPhoneNumber(normalizedPhone)
+                .filter(existing -> !existing.getId().equals(target.getId()))
+                .ifPresent(existing -> {
+                    throw new ConflictException("Phone number is already in use");
+                });
+
+        String oldPhone = target.getPhoneNumber();
+        if (oldPhone != null && oldPhone.equals(normalizedPhone)) {
+            throw new InvalidParamException("Phone number is unchanged");
+        }
+
+        target.setPhoneNumber(normalizedPhone);
+        User savedUser = userRepository.save(target);
+
+        auditLogService.record(
+                actor,
+                "ADMIN_UPDATE_USER_PHONE",
+                "USER",
+                savedUser.getId(),
+                oldPhone,
+                normalizedPhone,
+                request.getReason().trim());
+
+        return mapToResponse(savedUser);
+    }
+
+    @Override
+    public PageResponse<AuditLogResponse> getAuditLogs(String targetType, UUID targetId, int page, int size,
+                                                       String sortBy, String sortDir) {
+        return auditLogService.getAuditLogs(targetType, targetId, page, size, sortBy, sortDir);
     }
 
     @Override
@@ -254,6 +400,43 @@ public class UserServiceImpl implements UserService {
         }
 
         userSocialAccountRepository.delete(socialAccount);
+    }
+
+    private void issueEmailChangeOtp(User user, String newEmail) {
+        String otpCode = generateOtpCode();
+        emailChangeOtpRepository.invalidateAllByUserId(user.getId());
+        emailChangeOtpRepository.save(EmailChangeOtp.builder()
+                .user(user)
+                .newEmail(newEmail)
+                .otpCode(otpCode)
+                .expiresAt(LocalDateTime.now().plusMinutes(EMAIL_CHANGE_OTP_TTL_MINUTES))
+                .isUsed(false)
+                .build());
+
+        emailService.sendTemplateMail(
+                newEmail,
+                "Mã xác thực đổi email - HoziTech",
+                "otp-email",
+                Map.of("otpCode", otpCode));
+    }
+
+    private void enforceEmailChangeRateLimit(UUID userId) {
+        LocalDateTime since = LocalDateTime.now().minusMinutes(EMAIL_CHANGE_OTP_RATE_WINDOW_MINUTES);
+        long recentRequests = emailChangeOtpRepository.countRecentRequests(userId, since);
+        if (recentRequests >= EMAIL_CHANGE_OTP_MAX_REQUESTS) {
+            throw new InvalidParamException("Too many OTP requests. Please try again later");
+        }
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null || email.isBlank()) {
+            throw new InvalidParamException("Email is required");
+        }
+        return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String generateOtpCode() {
+        return String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
     }
 
     private boolean isLocalAccount(User user) {
