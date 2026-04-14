@@ -17,7 +17,7 @@ public interface BrandService {
     BrandResponse getBrandById(UUID id);
 
     // Admin
-    PageResponse<BrandResponse> getAdminBrands(String keyword, int page, int size);
+    PageResponse<BrandResponse> getAdminBrands(String keyword, UUID categoryId, int page, int size);
 
     BrandResponse createBrand(BrandRequest request);
 

@@ -24,10 +24,11 @@ public class AdminBrandController {
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<BrandResponse>>> getAdminBrands(
             @RequestParam(required = false, defaultValue = "") String keyword,
+            @RequestParam(required = false) UUID categoryId,
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
         return ResponseEntity.ok(ApiResponse.success("Fetch admin brands successfully",
-                brandService.getAdminBrands(keyword, page, size)));
+                brandService.getAdminBrands(keyword, categoryId, page, size)));
     }
 
     @PostMapping

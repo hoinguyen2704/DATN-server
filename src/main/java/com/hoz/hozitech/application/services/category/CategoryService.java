@@ -19,7 +19,7 @@ public interface CategoryService {
     List<CategoryResponse> getAllActiveCategories();
 
     // Admin operations
-    PageResponse<CategoryResponse> getAdminCategories(String keyword, int page, int size);
+    PageResponse<CategoryResponse> getAdminCategories(String keyword, UUID brandId, int page, int size);
 
     CategoryResponse createCategory(CategoryRequest request);
 

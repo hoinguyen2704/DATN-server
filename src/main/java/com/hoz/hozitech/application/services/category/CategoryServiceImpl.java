@@ -82,10 +82,17 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<CategoryResponse> getAdminCategories(String keyword, int page, int size) {
+    public PageResponse<CategoryResponse> getAdminCategories(String keyword, UUID brandId, int page, int size) {
         Pageable pageable = PaginationConstant.of(page, size);
         Page<Category> categories;
-        if (keyword != null && !keyword.isBlank()) {
+        boolean hasKeyword = keyword != null && !keyword.isBlank();
+        if (brandId != null) {
+            if (hasKeyword) {
+                categories = categoryRepository.findByKeywordAndBrandId(keyword, brandId, pageable);
+            } else {
+                categories = categoryRepository.findByBrandId(brandId, pageable);
+            }
+        } else if (hasKeyword) {
             categories = categoryRepository.findByNameContainingIgnoreCase(keyword, pageable);
         } else {
             categories = categoryRepository.findAll(pageable);

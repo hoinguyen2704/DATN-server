@@ -28,4 +28,54 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
     List<Category> findAllRootCategoriesWithChildren();
 
     Page<Category> findByNameContainingIgnoreCase(String keyword, Pageable pageable);
+
+    @Query(
+            value = """
+                    select c
+                    from Category c
+                    where exists (
+                        select 1
+                        from Product p
+                        where p.category = c
+                          and p.brand.id = :brandId
+                    )
+                    """,
+            countQuery = """
+                    select count(c)
+                    from Category c
+                    where exists (
+                        select 1
+                        from Product p
+                        where p.category = c
+                          and p.brand.id = :brandId
+                    )
+                    """
+    )
+    Page<Category> findByBrandId(UUID brandId, Pageable pageable);
+
+    @Query(
+            value = """
+                    select c
+                    from Category c
+                    where lower(c.name) like lower(concat('%', :keyword, '%'))
+                      and exists (
+                          select 1
+                          from Product p
+                          where p.category = c
+                            and p.brand.id = :brandId
+                      )
+                    """,
+            countQuery = """
+                    select count(c)
+                    from Category c
+                    where lower(c.name) like lower(concat('%', :keyword, '%'))
+                      and exists (
+                          select 1
+                          from Product p
+                          where p.category = c
+                            and p.brand.id = :brandId
+                      )
+                    """
+    )
+    Page<Category> findByKeywordAndBrandId(String keyword, UUID brandId, Pageable pageable);
 }

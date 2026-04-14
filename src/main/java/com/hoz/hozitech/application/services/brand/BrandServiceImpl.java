@@ -55,10 +55,17 @@ public class BrandServiceImpl implements BrandService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<BrandResponse> getAdminBrands(String keyword, int page, int size) {
+    public PageResponse<BrandResponse> getAdminBrands(String keyword, UUID categoryId, int page, int size) {
         Pageable pageable = PaginationConstant.of(page, size);
         Page<Brand> brands;
-        if (keyword != null && !keyword.isBlank()) {
+        boolean hasKeyword = keyword != null && !keyword.isBlank();
+        if (categoryId != null) {
+            if (hasKeyword) {
+                brands = brandRepository.findByKeywordAndCategoryId(keyword, categoryId, pageable);
+            } else {
+                brands = brandRepository.findByCategoryId(categoryId, pageable);
+            }
+        } else if (hasKeyword) {
             brands = brandRepository.findByNameContainingIgnoreCase(keyword, pageable);
         } else {
             brands = brandRepository.findAll(pageable);
