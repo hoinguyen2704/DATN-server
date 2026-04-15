@@ -2,7 +2,6 @@ package com.hoz.hozitech.domain.dtos.request;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,11 +20,7 @@ public class ProductVariantRequest {
 
     private UUID id;
 
-    @NotBlank(message = "SKU is required")
     private String sku;
-
-    @NotBlank(message = "Variant name is required")
-    private String variantName;
 
     @NotNull(message = "Price is required")
     @DecimalMin(value = "0.0", inclusive = true, message = "Price must be greater than or equal to 0")
@@ -39,5 +34,18 @@ public class ProductVariantRequest {
 
     private Boolean active;
 
+    private List<VariantSelectionRequest> selections;
+
     private List<ProductImageRequest> images;
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class VariantSelectionRequest {
+        @NotNull(message = "Variant attribute id is required")
+        private UUID variantAttributeId;
+        @NotNull(message = "Option id is required")
+        private UUID optionId;
+    }
 }

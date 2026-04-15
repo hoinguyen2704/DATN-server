@@ -54,5 +54,10 @@ public class Category extends AbstractAuditingEntity {
     @Builder.Default
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
-    private List<CategorySpecMapping> specMappings = new ArrayList<>();
+    private List<CategoryVariantAttribute> categoryVariantAttributes = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sortOrder ASC")
+    private List<CategorySpecAttribute> categorySpecAttributes = new ArrayList<>();
 }

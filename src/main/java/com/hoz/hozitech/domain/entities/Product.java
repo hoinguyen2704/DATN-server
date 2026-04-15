@@ -1,8 +1,6 @@
 package com.hoz.hozitech.domain.entities;
 
 import org.hibernate.annotations.Formula;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hoz.hozitech.domain.entities.base.AbstractAuditingEntity;
 import jakarta.persistence.*;
@@ -42,9 +40,8 @@ public class Product extends AbstractAuditingEntity {
     @Column(name = "origin_price", nullable = false, precision = 15, scale = 2)
     private BigDecimal originPrice;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "specs_json", columnDefinition = "jsonb")
-    private String specsJson;
+    @Column(name = "product_code", nullable = false, unique = true, length = 12)
+    private String productCode;
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
@@ -66,6 +63,10 @@ public class Product extends AbstractAuditingEntity {
     @Builder.Default
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> images = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductSpecValue> specValues = new ArrayList<>();
 
     @Builder.Default
     @JsonIgnore

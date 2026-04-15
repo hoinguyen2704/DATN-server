@@ -7,5 +7,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface SpecAttributeRepository extends JpaRepository<SpecAttribute, UUID> {
-    Optional<SpecAttribute> findByName(String name);
+    Optional<SpecAttribute> findByNameIgnoreCase(String name);
+    Optional<SpecAttribute> findByCodeIgnoreCase(String code);
 }

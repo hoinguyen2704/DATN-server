@@ -46,6 +46,12 @@ public class AdminCategoryController {
                 .ok(ApiResponse.success("Category updated successfully", categoryService.updateCategory(id, request)));
     }
 
+    @GetMapping("/{id}/schema")
+    public ResponseEntity<ApiResponse<CategoryResponse>> getCategorySchema(@PathVariable UUID id) {
+        return ResponseEntity
+                .ok(ApiResponse.success("Fetch category schema successfully", categoryService.getCategorySchema(id)));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteCategory(@PathVariable UUID id) {
         categoryService.deleteCategory(id);

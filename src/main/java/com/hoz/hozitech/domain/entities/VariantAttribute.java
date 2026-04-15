@@ -8,36 +8,27 @@ import lombok.experimental.SuperBuilder;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Master list of product spec attributes.
- */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
 @Entity
-@Table(name = "spec_attributes")
-public class SpecAttribute extends AbstractAuditingEntity {
+@Table(name = "variant_attributes")
+public class VariantAttribute extends AbstractAuditingEntity {
 
-    @Column(name = "name", nullable = false, unique = true, length = 100)
+    @Column(name = "name", nullable = false, length = 100)
     private String name;
 
     @Column(name = "code", nullable = false, unique = true, length = 80)
     private String code;
-
-    @Column(name = "default_hint", length = 255)
-    private String defaultHint;
-
-    @Builder.Default
-    @Column(name = "sort_order", nullable = false)
-    private Integer sortOrder = 0;
 
     @Builder.Default
     @Column(name = "active", nullable = false)
     private Boolean active = Boolean.TRUE;
 
     @Builder.Default
-    @OneToMany(mappedBy = "specAttribute")
-    private List<CategorySpecAttribute> categorySpecAttributes = new ArrayList<>();
+    @OneToMany(mappedBy = "variantAttribute", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<VariantAttributeOption> options = new ArrayList<>();
 }
+

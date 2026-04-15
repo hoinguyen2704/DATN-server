@@ -15,13 +15,33 @@ import java.util.UUID;
 @NoArgsConstructor
 public class ProductVariantResponse {
     private UUID id;
+    private String displayName;
+    // Alias for downstream screens not yet renamed.
     private String variantName;
-    private String color;
     private String sku;
-    private String storageCapacity;
+    private String variantSignature;
     private BigDecimal price;
     private BigDecimal compareAtPrice;
     private Integer stockQuantity;
     private Boolean active;
+    private List<VariantAttributeValueResponse> selections;
+    // Backward-compatible alias for legacy clients.
+    private List<VariantAttributeValueResponse> attributes;
     private List<ProductImageResponse> images;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class VariantAttributeValueResponse {
+        private UUID variantAttributeId;
+        private String attributeName;
+        private String attributeCode;
+        // Backward-compatible aliases for legacy clients.
+        private String variantAttributeName;
+        private String variantAttributeCode;
+        private UUID optionId;
+        private String optionLabel;
+        private String optionCode;
+    }
 }

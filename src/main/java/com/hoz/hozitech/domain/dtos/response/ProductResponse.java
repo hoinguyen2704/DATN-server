@@ -23,13 +23,15 @@ public class ProductResponse {
     private UUID brandId;
     private String brandName;
     private CategoryResponse category; // Brief info or full category hierarchy depending on mapping
+    private String productCode;
     private BigDecimal originPrice;
     private BigDecimal lowestPrice;
     private Double averageRating;
     private Integer totalReviews;
     private ProductStatus status;
     private Boolean isFeatured;
-    private String specsJson;
+    private List<SpecSchemaResponse> specSchema;
+    private List<ProductSpecValueResponse> specs;
     private Integer totalSold;
     private LocalDateTime createdAt;
 
@@ -39,5 +41,56 @@ public class ProductResponse {
 
     // Complex mapping
     private List<ProductImageResponse> images;
+    private List<VariantAttributeSchemaResponse> variantSchema;
     private List<ProductVariantResponse> variants;
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class ProductSpecValueResponse {
+        private UUID specAttributeId;
+        private String name;
+        private String code;
+        // Backward-compatible alias for legacy clients.
+        private String specCode;
+        private String value;
+        private Integer sortOrder;
+    }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class SpecSchemaResponse {
+        private UUID id;
+        private String name;
+        private String code;
+        private String hint;
+        private Integer sortOrder;
+    }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class VariantAttributeSchemaResponse {
+        private UUID id;
+        private String name;
+        private String code;
+        private Integer sortOrder;
+        private List<VariantOptionResponse> options;
+    }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class VariantOptionResponse {
+        private UUID id;
+        private String label;
+        private String code;
+        private Integer sortOrder;
+        private Boolean active;
+    }
 }

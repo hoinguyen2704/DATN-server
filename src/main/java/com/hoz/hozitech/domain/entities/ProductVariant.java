@@ -17,21 +17,19 @@ import java.util.List;
 @Builder
 @Entity
 @Table(name = "product_variants", uniqueConstraints = {
-        @UniqueConstraint(columnNames = "sku")
+        @UniqueConstraint(columnNames = "sku"),
+        @UniqueConstraint(columnNames = {"product_id", "variant_signature"})
 })
 public class ProductVariant extends AbstractAuditingEntity {
 
     @Column(name = "sku", nullable = false, length = 100)
     private String sku;
 
-    @Column(name = "variant_name", nullable = false, length = 255)
+    @Column(name = "display_name", nullable = false, length = 255)
     private String variantName;
 
-    @Column(name = "color", length = 255)
-    private String color;
-
-    @Column(name = "capacity", length = 255)
-    private String capacity;
+    @Column(name = "variant_signature", nullable = false, length = 500)
+    private String variantSignature;
 
     @Column(name = "price", nullable = false, precision = 15, scale = 2)
     private BigDecimal price;
@@ -56,4 +54,8 @@ public class ProductVariant extends AbstractAuditingEntity {
     @Builder.Default
     @OneToMany(mappedBy = "variant", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> images = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "productVariant", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductVariantAttributeValue> attributeValues = new ArrayList<>();
 }

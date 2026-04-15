@@ -16,6 +16,8 @@ public interface CategoryService {
 
     CategoryResponse getCategoryById(UUID id);
 
+    CategoryResponse getCategorySchema(UUID id);
+
     List<CategoryResponse> getAllActiveCategories();
 
     // Admin operations

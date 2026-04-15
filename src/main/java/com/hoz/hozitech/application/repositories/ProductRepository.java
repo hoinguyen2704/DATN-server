@@ -22,6 +22,10 @@ public interface ProductRepository extends JpaRepository<Product, UUID>, JpaSpec
 
     boolean existsByName(String name);
 
+    boolean existsByProductCode(String productCode);
+
+    boolean existsByProductCodeAndIdNot(String productCode, UUID id);
+
     @Query("SELECT AVG(f.rating) FROM Feedback f WHERE f.product.id = :productId")
     Double getAverageRating(@Param("productId") UUID productId);
 

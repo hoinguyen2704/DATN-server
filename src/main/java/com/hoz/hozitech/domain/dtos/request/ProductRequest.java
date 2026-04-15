@@ -32,7 +32,7 @@ public class ProductRequest {
     @DecimalMin(value = "0.0", inclusive = true, message = "Origin price must be greater than or equal to 0")
     private BigDecimal originPrice;
 
-    private String specsJson;
+    private String productCode;
 
     @NotNull(message = "Category ID is required")
     private UUID categoryId;
@@ -45,5 +45,19 @@ public class ProductRequest {
     private List<ProductVariantRequest> variants;
 
     @Valid
+    private List<ProductSpecRequest> specs;
+
+    @Valid
     private List<ProductImageRequest> images;
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class ProductSpecRequest {
+        @NotNull(message = "Spec attribute id is required")
+        private UUID specAttributeId;
+        @NotBlank(message = "Spec value is required")
+        private String value;
+    }
 }

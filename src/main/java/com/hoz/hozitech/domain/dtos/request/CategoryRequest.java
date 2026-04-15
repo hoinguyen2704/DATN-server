@@ -25,13 +25,39 @@ public class CategoryRequest {
 
     private Boolean active;
 
-    private List<SpecTemplateItem> specTemplates;
+    private List<VariantAttributeItem> variantAttributes;
+
+    private List<SpecAttributeItem> specAttributes;
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class SpecTemplateItem {
-        private String specKey;
+    public static class VariantAttributeItem {
+        private UUID attributeId;
+        private String name;
+        private String code;
+        private Integer sortOrder;
+        private List<VariantOptionItem> options;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class VariantOptionItem {
+        private UUID id;
+        private String label;
+        private String code;
+        private Integer sortOrder;
+        private Boolean active;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SpecAttributeItem {
+        private UUID attributeId;
+        private String name;
+        private String code;
         private String hint;
         private Integer sortOrder;
     }
