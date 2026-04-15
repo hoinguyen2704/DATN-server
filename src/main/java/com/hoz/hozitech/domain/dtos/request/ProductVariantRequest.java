@@ -11,12 +11,15 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class ProductVariantRequest {
+
+    private UUID id;
 
     @NotBlank(message = "SKU is required")
     private String sku;

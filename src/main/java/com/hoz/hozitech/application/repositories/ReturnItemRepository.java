@@ -15,6 +15,7 @@ public interface ReturnItemRepository extends JpaRepository<ReturnItem, UUID> {
             "WHERE ri.orderItem.id = :orderItemId " +
             "AND rr.status NOT IN (" +
             "com.hoz.hozitech.domain.enums.ReturnRequestStatus.REJECTED, " +
-            "com.hoz.hozitech.domain.enums.ReturnRequestStatus.CANCELLED)")
+            "com.hoz.hozitech.domain.enums.ReturnRequestStatus.CANCELLED, " +
+            "com.hoz.hozitech.domain.enums.ReturnRequestStatus.CLOSED)")
     boolean existsInNonRejectedRequest(@Param("orderItemId") UUID orderItemId);
 }

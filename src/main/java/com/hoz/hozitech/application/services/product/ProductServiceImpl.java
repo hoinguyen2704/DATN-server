@@ -3,9 +3,11 @@ package com.hoz.hozitech.application.services.product;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -204,16 +206,41 @@ public class ProductServiceImpl implements ProductService {
         if (request.getIsFeatured() != null) product.setIsFeatured(request.getIsFeatured());
 
         // Do NOT clear variants completely, this breaks historical order_items foreign keys!
-        // Instead, merge variants based on SKU.
+        // Instead, merge variants by id (preferred), fallback by SKU for backward compatibility.
         if (request.getVariants() != null) {
-            Map<String, ProductVariant> existingVariantsMap = product.getVariants().stream()
-                    .collect(Collectors.toMap(ProductVariant::getSku, v -> v, (v1, v2) -> v1)); // handle duplicate skus
+            Set<String> requestSkus = new HashSet<>();
+            for (ProductVariantRequest varReq : request.getVariants()) {
+                String normalizedSku = varReq.getSku() == null ? "" : varReq.getSku().trim();
+                if (!requestSkus.add(normalizedSku)) {
+                    throw new ConflictException("SKU bị trùng trong danh sách phân loại: " + normalizedSku);
+                }
+            }
+
+            Map<UUID, ProductVariant> existingVariantsById = product.getVariants().stream()
+                    .collect(Collectors.toMap(ProductVariant::getId, v -> v, (v1, v2) -> v1));
+            Map<String, ProductVariant> existingVariantsBySku = product.getVariants().stream()
+                    .collect(Collectors.toMap(ProductVariant::getSku, v -> v, (v1, v2) -> v1));
+            Set<UUID> processedVariantIds = new HashSet<>();
 
             for (ProductVariantRequest varReq : request.getVariants()) {
-                ProductVariant variant = existingVariantsMap.get(varReq.getSku());
+                ProductVariant variant = null;
+                if (varReq.getId() != null) {
+                    variant = existingVariantsById.get(varReq.getId());
+                }
+                if (variant == null) {
+                    variant = existingVariantsBySku.get(varReq.getSku());
+                }
 
                 if (variant != null) {
                     // 1. Update existing variant gracefully
+                    ProductVariant skuOwner = existingVariantsBySku.get(varReq.getSku());
+                    if (skuOwner != null && !skuOwner.getId().equals(variant.getId())
+                            && !processedVariantIds.contains(skuOwner.getId())) {
+                        throw new ConflictException("SKU đã tồn tại: " + varReq.getSku());
+                    }
+
+                    String oldSku = variant.getSku();
+                    variant.setSku(varReq.getSku());
                     variant.setVariantName(varReq.getVariantName());
                     variant.setPrice(varReq.getPrice());
                     variant.setCompareAtPrice(varReq.getCompareAtPrice());
@@ -232,7 +259,9 @@ public class ProductServiceImpl implements ProductService {
                             variant.getImages().add(vImg);
                         }
                     }
-                    existingVariantsMap.remove(varReq.getSku()); // Mark as processed
+                    existingVariantsBySku.remove(oldSku);
+                    existingVariantsBySku.put(variant.getSku(), variant);
+                    processedVariantIds.add(variant.getId()); // Mark as processed
                 } else {
                     // 2. Create entirely new variant
                     ProductVariant newVariant = ProductVariant.builder()
@@ -258,15 +287,18 @@ public class ProductServiceImpl implements ProductService {
                         }
                     }
                     product.getVariants().add(newVariant);
+                    existingVariantsBySku.put(newVariant.getSku(), newVariant);
                 }
             }
 
-            // 3. For any variant that remains in the map, it means the Admin removed it from the UI.
+            // 3. For any variant that remains unprocessed, it means the Admin removed it from the UI.
             // We MUST NOT delete it from product.getVariants() to prevent ForeignKey violations on old Orders.
             // Soft-deactivate it instead.
-            for (ProductVariant removedVariant : existingVariantsMap.values()) {
-                removedVariant.setActive(false);
-                removedVariant.setStock(0);
+            for (ProductVariant existingVariant : existingVariantsById.values()) {
+                if (!processedVariantIds.contains(existingVariant.getId())) {
+                    existingVariant.setActive(false);
+                    existingVariant.setStock(0);
+                }
             }
         }
         return mapToDetailedResponse(productRepository.save(product));

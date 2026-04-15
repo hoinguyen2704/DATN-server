@@ -251,7 +251,7 @@ class ReturnServiceImplTest {
         Order order = buildOrder(UUID.randomUUID(), "ORD-2026-REF", user, OrderStatus.SHIPPED, PaymentStatus.COMPLETED, List.of());
         ReturnRequest returnRequest = ReturnRequest.builder()
                 .returnNumber("RET-20260408-BBB222")
-                .status(ReturnRequestStatus.APPROVED)
+                .status(ReturnRequestStatus.QC_PASSED)
                 .refundStatus(RefundStatus.PENDING)
                 .reason("Khach yeu cau tra")
                 .requestedAmount(new BigDecimal("200000.00"))
@@ -277,6 +277,7 @@ class ReturnServiceImplTest {
                         .amount(new BigDecimal("120000"))
                         .provider("VNPAY")
                         .transactionId("TX-001")
+                        .adminNote("Da doi soat va xac nhan da chuyen tien")
                         .build(),
                 idempotencyKey);
 
@@ -293,6 +294,46 @@ class ReturnServiceImplTest {
         assertEquals("120000.00", refundCaptor.getValue().getAmount().toPlainString());
 
         verify(orderStatusHistoryRepository).save(any());
+    }
+
+    @Test
+    void processRefund_shouldRejectWhenStatusIsApprovedOnly() {
+        UUID returnRequestId = UUID.randomUUID();
+        String idempotencyKey = "refund-key-approved";
+
+        User user = buildUser(UUID.randomUUID());
+        Order order = buildOrder(UUID.randomUUID(), "ORD-2026-APPROVED", user, OrderStatus.SHIPPED, PaymentStatus.COMPLETED, List.of());
+        ReturnRequest returnRequest = ReturnRequest.builder()
+                .returnNumber("RET-20260408-CCC333")
+                .status(ReturnRequestStatus.APPROVED)
+                .refundStatus(RefundStatus.PENDING)
+                .reason("Khach yeu cau tra")
+                .requestedAmount(new BigDecimal("100000.00"))
+                .approvedAmount(new BigDecimal("100000.00"))
+                .refundAmount(new BigDecimal("0.00"))
+                .user(user)
+                .order(order)
+                .items(new ArrayList<>())
+                .refundTransactions(new ArrayList<>())
+                .build();
+        returnRequest.setId(returnRequestId);
+
+        when(refundTransactionRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.empty());
+        when(returnRequestRepository.findByIdForUpdate(returnRequestId)).thenReturn(Optional.of(returnRequest));
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> service.processRefund(
+                        returnRequestId,
+                        ProcessRefundRequest.builder()
+                                .amount(new BigDecimal("50000"))
+                                .provider("MANUAL")
+                                .transactionId("TX-APP-001")
+                                .adminNote("Kiem tra thanh toan thu cong")
+                                .build(),
+                        idempotencyKey));
+
+        assertEquals(BusinessErrorCode.REFUND_NOT_ALLOWED, ex.getErrorCode());
     }
 
     @Test

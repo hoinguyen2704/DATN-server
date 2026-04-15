@@ -431,22 +431,38 @@ public class ReturnServiceImpl implements ReturnService {
                 .orElseThrow(() -> new BusinessException(BusinessErrorCode.RETURN_NOT_FOUND, "Return request not found"));
 
         if (rr.getStatus() != ReturnRequestStatus.QC_PASSED
-                && rr.getStatus() != ReturnRequestStatus.REFUND_PENDING
-                && rr.getStatus() != ReturnRequestStatus.APPROVED) {
+                && rr.getStatus() != ReturnRequestStatus.REFUND_PENDING) {
             throw new BusinessException(
                     BusinessErrorCode.REFUND_NOT_ALLOWED,
-                    "Refund is allowed only for approved/QC-passed return requests");
+                    "Refund is allowed only for QC-passed/refund-pending return requests");
         }
 
         BigDecimal baseAmount = rr.getApprovedAmount() != null ? rr.getApprovedAmount() : rr.getRequestedAmount();
         baseAmount = money(baseAmount);
 
-        BigDecimal refundAmount = request.getAmount() != null ? money(request.getAmount()) : baseAmount;
+        if (request.getAmount() == null) {
+            throw new BusinessException(BusinessErrorCode.REFUND_AMOUNT_INVALID, "Refund amount is required");
+        }
+        BigDecimal refundAmount = money(request.getAmount());
         if (refundAmount.compareTo(ZERO) <= 0 || refundAmount.compareTo(baseAmount) > 0) {
             throw new BusinessException(BusinessErrorCode.REFUND_AMOUNT_INVALID, "Refund amount is invalid");
         }
 
         String provider = normalizeProvider(request.getProvider());
+        if (provider == null) {
+            throw new BusinessException(BusinessErrorCode.REFUND_NOT_ALLOWED, "Refund provider is required");
+        }
+
+        String transactionId = trimToNull(request.getTransactionId());
+        if (transactionId == null) {
+            throw new BusinessException(BusinessErrorCode.REFUND_NOT_ALLOWED, "Refund transactionId is required");
+        }
+
+        String adminNote = trimToNull(request.getAdminNote());
+        if (adminNote == null) {
+            throw new BusinessException(BusinessErrorCode.REFUND_NOT_ALLOWED, "Refund admin note is required");
+        }
+
         String currency = normalizeCurrency(request.getCurrency());
         if (currency == null) {
             currency = normalizeCurrency(settingService.getSettingValue("CURRENCY"));
@@ -458,7 +474,7 @@ public class ReturnServiceImpl implements ReturnService {
         RefundTransaction refundTx = RefundTransaction.builder()
                 .idempotencyKey(normalizedKey)
                 .provider(provider)
-                .transactionId(trimToNull(request.getTransactionId()))
+                .transactionId(transactionId)
                 .status(RefundStatus.SUCCESS)
                 .amount(refundAmount)
                 .currency(currency)
@@ -470,6 +486,7 @@ public class ReturnServiceImpl implements ReturnService {
 
         rr.setStatus(ReturnRequestStatus.REFUNDED);
         rr.setRefundStatus(RefundStatus.SUCCESS);
+        rr.setAdminNote(adminNote);
         rr.setRefundAmount(refundAmount);
         rr.setResolvedAt(LocalDateTime.now());
         if (rr.getApprovedAmount() == null) {
@@ -479,7 +496,7 @@ public class ReturnServiceImpl implements ReturnService {
         markOrderAsRefunded(rr.getOrder(), "Hoàn tiền thành công cho yêu cầu " + rr.getReturnNumber());
         ReturnRequest saved = returnRequestRepository.save(rr);
 
-        appendReturnStatusHistory(saved, ReturnRequestStatus.REFUNDED, "Hoàn tiền thành công");
+        appendReturnStatusHistory(saved, ReturnRequestStatus.REFUNDED, "Hoàn tiền thành công, mã giao dịch: " + transactionId);
 
         notificationService.createForUser(
                 saved.getUser().getId(),
@@ -636,9 +653,7 @@ public class ReturnServiceImpl implements ReturnService {
 
     private String normalizeProvider(String provider) {
         String normalized = trimToNull(provider);
-        if (normalized == null) {
-            return "MANUAL";
-        }
+        if (normalized == null) return null;
         return normalized.toUpperCase(Locale.ROOT);
     }
 

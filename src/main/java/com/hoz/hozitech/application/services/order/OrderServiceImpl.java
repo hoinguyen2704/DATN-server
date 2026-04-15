@@ -53,22 +53,15 @@ public class OrderServiceImpl implements OrderService {
     private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_STATUS_TRANSITIONS = Map.of(
             OrderStatus.PENDING, EnumSet.of(
                     OrderStatus.CONFIRMED,
-                    OrderStatus.PROCESSING,
-                    OrderStatus.SHIPPING,
-                    OrderStatus.SHIPPED,
                     OrderStatus.CANCELLED),
             OrderStatus.CONFIRMED, EnumSet.of(
                     OrderStatus.PROCESSING,
-                    OrderStatus.SHIPPING,
-                    OrderStatus.SHIPPED,
                     OrderStatus.CANCELLED),
             OrderStatus.PROCESSING, EnumSet.of(
                     OrderStatus.SHIPPING,
-                    OrderStatus.SHIPPED,
                     OrderStatus.CANCELLED),
             OrderStatus.SHIPPING, EnumSet.of(
-                    OrderStatus.SHIPPED,
-                    OrderStatus.RETURNED),
+                    OrderStatus.SHIPPED),
             OrderStatus.SHIPPED, EnumSet.of(OrderStatus.RETURNED),
             OrderStatus.CANCELLED, EnumSet.noneOf(OrderStatus.class),
             OrderStatus.RETURNED, EnumSet.noneOf(OrderStatus.class)
