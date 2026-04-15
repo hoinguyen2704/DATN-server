@@ -11,6 +11,7 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestAPI("${api.prefix-admin}/dashboard")
 @RoleAdmin
@@ -25,6 +26,15 @@ public class AdminDashboardController {
             @RequestParam(value = "period", defaultValue = "MONTH") String period) {
         return ResponseEntity.ok(ApiResponse.success("Dashboard stats fetched successfully",
                 dashboardService.getDashboardStats(period)));
+    }
+
+    @GetMapping("/top-variants")
+    public ResponseEntity<ApiResponse<List<DashboardStatsResponse.TopVariantItem>>> getTopVariants(
+            @RequestParam(value = "period", defaultValue = "MONTH") String period,
+            @RequestParam(value = "limit", defaultValue = "50") int limit) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Top variants fetched successfully",
+                dashboardService.getTopVariants(period, limit)));
     }
 
     @GetMapping("/export")

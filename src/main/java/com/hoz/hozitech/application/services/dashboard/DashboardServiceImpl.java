@@ -25,6 +25,7 @@ public class DashboardServiceImpl implements DashboardService {
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
+    private final ReturnItemRepository returnItemRepository;
     private final UserRepository userRepository;
     private final FeedbackRepository feedbackRepository;
 
@@ -53,12 +54,22 @@ public class DashboardServiceImpl implements DashboardService {
                 .revenueChart(buildRevenueChart(period, from, to))
                 // Top Lists
                 .topProducts(buildTopProducts(from, to))
+                .topVariants(buildTopVariants(from, to, 10))
                 .topCategories(buildTopCategories(from, to))
                 .topCustomers(buildTopCustomers(from, to))
                 .recentOrders(buildRecentOrders())
                 // Review Analytics
                 .ratingDistribution(buildRatingDistribution())
                 .build();
+    }
+
+    @Override
+    public List<TopVariantItem> getTopVariants(String period, int limit) {
+        LocalDateTime[] range = getDateRange(period);
+        LocalDateTime from = range[0];
+        LocalDateTime to = range[1];
+        int safeLimit = Math.max(1, Math.min(limit, 200));
+        return buildTopVariants(from, to, safeLimit);
     }
 
     private List<RevenueChartItem> buildRevenueChart(String period, LocalDateTime from, LocalDateTime to) {
@@ -94,6 +105,39 @@ public class DashboardServiceImpl implements DashboardService {
                 .revenue((BigDecimal) row[4])
                 .build()
         ).collect(Collectors.toList());
+    }
+
+    private List<TopVariantItem> buildTopVariants(LocalDateTime from, LocalDateTime to, int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, 200));
+        List<Object[]> rows = orderItemRepository.findTopSellingVariants(from, to, PageRequest.of(0, safeLimit));
+        List<UUID> variantIds = rows.stream()
+                .map(row -> (UUID) row[0])
+                .filter(Objects::nonNull)
+                .toList();
+
+        Map<UUID, Long> returnedByVariantId = variantIds.isEmpty()
+                ? Map.of()
+                : returnItemRepository.sumReturnedQuantityByVariantIdsBetween(variantIds, from, to).stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> ((Number) row[1]).longValue(),
+                        Long::sum));
+
+        return rows.stream().map(row -> {
+            UUID variantId = (UUID) row[0];
+            long grossSoldQty = ((Number) row[4]).longValue();
+            long returnedQty = returnedByVariantId.getOrDefault(variantId, 0L);
+            return TopVariantItem.builder()
+                    .variantId(variantId.toString())
+                    .productId(row[1].toString())
+                    .productName((String) row[2])
+                    .variantName((String) row[3])
+                    .totalSold(grossSoldQty)
+                    .returnedQty(returnedQty)
+                    .netSoldQty(Math.max(grossSoldQty - returnedQty, 0L))
+                    .revenue((BigDecimal) row[5])
+                    .build();
+        }).collect(Collectors.toList());
     }
 
     private List<TopCategoryItem> buildTopCategories(LocalDateTime from, LocalDateTime to) {

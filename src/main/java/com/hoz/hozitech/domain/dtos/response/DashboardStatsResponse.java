@@ -31,6 +31,7 @@ public class DashboardStatsResponse {
 
     // --- Top Lists ---
     private List<TopProductItem> topProducts;
+    private List<TopVariantItem> topVariants;
     private List<TopCategoryItem> topCategories;
     private List<TopCustomerItem> topCustomers;
     private List<RecentOrderItem> recentOrders;
@@ -59,6 +60,22 @@ public class DashboardStatsResponse {
         private String name;
         private String imageUrl;
         private long totalSold;
+        private BigDecimal revenue;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class TopVariantItem {
+        private String variantId;
+        private String productId;
+        private String productName;
+        private String variantName;
+        private long totalSold;
+        private long returnedQty;
+        private long netSoldQty;
         private BigDecimal revenue;
     }
 

@@ -21,7 +21,7 @@ import static com.hoz.hozitech.application.services.export.ExportHelpers.*;
 
 /**
  * Generates dashboard PDF reports for various report types
- * (orders, revenue, products, customers, returns, reviews).
+ * (orders, revenue, products, variants, customers, returns, reviews).
  */
 @Component
 @RequiredArgsConstructor
@@ -59,6 +59,10 @@ public class DashboardReportExporter {
                     break;
                 case "products":
                     buildProductsReportPdf(document, stats, headerFont, normalFont, boldFont, greenBoldFont,
+                            altRowColor);
+                    break;
+                case "variants":
+                    buildVariantsReportPdf(document, stats, headerFont, normalFont, boldFont, greenBoldFont,
                             altRowColor);
                     break;
                 case "customers":
@@ -121,6 +125,9 @@ public class DashboardReportExporter {
                 break;
             case "products":
                 reportTitle = "BÁO CÁO SẢN PHẨM BÁN CHẠY";
+                break;
+            case "variants":
+                reportTitle = "BÁO CÁO PHÂN LOẠI BÁN CHẠY";
                 break;
             case "customers":
                 reportTitle = "BÁO CÁO KHÁCH HÀNG TIỀM NĂNG";
@@ -376,6 +383,79 @@ public class DashboardReportExporter {
             c4.setBackgroundColor(bgColor);
             c4.setHorizontalAlignment(Element.ALIGN_RIGHT);
             table.addCell(c4);
+
+            rank++;
+        }
+
+        document.add(table);
+    }
+
+    // Variants Report
+
+    private void buildVariantsReportPdf(Document document, DashboardStatsResponse stats,
+            Font headerFont, Font normalFont, Font boldFont, Font greenBoldFont, Color altRowColor) throws Exception {
+        if (stats.getTopVariants() == null || stats.getTopVariants().isEmpty()) {
+            document.add(new Paragraph("Không có dữ liệu phân loại.", normalFont));
+            return;
+        }
+
+        PdfPTable table = new PdfPTable(7);
+        table.setWidthPercentage(100);
+        table.setWidths(new float[] { 7, 25, 24, 10, 10, 10, 14 });
+        table.setSpacingBefore(10);
+
+        String[] headers = { "Top", "Sản phẩm", "Phân loại", "Gross", "Return", "Net", "Doanh thu" };
+        for (String h : headers) {
+            PdfPCell hCell = new PdfPCell(new Phrase(h, headerFont));
+            hCell.setBackgroundColor(PRIMARY_COLOR);
+            hCell.setPadding(8);
+            hCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            table.addCell(hCell);
+        }
+
+        int rank = 1;
+        for (DashboardStatsResponse.TopVariantItem v : stats.getTopVariants()) {
+            Color bgColor = rank % 2 != 0 ? Color.WHITE : altRowColor;
+
+            PdfPCell c1 = new PdfPCell(new Phrase("#" + rank, boldFont));
+            c1.setPadding(6);
+            c1.setBackgroundColor(bgColor);
+            c1.setHorizontalAlignment(Element.ALIGN_CENTER);
+            table.addCell(c1);
+
+            PdfPCell c2 = new PdfPCell(new Phrase(v.getProductName() != null ? v.getProductName() : "", boldFont));
+            c2.setPadding(6);
+            c2.setBackgroundColor(bgColor);
+            table.addCell(c2);
+
+            PdfPCell c3 = new PdfPCell(new Phrase(v.getVariantName() != null ? v.getVariantName() : "Mặc định", normalFont));
+            c3.setPadding(6);
+            c3.setBackgroundColor(bgColor);
+            table.addCell(c3);
+
+            PdfPCell c4 = new PdfPCell(new Phrase(String.valueOf(v.getTotalSold()), normalFont));
+            c4.setPadding(6);
+            c4.setBackgroundColor(bgColor);
+            c4.setHorizontalAlignment(Element.ALIGN_CENTER);
+            table.addCell(c4);
+
+            PdfPCell c5 = new PdfPCell(new Phrase(String.valueOf(v.getReturnedQty()), normalFont));
+            c5.setPadding(6);
+            c5.setBackgroundColor(bgColor);
+            c5.setHorizontalAlignment(Element.ALIGN_CENTER);
+            table.addCell(c5);
+
+            PdfPCell c6 = new PdfPCell(new Phrase(String.valueOf(v.getNetSoldQty()), normalFont));
+            c6.setPadding(6);
+            c6.setBackgroundColor(bgColor);
+            c6.setHorizontalAlignment(Element.ALIGN_CENTER);
+            table.addCell(c6);
+
+            PdfPCell c7 = new PdfPCell(new Phrase(formatMoney(v.getRevenue()), greenBoldFont));
+            c7.setPadding(6);
+            c7.setBackgroundColor(bgColor);
+            c7.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            table.addCell(c7);
 
             rank++;
         }

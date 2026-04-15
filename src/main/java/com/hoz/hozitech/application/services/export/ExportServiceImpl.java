@@ -14,7 +14,7 @@ import java.util.UUID;
  * Sub-exporters:
  * - {@link InvoicePdfExporter} — Single order invoice PDF
  * - {@link RevenueReportExporter} — Revenue summary Excel (multi-sheet)
- * - {@link DashboardReportExporter} — Dashboard PDF reports (6 types)
+ * - {@link DashboardReportExporter} — Dashboard PDF reports (7 types)
  * - {@link DataExcelExporter} — Data exports (Orders/Users/Feedbacks/Products Excel)
  * - {@link ExportHelpers} — Shared PDF/Excel utility methods
  */

@@ -109,7 +109,39 @@ public class RevenueReportExporter {
             }
             for (int i = 0; i < prodHeaders.length; i++) prodSheet.autoSizeColumn(i);
 
-            // Sheet 3: Top khách hàng
+            // Sheet 3: Top phân loại
+            Sheet variantSheet = workbook.createSheet("Top phân loại");
+            Row variantTitle = variantSheet.createRow(0);
+            variantTitle.createCell(0).setCellValue("TOP PHÂN LOẠI BÁN CHẠY");
+            variantTitle.getCell(0).setCellStyle(titleStyle);
+
+            String[] variantHeaders = {"#", "Sản phẩm", "Phân loại", "Gross", "Return", "Net", "Doanh thu (VNĐ)"};
+            Row variantHeaderRow = variantSheet.createRow(2);
+            for (int i = 0; i < variantHeaders.length; i++) {
+                Cell cell = variantHeaderRow.createCell(i);
+                cell.setCellValue(variantHeaders[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            int vIdx = 3;
+            if (stats.getTopVariants() != null) {
+                int vRank = 1;
+                for (DashboardStatsResponse.TopVariantItem v : stats.getTopVariants()) {
+                    Row row = variantSheet.createRow(vIdx++);
+                    row.createCell(0).setCellValue(vRank++);
+                    row.createCell(1).setCellValue(v.getProductName() != null ? v.getProductName() : "");
+                    row.createCell(2).setCellValue(v.getVariantName() != null ? v.getVariantName() : "Mặc định");
+                    row.createCell(3).setCellValue(v.getTotalSold());
+                    row.createCell(4).setCellValue(v.getReturnedQty());
+                    row.createCell(5).setCellValue(v.getNetSoldQty());
+                    Cell vRevCell = row.createCell(6);
+                    vRevCell.setCellValue(v.getRevenue() != null ? v.getRevenue().doubleValue() : 0);
+                    vRevCell.setCellStyle(currencyStyle);
+                }
+            }
+            for (int i = 0; i < variantHeaders.length; i++) variantSheet.autoSizeColumn(i);
+
+            // Sheet 4: Top khách hàng
             Sheet custSheet = workbook.createSheet("Top khách hàng");
             Row custTitle = custSheet.createRow(0);
             custTitle.createCell(0).setCellValue("TOP KHÁCH HÀNG TIỀM NĂNG");
@@ -139,7 +171,7 @@ public class RevenueReportExporter {
             }
             for (int i = 0; i < custHeaders.length; i++) custSheet.autoSizeColumn(i);
 
-            // Sheet 4: Top danh mục
+            // Sheet 5: Top danh mục
             Sheet catSheet = workbook.createSheet("Danh mục");
             Row catTitle = catSheet.createRow(0);
             catTitle.createCell(0).setCellValue("DOANH THU THEO DANH MỤC");

@@ -23,6 +23,9 @@ public class ProductVariantResponse {
     private BigDecimal price;
     private BigDecimal compareAtPrice;
     private Integer stockQuantity;
+    private Long grossSoldQty;
+    private Long returnedQty;
+    private Long netSoldQty;
     private Boolean active;
     private List<VariantAttributeValueResponse> selections;
     // Backward-compatible alias for legacy clients.

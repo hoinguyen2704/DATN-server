@@ -20,6 +20,15 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, UUID> {
             "WHERE od.variant.product.id = :productId AND od.order.orderStatus = 'SHIPPED'")
     Long sumSoldQuantityByProductId(@Param("productId") UUID productId);
 
+    @Query("""
+            SELECT oi.variant.id, COALESCE(SUM(oi.quantity), 0)
+            FROM OrderItem oi
+            WHERE oi.order.orderStatus = 'SHIPPED'
+              AND oi.variant.id IN :variantIds
+            GROUP BY oi.variant.id
+            """)
+    List<Object[]> sumSoldQuantityByVariantIds(@Param("variantIds") List<UUID> variantIds);
+
     // --- Dashboard Statistics ---
 
     @Query("SELECT COALESCE(SUM(oi.quantity), 0) FROM OrderItem oi " +
@@ -34,6 +43,14 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, UUID> {
             "ORDER BY SUM(oi.quantity) DESC")
     List<Object[]> findTopSellingProducts(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to, Pageable pageable);
 
+    @Query("SELECT oi.variant.id, oi.variant.product.id, oi.variant.product.name, oi.variant.variantName, " +
+            "SUM(oi.quantity), COALESCE(SUM(oi.subtotal), 0) " +
+            "FROM OrderItem oi WHERE oi.order.orderStatus = 'SHIPPED' " +
+            "AND oi.order.createdAt >= :from AND oi.order.createdAt <= :to " +
+            "GROUP BY oi.variant.id, oi.variant.product.id, oi.variant.product.name, oi.variant.variantName " +
+            "ORDER BY SUM(oi.quantity) DESC")
+    List<Object[]> findTopSellingVariants(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to, Pageable pageable);
+
     @Query("SELECT oi.variant.product.category.id, oi.variant.product.category.name, " +
             "SUM(oi.quantity), COALESCE(SUM(oi.subtotal), 0) " +
             "FROM OrderItem oi WHERE oi.order.orderStatus = 'SHIPPED' " +
@@ -42,4 +59,3 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, UUID> {
             "ORDER BY SUM(oi.quantity) DESC")
     List<Object[]> findTopSellingCategories(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to, Pageable pageable);
 }
-

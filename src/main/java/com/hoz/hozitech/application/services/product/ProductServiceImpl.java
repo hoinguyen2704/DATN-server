@@ -26,8 +26,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.BrandRepository;
 import com.hoz.hozitech.application.repositories.CategoryRepository;
+import com.hoz.hozitech.application.repositories.OrderItemRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
+import com.hoz.hozitech.application.repositories.ReturnItemRepository;
 import com.hoz.hozitech.application.specifications.ProductSpecification;
 import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.domain.dtos.request.ProductImageRequest;
@@ -61,6 +63,8 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final ProductVariantRepository productVariantRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final ReturnItemRepository returnItemRepository;
     private final CategoryRepository categoryRepository;
     private final BrandRepository brandRepository;
     private final EntityManager entityManager;
@@ -618,7 +622,60 @@ public class ProductServiceImpl implements ProductService {
                 .build();
     }
 
+    private Map<UUID, Long> buildVariantSoldMap(List<UUID> variantIds) {
+        if (variantIds == null || variantIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<UUID> dedupedVariantIds = variantIds.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (dedupedVariantIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return orderItemRepository.sumSoldQuantityByVariantIds(dedupedVariantIds).stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> ((Number) row[1]).longValue(),
+                        Long::sum));
+    }
+
+    private Map<UUID, Long> buildVariantReturnedMap(List<UUID> variantIds) {
+        if (variantIds == null || variantIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<UUID> dedupedVariantIds = variantIds.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (dedupedVariantIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return returnItemRepository.sumReturnedQuantityByVariantIds(dedupedVariantIds).stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> ((Number) row[1]).longValue(),
+                        Long::sum));
+    }
+
     private ProductResponse mapToDetailedResponse(Product product) {
+        List<UUID> variantIds = product.getVariants().stream()
+                .map(ProductVariant::getId)
+                .toList();
+        Map<UUID, Long> soldByVariantId = buildVariantSoldMap(variantIds);
+        Map<UUID, Long> returnedByVariantId = buildVariantReturnedMap(variantIds);
+        return mapToDetailedResponse(product, soldByVariantId, returnedByVariantId);
+    }
+
+    private ProductResponse mapToDetailedResponse(
+            Product product,
+            Map<UUID, Long> soldByVariantId,
+            Map<UUID, Long> returnedByVariantId
+    ) {
         ProductResponse response = mapToResponse(product);
         Comparator<ProductImage> imageComparator = Comparator
                 .comparing((ProductImage img) -> !Boolean.TRUE.equals(img.getIsPrimary()))
@@ -712,6 +769,12 @@ public class ProductServiceImpl implements ProductService {
                             .price(variant.getPrice())
                             .compareAtPrice(variant.getCompareAtPrice())
                             .stockQuantity(variant.getStock())
+                            .grossSoldQty(soldByVariantId.getOrDefault(variant.getId(), 0L))
+                            .returnedQty(returnedByVariantId.getOrDefault(variant.getId(), 0L))
+                            .netSoldQty(Math.max(
+                                    soldByVariantId.getOrDefault(variant.getId(), 0L)
+                                            - returnedByVariantId.getOrDefault(variant.getId(), 0L),
+                                    0L))
                             .active(variant.getActive())
                             .selections(attributes)
                             .attributes(attributes)
@@ -826,7 +889,14 @@ public class ProductServiceImpl implements ProductService {
 
         Specification<Product> spec = ProductSpecification.filter(keyword, categoryId, null, null, null, null, active);
         Page<Product> products = productRepository.findAll(spec, pageable);
-        return PageResponse.of(products.map(this::mapToDetailedResponse));
+        List<UUID> variantIds = products.getContent().stream()
+                .flatMap(product -> product.getVariants().stream())
+                .map(ProductVariant::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        Map<UUID, Long> soldByVariantId = buildVariantSoldMap(variantIds);
+        Map<UUID, Long> returnedByVariantId = buildVariantReturnedMap(variantIds);
+        return PageResponse.of(products.map(product -> mapToDetailedResponse(product, soldByVariantId, returnedByVariantId)));
     }
 
     @Override
