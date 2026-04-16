@@ -3,7 +3,9 @@ package com.hoz.hozitech.application.services.flashsale;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.FlashSaleItemRepository;
 import com.hoz.hozitech.application.repositories.FlashSaleRepository;
+import com.hoz.hozitech.application.repositories.OrderItemRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
+import com.hoz.hozitech.application.repositories.ReturnItemRepository;
 import com.hoz.hozitech.domain.dtos.request.FlashSaleRequest;
 import com.hoz.hozitech.domain.dtos.response.FlashSaleResponse;
 import com.hoz.hozitech.domain.dtos.response.FlashSaleResponse.FlashSaleItemResponse;
@@ -21,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -31,6 +35,8 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     private final FlashSaleRepository flashSaleRepository;
     private final FlashSaleItemRepository flashSaleItemRepository;
     private final ProductVariantRepository productVariantRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final ReturnItemRepository returnItemRepository;
 
     @Override
     @Transactional
@@ -183,11 +189,21 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     // --- Mapper ---
 
     private FlashSaleResponse toResponse(FlashSale fs) {
+        List<UUID> variantIds = fs.getItems().stream()
+                .map(item -> item.getVariant() != null ? item.getVariant().getId() : null)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<UUID, Long> grossByVariantId = buildVariantSoldMap(variantIds);
+        Map<UUID, Long> returnedByVariantId = buildVariantReturnedMap(variantIds);
+
         List<FlashSaleItemResponse> itemResponses = fs.getItems().stream().map(item -> {
             ProductVariant v = item.getVariant();
             String productId = v.getProduct() != null ? v.getProduct().getId().toString() : "";
             String productSlug = v.getProduct() != null ? v.getProduct().getSlug() : "";
             String productName = v.getProduct() != null ? v.getProduct().getName() : "";
+            long grossSoldQty = grossByVariantId.getOrDefault(v.getId(), 0L);
+            long returnedQty = returnedByVariantId.getOrDefault(v.getId(), 0L);
             String imageUrl = "";
             if (v.getProduct() != null && v.getProduct().getImages() != null && !v.getProduct().getImages().isEmpty()) {
                 imageUrl = v.getProduct().getImages().stream()
@@ -210,6 +226,10 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                     .flashStock(item.getFlashStock())
                     .soldCount(item.getSoldCount())
                     .remainingStock(item.getFlashStock() - item.getSoldCount())
+                    .grossSoldQty(grossSoldQty)
+                    .returnedQty(returnedQty)
+                    .netSoldQty(Math.max(grossSoldQty - returnedQty, 0L))
+                    .stockQuantity(v.getStock())
                     .build();
         }).collect(Collectors.toList());
 
@@ -223,5 +243,29 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                 .items(itemResponses)
                 .createdAt(fs.getCreatedAt())
                 .build();
+    }
+
+    private Map<UUID, Long> buildVariantSoldMap(List<UUID> variantIds) {
+        if (variantIds == null || variantIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return orderItemRepository.sumSoldQuantityByVariantIds(variantIds).stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> ((Number) row[1]).longValue(),
+                        Long::sum));
+    }
+
+    private Map<UUID, Long> buildVariantReturnedMap(List<UUID> variantIds) {
+        if (variantIds == null || variantIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return returnItemRepository.sumReturnedQuantityByVariantIds(variantIds).stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> ((Number) row[1]).longValue(),
+                        Long::sum));
     }
 }

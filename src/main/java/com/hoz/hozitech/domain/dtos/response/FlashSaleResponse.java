@@ -40,5 +40,9 @@ public class FlashSaleResponse {
         private int flashStock;
         private int soldCount;
         private int remainingStock;
+        private Long grossSoldQty;
+        private Long returnedQty;
+        private Long netSoldQty;
+        private Integer stockQuantity;
     }
 }

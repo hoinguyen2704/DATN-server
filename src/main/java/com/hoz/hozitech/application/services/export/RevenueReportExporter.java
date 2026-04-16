@@ -131,7 +131,7 @@ public class RevenueReportExporter {
                     row.createCell(0).setCellValue(vRank++);
                     row.createCell(1).setCellValue(v.getProductName() != null ? v.getProductName() : "");
                     row.createCell(2).setCellValue(v.getVariantName() != null ? v.getVariantName() : "Mặc định");
-                    row.createCell(3).setCellValue(v.getTotalSold());
+                    row.createCell(3).setCellValue(resolveGrossSoldQty(v));
                     row.createCell(4).setCellValue(v.getReturnedQty());
                     row.createCell(5).setCellValue(v.getNetSoldQty());
                     Cell vRevCell = row.createCell(6);
@@ -206,5 +206,13 @@ public class RevenueReportExporter {
         } catch (IOException e) {
             throw new ExportException("Failed to export revenue report", e);
         }
+    }
+
+    private long resolveGrossSoldQty(DashboardStatsResponse.TopVariantItem item) {
+        if (item == null) {
+            return 0L;
+        }
+        long gross = item.getGrossSoldQty();
+        return gross > 0 ? gross : item.getTotalSold();
     }
 }

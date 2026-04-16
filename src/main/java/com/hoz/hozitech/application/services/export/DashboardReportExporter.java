@@ -433,7 +433,7 @@ public class DashboardReportExporter {
             c3.setBackgroundColor(bgColor);
             table.addCell(c3);
 
-            PdfPCell c4 = new PdfPCell(new Phrase(String.valueOf(v.getTotalSold()), normalFont));
+            PdfPCell c4 = new PdfPCell(new Phrase(String.valueOf(resolveGrossSoldQty(v)), normalFont));
             c4.setPadding(6);
             c4.setBackgroundColor(bgColor);
             c4.setHorizontalAlignment(Element.ALIGN_CENTER);
@@ -461,6 +461,14 @@ public class DashboardReportExporter {
         }
 
         document.add(table);
+    }
+
+    private long resolveGrossSoldQty(DashboardStatsResponse.TopVariantItem item) {
+        if (item == null) {
+            return 0L;
+        }
+        long gross = item.getGrossSoldQty();
+        return gross > 0 ? gross : item.getTotalSold();
     }
 
     // Customers Report

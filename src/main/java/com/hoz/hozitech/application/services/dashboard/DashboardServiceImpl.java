@@ -133,6 +133,7 @@ public class DashboardServiceImpl implements DashboardService {
                     .productName((String) row[2])
                     .variantName((String) row[3])
                     .totalSold(grossSoldQty)
+                    .grossSoldQty(grossSoldQty)
                     .returnedQty(returnedQty)
                     .netSoldQty(Math.max(grossSoldQty - returnedQty, 0L))
                     .revenue((BigDecimal) row[5])

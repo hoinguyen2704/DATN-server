@@ -73,7 +73,9 @@ public class DashboardStatsResponse {
         private String productId;
         private String productName;
         private String variantName;
+        // Backward-compatible legacy field (same value as grossSoldQty).
         private long totalSold;
+        private long grossSoldQty;
         private long returnedQty;
         private long netSoldQty;
         private BigDecimal revenue;
