@@ -3,6 +3,7 @@ package com.hoz.hozitech.application.services.auth;
 import com.hoz.hozitech.domain.dtos.request.LoginRequest;
 import com.hoz.hozitech.domain.dtos.request.RegisterRequest;
 import com.hoz.hozitech.domain.dtos.response.AuthResponse;
+import com.hoz.hozitech.domain.dtos.response.GoogleLoginExchangeResponse;
 
 public interface AuthService {
     AuthResponse register(RegisterRequest request);
@@ -18,6 +19,12 @@ public interface AuthService {
     void resetPassword(String email, String otpCode, String newPassword);
 
     AuthResponse socialLogin(com.hoz.hozitech.domain.dtos.request.SocialLoginRequest request);
+
+    String buildGoogleAuthorizationUrl(String state);
+
+    String createGoogleLoginTicketFromAuthorizationCode(String code, String redirectTo);
+
+    GoogleLoginExchangeResponse exchangeGoogleLoginTicket(String ticket);
 
     void logout(java.util.UUID userId);
 }

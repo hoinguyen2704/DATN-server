@@ -1,14 +1,24 @@
 package com.hoz.hozitech.application.services.auth;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hoz.hozitech.domain.enums.BusinessErrorCode;
 import com.hoz.hozitech.domain.enums.UserStatus;
 import com.hoz.hozitech.web.exceptions.BusinessException;
 import jakarta.annotation.PostConstruct;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +43,7 @@ import com.hoz.hozitech.domain.dtos.request.LoginRequest;
 import com.hoz.hozitech.domain.dtos.request.RegisterRequest;
 import com.hoz.hozitech.domain.dtos.request.SocialLoginRequest;
 import com.hoz.hozitech.domain.dtos.response.AuthResponse;
+import com.hoz.hozitech.domain.dtos.response.GoogleLoginExchangeResponse;
 import com.hoz.hozitech.domain.entities.Role;
 import com.hoz.hozitech.domain.entities.Token;
 import com.hoz.hozitech.domain.entities.User;
@@ -45,6 +56,7 @@ import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Slf4j
 @Service
@@ -65,6 +77,25 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtService;
     private final AuthenticationManager authenticationManager;
     private final LoginIdentifierResolver loginIdentifierResolver;
+    private final GoogleLoginTicketService googleLoginTicketService;
+    private final ObjectMapper objectMapper;
+
+    private final HttpClient httpClient = HttpClient.newHttpClient();
+
+    @Value("${spring.security.oauth2.client.registration.google.client-id}")
+    private String googleClientId;
+
+    @Value("${spring.security.oauth2.client.registration.google.client-secret}")
+    private String googleClientSecret;
+
+    @Value("${social.google.authorization-url}")
+    private String googleAuthorizationUrl;
+
+    @Value("${social.google.token-url}")
+    private String googleTokenUrl;
+
+    @Value("${social.google.callback-url}")
+    private String googleCallbackUrl;
 
     @Value("${social.google.legacy-fallback-until:}")
     private String googleLegacyFallbackUntilRaw;
@@ -272,6 +303,46 @@ public class AuthServiceImpl implements AuthService {
         return issueAuthTokens(user);
     }
 
+    @Override
+    public String buildGoogleAuthorizationUrl(String state) {
+        return UriComponentsBuilder.fromUriString(googleAuthorizationUrl)
+                .queryParam("client_id", googleClientId)
+                .queryParam("redirect_uri", googleCallbackUrl)
+                .queryParam("response_type", "code")
+                .queryParam("scope", "openid email profile")
+                .queryParam("prompt", "select_account")
+                .queryParam("state", state)
+                .build()
+                .encode()
+                .toUriString();
+    }
+
+    @Override
+    @Transactional
+    public String createGoogleLoginTicketFromAuthorizationCode(String code, String redirectTo) {
+        GoogleOAuthTokenResponse tokenResponse = exchangeGoogleAuthorizationCode(code);
+        GoogleTokenVerifierService.GoogleTokenPayload googlePayload =
+                googleTokenVerifierService.verify(tokenResponse.idToken());
+        User user = resolveUserForGoogleSocialLogin(googlePayload);
+        return googleLoginTicketService.issue(user.getId(), normalizeRedirectTo(redirectTo));
+    }
+
+    @Override
+    @Transactional
+    public GoogleLoginExchangeResponse exchangeGoogleLoginTicket(String ticket) {
+        GoogleLoginTicketService.TicketPayload payload = googleLoginTicketService.consume(ticket);
+        User user = userRepository.findById(payload.userId())
+                .orElseThrow(() -> new UnauthorizedException("User not found for Google login ticket"));
+
+        AuthResponse authResponse = issueAuthTokens(user);
+        return GoogleLoginExchangeResponse.builder()
+                .accessToken(authResponse.getAccessToken())
+                .refreshToken(authResponse.getRefreshToken())
+                .user(authResponse.getUser())
+                .redirectTo(payload.redirectTo())
+                .build();
+    }
+
     private User resolveUserForGoogleSocialLogin(GoogleTokenVerifierService.GoogleTokenPayload googlePayload) {
         String providerUserId = googlePayload.providerUserId();
         String email = googlePayload.email();
@@ -387,6 +458,19 @@ public class AuthServiceImpl implements AuthService {
         return provider == null ? "" : provider.trim().toUpperCase(Locale.ROOT);
     }
 
+    private String normalizeRedirectTo(String redirectTo) {
+        if (redirectTo == null) {
+            return "/";
+        }
+
+        String value = redirectTo.trim();
+        if (value.isBlank() || !value.startsWith("/") || value.startsWith("//")) {
+            return "/";
+        }
+
+        return value;
+    }
+
     private AuthResponse issueAuthTokens(User user) {
         CustomUserDetails userDetails = new CustomUserDetails(user);
         String accessToken = jwtService.generateToken(userDetails);
@@ -433,6 +517,51 @@ public class AuthServiceImpl implements AuthService {
         revokeAllUserTokens(user);
     }
 
+    private GoogleOAuthTokenResponse exchangeGoogleAuthorizationCode(String code) {
+        try {
+            String formBody = buildFormBody(Map.of(
+                    "code", code,
+                    "client_id", googleClientId,
+                    "client_secret", googleClientSecret,
+                    "redirect_uri", googleCallbackUrl,
+                    "grant_type", "authorization_code"));
+
+            HttpRequest request = HttpRequest.newBuilder(URI.create(googleTokenUrl))
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .POST(HttpRequest.BodyPublishers.ofString(formBody))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new UnauthorizedException("Google token exchange failed");
+            }
+
+            GoogleOAuthTokenResponse tokenResponse =
+                    objectMapper.readValue(response.body(), GoogleOAuthTokenResponse.class);
+            if (tokenResponse.idToken() == null || tokenResponse.idToken().isBlank()) {
+                throw new UnauthorizedException("Google token exchange did not return id_token");
+            }
+
+            return tokenResponse;
+        } catch (UnauthorizedException ex) {
+            throw ex;
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new UnauthorizedException("Google token exchange interrupted");
+        } catch (Exception ex) {
+            throw new UnauthorizedException("Google token exchange failed (" + ex.getMessage() + ")");
+        }
+    }
+
+    private String buildFormBody(Map<String, String> formData) {
+        return formData.entrySet().stream()
+                .map(entry -> URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8)
+                        + "="
+                        + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8))
+                .reduce((left, right) -> left + "&" + right)
+                .orElse("");
+    }
+
     private AuthResponse buildAuthResponse(User user, String accessToken, String refreshToken) {
         return AuthResponse.builder()
                 .accessToken(accessToken)
@@ -445,5 +574,9 @@ public class AuthServiceImpl implements AuthService {
                         .role(user.getRole().getId().name())
                         .build())
                 .build();
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record GoogleOAuthTokenResponse(@JsonProperty("id_token") String idToken) {
     }
 }

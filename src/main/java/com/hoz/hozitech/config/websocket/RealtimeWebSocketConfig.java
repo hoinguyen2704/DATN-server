@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class RealtimeWebSocketConfig implements WebSocketConfigurer {
 
-    @Value("${security.cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173}")
+    @Value("${security.cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000}")
     private String allowedOrigins;
 
     private final RealtimeWebSocketHandler realtimeWebSocketHandler;
