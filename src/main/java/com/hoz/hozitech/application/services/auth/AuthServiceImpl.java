@@ -27,6 +27,7 @@ import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.repositories.UserSocialAccountRepository;
 import com.hoz.hozitech.application.services.email.EmailService;
 import com.hoz.hozitech.security.CustomUserDetails;
+import com.hoz.hozitech.security.LoginIdentifierResolver;
 import com.hoz.hozitech.security.JwtTokenProvider;
 import com.hoz.hozitech.domain.dtos.request.LoginRequest;
 import com.hoz.hozitech.domain.dtos.request.RegisterRequest;
@@ -63,6 +64,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtService;
     private final AuthenticationManager authenticationManager;
+    private final LoginIdentifierResolver loginIdentifierResolver;
 
     @Value("${social.google.legacy-fallback-until:}")
     private String googleLegacyFallbackUntilRaw;
@@ -142,13 +144,15 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
+        String identifier = request.getIdentifier();
+
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
+                        identifier,
                         request.getPassword()));
 
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
+        User user = loginIdentifierResolver.resolve(identifier)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid login credentials"));
 
         CustomUserDetails userDetails = new CustomUserDetails(user);
         String accessToken = jwtService.generateToken(userDetails);
