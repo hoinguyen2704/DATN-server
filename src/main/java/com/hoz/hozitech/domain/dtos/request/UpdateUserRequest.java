@@ -23,6 +23,8 @@ public class UpdateUserRequest {
     @Size(max = 10, message = "Gender max length is 10")
     private String gender;
 
-    // Note: Email and Phone number usually require separate verification flows,
-    // so we don't update them here directly.
+    @Size(max = 20, message = "Phone number must be at most 20 characters")
+    private String phoneNumber;
+
+    // Note: Email still uses a separate OTP verification flow.
 }

@@ -26,6 +26,7 @@ import com.hoz.hozitech.application.repositories.UserSocialAccountRepository;
 import com.hoz.hozitech.application.services.auth.GoogleTokenVerifierService;
 import com.hoz.hozitech.application.services.audit.AuditLogService;
 import com.hoz.hozitech.application.services.email.EmailService;
+import com.hoz.hozitech.config.utils.PhoneNumberUtils;
 import com.hoz.hozitech.application.specifications.UserSpecification;
 import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
@@ -93,6 +94,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserResponse updateProfile(UpdateUserRequest request) {
         User user = getCurrentUserEntity();
+        String currentPhoneNumber = normalizeOptionalPhoneNumber(user.getPhoneNumber());
 
         if (request.getFullName() != null)
             user.setFullName(request.getFullName());
@@ -100,6 +102,18 @@ public class UserServiceImpl implements UserService {
             user.setDateOfBirth(request.getDateOfBirth());
         if (request.getGender() != null)
             user.setGender(request.getGender());
+        if (request.getPhoneNumber() != null) {
+            String requestedPhoneNumber = normalizeOptionalPhoneNumber(request.getPhoneNumber());
+
+            if (currentPhoneNumber != null) {
+                if (requestedPhoneNumber == null || !currentPhoneNumber.equals(requestedPhoneNumber)) {
+                    throw new InvalidParamException("Phone number is already set and cannot be changed here");
+                }
+            } else if (requestedPhoneNumber != null) {
+                ensurePhoneNumberAvailable(requestedPhoneNumber, user.getId());
+                user.setPhoneNumber(requestedPhoneNumber);
+            }
+        }
 
         return mapToResponse(userRepository.save(user));
     }
@@ -269,12 +283,8 @@ public class UserServiceImpl implements UserService {
         User target = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        String normalizedPhone = request.getPhoneNumber().trim();
-        userRepository.findByPhoneNumber(normalizedPhone)
-                .filter(existing -> !existing.getId().equals(target.getId()))
-                .ifPresent(existing -> {
-                    throw new ConflictException("Phone number is already in use");
-                });
+        String normalizedPhone = normalizeRequiredPhoneNumber(request.getPhoneNumber());
+        ensurePhoneNumberAvailable(normalizedPhone, target.getId());
 
         String oldPhone = target.getPhoneNumber();
         if (oldPhone != null && oldPhone.equals(normalizedPhone)) {
@@ -433,6 +443,32 @@ public class UserServiceImpl implements UserService {
             throw new InvalidParamException("Email is required");
         }
         return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeRequiredPhoneNumber(String phoneNumber) {
+        return PhoneNumberUtils.normalizeVietnamesePhoneNumber(phoneNumber)
+                .orElseThrow(() -> new InvalidParamException("Invalid Vietnamese phone number format"));
+    }
+
+    private String normalizeOptionalPhoneNumber(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.isBlank()) {
+            return null;
+        }
+        return normalizeRequiredPhoneNumber(phoneNumber);
+    }
+
+    private void ensurePhoneNumberAvailable(String normalizedPhoneNumber, UUID excludedUserId) {
+        if (normalizedPhoneNumber == null) {
+            return;
+        }
+
+        for (String candidate : PhoneNumberUtils.buildLookupCandidates(normalizedPhoneNumber)) {
+            userRepository.findByPhoneNumber(candidate)
+                    .filter(existing -> !existing.getId().equals(excludedUserId))
+                    .ifPresent(existing -> {
+                        throw new ConflictException("Phone number is already in use");
+                    });
+        }
     }
 
     private String generateOtpCode() {

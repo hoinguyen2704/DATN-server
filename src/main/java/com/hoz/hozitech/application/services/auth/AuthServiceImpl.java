@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hoz.hozitech.domain.enums.BusinessErrorCode;
 import com.hoz.hozitech.domain.enums.UserStatus;
 import com.hoz.hozitech.web.exceptions.BusinessException;
+import com.hoz.hozitech.config.utils.PhoneNumberUtils;
 import jakarta.annotation.PostConstruct;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -146,6 +147,9 @@ public class AuthServiceImpl implements AuthService {
             throw new ConflictException("Username is already in use");
         }
 
+        String normalizedPhoneNumber = normalizeOptionalPhoneNumber(request.getPhoneNumber());
+        ensurePhoneNumberAvailable(normalizedPhoneNumber, null);
+
         Role userRole = roleRepository.findById(RoleType.USER)
                 .orElseThrow(() -> new ResourceNotFoundException("Role", RoleType.USER));
 
@@ -153,7 +157,7 @@ public class AuthServiceImpl implements AuthService {
                 .fullName(request.getFullName())
                 .userName(request.getUserName())
                 .email(request.getEmail())
-                .phoneNumber(request.getPhoneNumber())
+                .phoneNumber(normalizedPhoneNumber)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(userRole)
                 .status(UserStatus.ACTIVE)
@@ -560,6 +564,29 @@ public class AuthServiceImpl implements AuthService {
                         + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8))
                 .reduce((left, right) -> left + "&" + right)
                 .orElse("");
+    }
+
+    private String normalizeOptionalPhoneNumber(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.isBlank()) {
+            return null;
+        }
+
+        return PhoneNumberUtils.normalizeVietnamesePhoneNumber(phoneNumber)
+                .orElseThrow(() -> new InvalidParamException("Invalid Vietnamese phone number format"));
+    }
+
+    private void ensurePhoneNumberAvailable(String normalizedPhoneNumber, UUID excludedUserId) {
+        if (normalizedPhoneNumber == null) {
+            return;
+        }
+
+        for (String candidate : PhoneNumberUtils.buildLookupCandidates(normalizedPhoneNumber)) {
+            userRepository.findByPhoneNumber(candidate)
+                    .filter(existing -> excludedUserId == null || !existing.getId().equals(excludedUserId))
+                    .ifPresent(existing -> {
+                        throw new ConflictException("Phone number is already in use");
+                    });
+        }
     }
 
     private AuthResponse buildAuthResponse(User user, String accessToken, String refreshToken) {
