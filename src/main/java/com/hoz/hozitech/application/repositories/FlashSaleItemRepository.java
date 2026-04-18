@@ -13,11 +13,14 @@ import java.util.Optional;
 import java.util.UUID;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collection;
 
 @Repository
 public interface FlashSaleItemRepository extends JpaRepository<FlashSaleItem, UUID> {
 
     List<FlashSaleItem> findByFlashSaleId(UUID flashSaleId);
+
+    void deleteByVariantIdIn(Collection<UUID> variantIds);
 
     @Query("SELECT fsi FROM FlashSaleItem fsi " +
             "JOIN fsi.flashSale fs " +

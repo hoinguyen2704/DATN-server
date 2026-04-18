@@ -16,6 +16,8 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, UUID> {
 
     List<OrderItem> findByOrderId(UUID orderId);
 
+    boolean existsByVariantId(UUID variantId);
+
     @Query("SELECT COALESCE(SUM(od.quantity), 0) FROM OrderItem od " +
             "WHERE od.variant.product.id = :productId AND od.order.orderStatus = 'SHIPPED'")
     Long sumSoldQuantityByProductId(@Param("productId") UUID productId);

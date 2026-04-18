@@ -18,6 +18,8 @@ public interface CartRepository extends JpaRepository<Cart, UUID> {
 
     void deleteAllByUserId(UUID userId);
 
+    void deleteByVariantIdIn(Collection<UUID> variantIds);
+
     void deleteByUserIdAndVariantIdIn(UUID userId, Collection<UUID> variantIds);
 
     long countByUserId(UUID userId);

@@ -1,6 +1,8 @@
 package com.hoz.hozitech.application.services.product;
 
+import com.hoz.hozitech.domain.dtos.request.ProductBasicRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductRequest;
+import com.hoz.hozitech.domain.dtos.request.ProductVariantsUpdateRequest;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.ProductResponse;
 
@@ -22,6 +24,10 @@ public interface ProductService {
     ProductResponse createProduct(ProductRequest request);
 
     ProductResponse updateProduct(UUID id, ProductRequest request);
+
+    ProductResponse updateProductBasic(UUID id, ProductBasicRequest request);
+
+    ProductResponse updateProductVariants(UUID id, ProductVariantsUpdateRequest request);
 
     void deleteProduct(UUID id);
 

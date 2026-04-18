@@ -25,16 +25,21 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.BrandRepository;
+import com.hoz.hozitech.application.repositories.CartRepository;
 import com.hoz.hozitech.application.repositories.CategoryRepository;
+import com.hoz.hozitech.application.repositories.FlashSaleItemRepository;
 import com.hoz.hozitech.application.repositories.OrderItemRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.application.repositories.ReturnItemRepository;
 import com.hoz.hozitech.application.specifications.ProductSpecification;
 import com.hoz.hozitech.config.exceptions.ConflictException;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.domain.dtos.request.ProductImageRequest;
+import com.hoz.hozitech.domain.dtos.request.ProductBasicRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductVariantRequest;
+import com.hoz.hozitech.domain.dtos.request.ProductVariantsUpdateRequest;
 import com.hoz.hozitech.domain.dtos.response.CategoryResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.ProductImageResponse;
@@ -65,6 +70,8 @@ public class ProductServiceImpl implements ProductService {
     private final ProductVariantRepository productVariantRepository;
     private final OrderItemRepository orderItemRepository;
     private final ReturnItemRepository returnItemRepository;
+    private final CartRepository cartRepository;
+    private final FlashSaleItemRepository flashSaleItemRepository;
     private final CategoryRepository categoryRepository;
     private final BrandRepository brandRepository;
     private final EntityManager entityManager;
@@ -122,36 +129,32 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public ProductResponse createProduct(ProductRequest request) {
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new IllegalArgumentException("Category not found"));
-        Brand brand = brandRepository.findById(request.getBrandId())
-                .orElseThrow(() -> new IllegalArgumentException("Brand not found"));
-
-        if (productRepository.existsByName(request.getName())) {
-            throw new ConflictException("Product name already exists");
-        }
-
-        String slug = uniqueSlug(request.getName(), null);
-        String productCode = uniqueProductCode(request.getProductCode(), null);
-
+        Category category = requireCategory(request.getCategoryId());
+        Brand brand = requireBrand(request.getBrandId());
         Product product = Product.builder()
-                .name(request.getName())
-                .slug(slug)
-                .description(request.getDescription())
-                .brand(brand)
-                .originPrice(request.getOriginPrice())
-                .productCode(productCode)
-                .status(request.getStatus() != null ? request.getStatus() : ProductStatus.ACTIVE)
-                .isFeatured(request.getIsFeatured() != null ? request.getIsFeatured() : false)
-                .category(category)
                 .variants(new ArrayList<>())
                 .images(new ArrayList<>())
                 .specValues(new ArrayList<>())
                 .build();
 
+        applyBasicFields(
+                product,
+                request.getName(),
+                request.getDescription(),
+                category,
+                brand,
+                request.getOriginPrice(),
+                request.getProductCode(),
+                request.getStatus(),
+                request.getIsFeatured(),
+                true);
         applyProductImages(product, request.getImages());
         applyProductSpecs(product, request.getSpecs());
-        applyVariants(product, request.getVariants(), true);
+        if (request.getVariants() != null && !request.getVariants().isEmpty()) {
+            applyVariants(product, request.getVariants(), true);
+        } else if (product.getStatus() != ProductStatus.DRAFT) {
+            throw new IllegalArgumentException("At least one variant is required");
+        }
 
         return mapToDetailedResponse(productRepository.save(product));
     }
@@ -159,39 +162,119 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public ProductResponse updateProduct(UUID id, ProductRequest request) {
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new IllegalArgumentException("Category not found"));
-        Brand brand = brandRepository.findById(request.getBrandId())
-                .orElseThrow(() -> new IllegalArgumentException("Brand not found"));
+        Product product = requireProduct(id);
+        Category category = requireCategory(request.getCategoryId());
+        Brand brand = requireBrand(request.getBrandId());
 
-        if (!Objects.equals(product.getName(), request.getName()) && productRepository.existsByName(request.getName())) {
+        applyBasicFields(
+                product,
+                request.getName(),
+                request.getDescription(),
+                category,
+                brand,
+                request.getOriginPrice(),
+                request.getProductCode(),
+                request.getStatus(),
+                request.getIsFeatured(),
+                false);
+        applyProductSpecs(product, request.getSpecs());
+        applyVariants(product, request.getVariants(), false);
+        return mapToDetailedResponse(productRepository.save(product));
+    }
+
+    @Override
+    @Transactional
+    public ProductResponse updateProductBasic(UUID id, ProductBasicRequest request) {
+        Product product = requireProduct(id);
+        Category category = requireCategory(request.getCategoryId());
+        Brand brand = requireBrand(request.getBrandId());
+
+        applyBasicFields(
+                product,
+                request.getName(),
+                request.getDescription(),
+                category,
+                brand,
+                request.getOriginPrice(),
+                request.getProductCode(),
+                request.getStatus(),
+                request.getIsFeatured(),
+                false);
+        applyProductSpecs(product, request.getSpecs());
+        return mapToDetailedResponse(productRepository.save(product));
+    }
+
+    @Override
+    @Transactional
+    public ProductResponse updateProductVariants(UUID id, ProductVariantsUpdateRequest request) {
+        Product product = requireProduct(id);
+        applyVariants(product, request.getVariants(), false);
+        return mapToDetailedResponse(productRepository.save(product));
+    }
+
+    private Product requireProduct(UUID id) {
+        return productRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+    }
+
+    private Category requireCategory(UUID id) {
+        return categoryRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+    }
+
+    private Brand requireBrand(UUID id) {
+        return brandRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Brand not found"));
+    }
+
+    private void applyBasicFields(Product product,
+                                  String name,
+                                  String description,
+                                  Category category,
+                                  Brand brand,
+                                  BigDecimal originPrice,
+                                  String productCode,
+                                  ProductStatus status,
+                                  Boolean isFeatured,
+                                  boolean isCreate) {
+        if (!Objects.equals(product.getName(), name) && productRepository.existsByName(name)) {
             throw new ConflictException("Product name already exists");
         }
 
-        product.setName(request.getName());
-        product.setSlug(uniqueSlug(request.getName(), product.getId()));
-        product.setDescription(request.getDescription());
+        if (!isCreate
+                && product.getCategory() != null
+                && !Objects.equals(product.getCategory().getId(), category.getId())
+                && !product.getVariants().isEmpty()) {
+            throw new ConflictException("Cannot change category when product already has variants");
+        }
+
+        product.setName(name);
+        product.setSlug(uniqueSlug(name, product.getId()));
+        product.setDescription(description);
         product.setBrand(brand);
-        product.setOriginPrice(request.getOriginPrice());
+        product.setOriginPrice(originPrice);
         product.setCategory(category);
-        if (request.getProductCode() != null && !request.getProductCode().isBlank()) {
-            String requestedProductCode = sanitizeProductCode(request.getProductCode());
+
+        if (isCreate) {
+            product.setProductCode(uniqueProductCode(productCode, null));
+        } else if (productCode != null && !productCode.isBlank()) {
+            String requestedProductCode = sanitizeProductCode(productCode);
             if (!requestedProductCode.equals(product.getProductCode())) {
                 throw new ConflictException("Product code is immutable after first save");
             }
         }
-        if (request.getStatus() != null) {
-            product.setStatus(request.getStatus());
-        }
-        if (request.getIsFeatured() != null) {
-            product.setIsFeatured(request.getIsFeatured());
+
+        if (isCreate) {
+            product.setStatus(status != null ? status : ProductStatus.ACTIVE);
+        } else if (status != null) {
+            product.setStatus(status);
         }
 
-        applyProductSpecs(product, request.getSpecs());
-        applyVariants(product, request.getVariants(), false);
-        return mapToDetailedResponse(productRepository.save(product));
+        if (isFeatured != null) {
+            product.setIsFeatured(isFeatured);
+        } else if (isCreate) {
+            product.setIsFeatured(false);
+        }
     }
 
     private void applyProductImages(Product product, List<ProductImageRequest> imageRequests) {
@@ -209,8 +292,6 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private void applyProductSpecs(Product product, List<ProductRequest.ProductSpecRequest> specRequests) {
-        product.getSpecValues().clear();
-
         List<CategorySpecAttribute> specSchema = getSpecSchema(product.getCategory());
         Map<UUID, CategorySpecAttribute> schemaBySpecId = specSchema.stream()
                 .collect(Collectors.toMap(m -> m.getSpecAttribute().getId(), m -> m));
@@ -219,7 +300,8 @@ public class ProductServiceImpl implements ProductService {
             throw new IllegalArgumentException("Specs are required for selected category");
         }
 
-        if (specRequests == null) {
+        if (specRequests == null || specRequests.isEmpty()) {
+            product.getSpecValues().clear();
             return;
         }
 
@@ -239,11 +321,37 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
+        Map<UUID, ProductSpecValue> existingBySpecId = new HashMap<>();
+        for (ProductSpecValue existing : product.getSpecValues()) {
+            if (existing.getSpecAttribute() == null || existing.getSpecAttribute().getId() == null) {
+                continue;
+            }
+            existingBySpecId.putIfAbsent(existing.getSpecAttribute().getId(), existing);
+        }
+
+        // Remove stale spec rows first; keep rows that are still referenced to avoid
+        // delete/insert churn on the same (product_id, spec_attribute_id) unique key.
+        product.getSpecValues().removeIf(existing -> {
+            if (existing.getSpecAttribute() == null || existing.getSpecAttribute().getId() == null) {
+                return true;
+            }
+            return !requestBySpecId.containsKey(existing.getSpecAttribute().getId());
+        });
+
         for (ProductRequest.ProductSpecRequest request : specRequests) {
             CategorySpecAttribute mapping = schemaBySpecId.get(request.getSpecAttributeId());
             if (mapping == null) {
                 throw new IllegalArgumentException("Spec attribute not allowed in selected category: " + request.getSpecAttributeId());
             }
+
+            ProductSpecValue existing = existingBySpecId.get(request.getSpecAttributeId());
+            if (existing != null) {
+                existing.setProduct(product);
+                existing.setSpecAttribute(mapping.getSpecAttribute());
+                existing.setValueText(request.getValue().trim());
+                continue;
+            }
+
             ProductSpecValue value = ProductSpecValue.builder()
                     .product(product)
                     .specAttribute(mapping.getSpecAttribute())
@@ -290,9 +398,8 @@ public class ProductServiceImpl implements ProductService {
             variant.setActive(request.getActive() != null ? request.getActive() : true);
             variant.setProduct(product);
 
-            // Replace variant selections.
-            variant.getAttributeValues().clear();
-            variant.getAttributeValues().addAll(computed.attributeValues(variant));
+            // Sync selections without clear+reinsert to avoid unique-key race on flush.
+            syncVariantAttributeValues(variant, computed);
 
             if (request.getImages() != null) {
                 variant.getImages().clear();
@@ -320,13 +427,44 @@ public class ProductServiceImpl implements ProductService {
         }
 
         if (!isCreate) {
-            for (ProductVariant existing : existingById.values()) {
-                if (!processedIds.contains(existing.getId())) {
-                    existing.setActive(false);
-                    existing.setStock(0);
-                }
-            }
+            removeVariantsMissingFromRequest(product, existingById, processedIds);
         }
+    }
+
+    private void removeVariantsMissingFromRequest(Product product,
+                                                  Map<UUID, ProductVariant> existingById,
+                                                  Set<UUID> processedIds) {
+        List<ProductVariant> variantsToDelete = existingById.values().stream()
+                .filter(existing -> !processedIds.contains(existing.getId()))
+                .collect(Collectors.toList());
+        if (variantsToDelete.isEmpty()) {
+            return;
+        }
+
+        List<ProductVariant> lockedVariants = variantsToDelete.stream()
+                .filter(variant -> orderItemRepository.existsByVariantId(variant.getId()))
+                .collect(Collectors.toList());
+        if (!lockedVariants.isEmpty()) {
+            String lockedVariantPreview = lockedVariants.stream()
+                    .map(variant -> {
+                        String sku = variant.getSku();
+                        if (sku != null && !sku.isBlank()) {
+                            return sku;
+                        }
+                        return variant.getVariantName();
+                    })
+                    .collect(Collectors.joining(", "));
+            throw new ConflictException(
+                    "Không thể xóa phân loại đã phát sinh đơn hàng: " + lockedVariantPreview);
+        }
+
+        List<UUID> variantIdsToDelete = variantsToDelete.stream()
+                .map(ProductVariant::getId)
+                .collect(Collectors.toList());
+
+        cartRepository.deleteByVariantIdIn(variantIdsToDelete);
+        flashSaleItemRepository.deleteByVariantIdIn(variantIdsToDelete);
+        product.getVariants().removeIf(existing -> variantIdsToDelete.contains(existing.getId()));
     }
 
     private ProductVariant resolveVariantEntity(ProductVariantRequest request, Map<UUID, ProductVariant> existingById, Map<String, ProductVariant> existingBySku) {
@@ -340,6 +478,44 @@ public class ProductServiceImpl implements ProductService {
                 .images(new ArrayList<>())
                 .attributeValues(new ArrayList<>())
                 .build();
+    }
+
+    private void syncVariantAttributeValues(ProductVariant variant, VariantComputed computed) {
+        Set<UUID> incomingAttributeIds = computed.selections().stream()
+                .map(AttributeSelectionContext::variantAttributeId)
+                .collect(Collectors.toSet());
+
+        variant.getAttributeValues().removeIf(existing -> {
+            if (existing.getVariantAttribute() == null || existing.getVariantAttribute().getId() == null) {
+                return true;
+            }
+            return !incomingAttributeIds.contains(existing.getVariantAttribute().getId());
+        });
+
+        Map<UUID, ProductVariantAttributeValue> existingByAttributeId = new HashMap<>();
+        for (ProductVariantAttributeValue existing : variant.getAttributeValues()) {
+            if (existing.getVariantAttribute() == null || existing.getVariantAttribute().getId() == null) {
+                continue;
+            }
+            existingByAttributeId.putIfAbsent(existing.getVariantAttribute().getId(), existing);
+        }
+
+        for (AttributeSelectionContext selection : computed.selections()) {
+            ProductVariantAttributeValue existing = existingByAttributeId.get(selection.variantAttributeId());
+            if (existing != null) {
+                existing.setProductVariant(variant);
+                existing.setVariantAttribute(selection.option().getVariantAttribute());
+                existing.setOption(selection.option());
+                continue;
+            }
+
+            ProductVariantAttributeValue value = ProductVariantAttributeValue.builder()
+                    .productVariant(variant)
+                    .variantAttribute(selection.option().getVariantAttribute())
+                    .option(selection.option())
+                    .build();
+            variant.getAttributeValues().add(value);
+        }
     }
 
     private VariantComputed computeVariantData(Product product,
@@ -395,7 +571,7 @@ public class ProductServiceImpl implements ProductService {
                     .findFirst()
                     .orElseThrow(() -> new IllegalArgumentException("Option does not belong to attribute: " + optionId));
             if (!Boolean.TRUE.equals(option.getActive())) {
-                throw new IllegalArgumentException("Option is inactive and cannot be used: " + optionId);
+                throw new InvalidParamException("Option is inactive and cannot be used: " + optionId);
             }
 
             displayTokens.add(option.getLabel());
@@ -882,12 +1058,7 @@ public class ProductServiceImpl implements ProductService {
         Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PaginationConstant.of(page, size, sort);
 
-        Boolean active = null;
-        if (status != null && !status.isBlank()) {
-            active = ProductStatus.ACTIVE.name().equalsIgnoreCase(status);
-        }
-
-        Specification<Product> spec = ProductSpecification.filter(keyword, categoryId, null, null, null, null, active);
+        Specification<Product> spec = ProductSpecification.filter(keyword, categoryId, null, null, null, null, null, status);
         Page<Product> products = productRepository.findAll(spec, pageable);
         List<UUID> variantIds = products.getContent().stream()
                 .flatMap(product -> product.getVariants().stream())
@@ -929,8 +1100,7 @@ public class ProductServiceImpl implements ProductService {
             String sku,
             String displayName,
             String signature,
-            List<AttributeSelectionContext> selections
-    ) {
+            List<AttributeSelectionContext> selections) {
         List<ProductVariantAttributeValue> attributeValues(ProductVariant variant) {
             return selections.stream()
                     .map(selection -> ProductVariantAttributeValue.builder()

@@ -9,6 +9,8 @@ import com.hoz.hozitech.application.repositories.ProductImageRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.domain.dtos.request.ProductRequest;
+import com.hoz.hozitech.domain.dtos.request.ProductBasicRequest;
+import com.hoz.hozitech.domain.dtos.request.ProductVariantsUpdateRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.ProductResponse;
@@ -95,6 +97,24 @@ public class AdminProductController {
                 return ResponseEntity
                                 .ok(ApiResponse.success("Product updated successfully",
                                                 productService.updateProduct(id, request)));
+        }
+
+        @PutMapping("/{id}/basic")
+        public ResponseEntity<ApiResponse<ProductResponse>> updateProductBasic(
+                        @PathVariable UUID id,
+                        @Valid @RequestBody ProductBasicRequest request) {
+                return ResponseEntity
+                                .ok(ApiResponse.success("Product basic info updated successfully",
+                                                productService.updateProductBasic(id, request)));
+        }
+
+        @PutMapping("/{id}/variants")
+        public ResponseEntity<ApiResponse<ProductResponse>> updateProductVariants(
+                        @PathVariable UUID id,
+                        @Valid @RequestBody ProductVariantsUpdateRequest request) {
+                return ResponseEntity
+                                .ok(ApiResponse.success("Product variants updated successfully",
+                                                productService.updateProductVariants(id, request)));
         }
 
         @DeleteMapping("/{id}")
