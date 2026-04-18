@@ -11,6 +11,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
@@ -78,6 +79,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .badRequest()
                 .body(ApiResponse.error("Validation failed", errors));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        String message = String.format(
+                "Giá trị không hợp lệ cho tham số '%s': %s",
+                ex.getName(),
+                ex.getValue());
+        log.warn("MethodArgumentTypeMismatch parameter={} value={}", ex.getName(), ex.getValue());
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponse.error(message));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

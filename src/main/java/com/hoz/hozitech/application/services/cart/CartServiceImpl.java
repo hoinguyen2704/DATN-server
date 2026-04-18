@@ -3,6 +3,7 @@ package com.hoz.hozitech.application.services.cart;
 import com.hoz.hozitech.application.repositories.CartRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
+import com.hoz.hozitech.application.services.flashsale.FlashSaleService;
 
 import com.hoz.hozitech.domain.dtos.request.CartRequest;
 import com.hoz.hozitech.domain.dtos.response.CartResponse;
@@ -29,6 +30,7 @@ public class CartServiceImpl implements CartService {
     private final CartRepository cartRepository;
     private final ProductVariantRepository variantRepository;
     private final UserRepository userRepository;
+    private final FlashSaleService flashSaleService;
 
     @Override
     @Transactional(readOnly = true)
@@ -125,6 +127,7 @@ public class CartServiceImpl implements CartService {
 
     private CartResponse mapToResponse(Cart cart) {
         ProductVariant variant = cart.getVariant();
+        BigDecimal effectiveUnitPrice = resolveCurrentUnitPrice(variant, cart.getQuantity());
         String issueCode = null;
         String issueMessage = null;
         boolean available = true;
@@ -160,14 +163,21 @@ public class CartServiceImpl implements CartService {
                 .productSlug(variant.getProduct().getSlug())
                 .variantName(variant.getVariantName())
                 .imageUrl(imageUrl)
-                .price(variant.getPrice())
+                .price(effectiveUnitPrice)
                 .quantity(cart.getQuantity())
-                .subtotal(variant.getPrice().multiply(BigDecimal.valueOf(cart.getQuantity())))
+                .subtotal(effectiveUnitPrice.multiply(BigDecimal.valueOf(cart.getQuantity())))
                 .stockQuantity(variant.getStock())
                 .available(available)
                 .issueCode(issueCode)
                 .issueMessage(issueMessage)
                 .build();
+    }
+
+    private BigDecimal resolveCurrentUnitPrice(ProductVariant variant, Integer quantity) {
+        BigDecimal flashPrice = flashSaleService.getActiveFlashSalePrice(
+                variant.getId(),
+                quantity != null ? quantity : 1);
+        return flashPrice != null ? flashPrice : variant.getPrice();
     }
 
     private void validateVariantPurchasable(ProductVariant variant) {

@@ -15,6 +15,7 @@ public interface FlashSaleService {
     FlashSaleResponse createFlashSale(FlashSaleRequest request);
 
     FlashSaleResponse updateFlashSale(UUID id, FlashSaleRequest request);
+
     FlashSaleResponse updateFlashSaleStatus(UUID id, FlashSaleStatus status);
 
     void deleteFlashSale(UUID id);
@@ -24,16 +25,12 @@ public interface FlashSaleService {
     PageResponse<FlashSaleResponse> getAllFlashSales(int page, int size);
 
     FlashSaleResponse getActiveFlashSale();
+
     List<FlashSaleResponse> getActiveFlashSales();
 
-    /**
-     * Checks if variant is in active flash sale with enough stock. 
-     * If so, reduces flash stock and returns flash price. Otherwise returns null.
-     */
+    BigDecimal getActiveFlashSalePrice(UUID variantId, int quantity);
+
     BigDecimal applyFlashSaleAndReduceStock(UUID variantId, int quantity);
 
-    /**
-     * Restores flash-sale sold count for a previously checked out order item.
-     */
     void restoreFlashSaleSoldCount(UUID variantId, BigDecimal soldUnitPrice, int quantity, LocalDateTime soldAt);
 }

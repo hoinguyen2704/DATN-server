@@ -154,6 +154,19 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public BigDecimal getActiveFlashSalePrice(UUID variantId, int quantity) {
+        if (variantId == null || quantity <= 0) {
+            return null;
+        }
+
+        return flashSaleItemRepository.findActiveFlashSaleItemByVariantId(variantId)
+                .filter(item -> item.getFlashStock() - item.getSoldCount() >= quantity)
+                .map(FlashSaleItem::getFlashPrice)
+                .orElse(null);
+    }
+
+    @Override
     @Transactional
     public BigDecimal applyFlashSaleAndReduceStock(UUID variantId, int quantity) {
         return flashSaleItemRepository.findActiveFlashSaleItemByVariantIdForUpdate(variantId)

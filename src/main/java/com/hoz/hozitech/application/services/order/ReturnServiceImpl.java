@@ -195,7 +195,7 @@ public class ReturnServiceImpl implements ReturnService {
                 "Yêu cầu trả hàng đã được tiếp nhận",
                 "Yêu cầu " + saved.getReturnNumber() + " của bạn đã được tạo thành công.");
 
-        return mapToResponse(saved);
+        return mapToFreshResponse(saved);
     }
 
     @Override
@@ -249,7 +249,7 @@ public class ReturnServiceImpl implements ReturnService {
                 "Yêu cầu trả hàng đã được hủy",
                 "Bạn đã hủy yêu cầu " + saved.getReturnNumber() + " thành công.");
 
-        return mapToResponse(saved);
+        return mapToFreshResponse(saved);
     }
 
     @Override
@@ -343,7 +343,7 @@ public class ReturnServiceImpl implements ReturnService {
                     "Yêu cầu " + saved.getReturnNumber() + " đã bị từ chối.");
         }
 
-        return mapToResponse(saved);
+        return mapToFreshResponse(saved);
     }
 
     @Override
@@ -407,7 +407,7 @@ public class ReturnServiceImpl implements ReturnService {
                 "Trạng thái yêu cầu trả hàng đã cập nhật",
                 "Yêu cầu " + saved.getReturnNumber() + " chuyển sang trạng thái " + saved.getStatus().getDescription() + ".");
 
-        return mapToResponse(saved);
+        return mapToFreshResponse(saved);
     }
 
     @Override
@@ -510,7 +510,7 @@ public class ReturnServiceImpl implements ReturnService {
                 "Hoàn tiền thành công",
                 "Yêu cầu " + saved.getReturnNumber() + " đã được hoàn tiền thành công.");
 
-        return mapToResponse(saved);
+        return mapToFreshResponse(saved);
     }
 
     private ReturnRequestResponse mapToResponse(ReturnRequest rr) {
@@ -573,6 +573,12 @@ public class ReturnServiceImpl implements ReturnService {
                 .refunds(refundResponses)
                 .statusHistories(historyResponses)
                 .build();
+    }
+
+    private ReturnRequestResponse mapToFreshResponse(ReturnRequest rr) {
+        entityManager.flush();
+        entityManager.refresh(rr);
+        return mapToResponse(rr);
     }
 
     private void appendReturnStatusHistory(ReturnRequest rr, ReturnRequestStatus status, String description) {
