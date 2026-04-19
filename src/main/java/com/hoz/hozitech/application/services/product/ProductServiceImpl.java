@@ -301,10 +301,6 @@ public class ProductServiceImpl implements ProductService {
         Map<UUID, CategorySpecAttribute> schemaBySpecId = specSchema.stream()
                 .collect(Collectors.toMap(m -> m.getSpecAttribute().getId(), m -> m));
 
-        if (!schemaBySpecId.isEmpty() && (specRequests == null || specRequests.isEmpty())) {
-            throw new IllegalArgumentException("Specs are required for selected category");
-        }
-
         if (specRequests == null || specRequests.isEmpty()) {
             product.getSpecValues().clear();
             return;
@@ -312,18 +308,23 @@ public class ProductServiceImpl implements ProductService {
 
         Map<UUID, ProductRequest.ProductSpecRequest> requestBySpecId = new HashMap<>();
         for (ProductRequest.ProductSpecRequest request : specRequests) {
+            if (request == null) {
+                continue;
+            }
+            if (request.getSpecAttributeId() == null) {
+                throw new IllegalArgumentException("Spec attribute id is required");
+            }
+            if (request.getValue() == null || request.getValue().isBlank()) {
+                continue;
+            }
             if (requestBySpecId.putIfAbsent(request.getSpecAttributeId(), request) != null) {
                 throw new ConflictException("Duplicate spec attribute in request");
             }
         }
 
-        if (!schemaBySpecId.isEmpty()) {
-            for (UUID specId : schemaBySpecId.keySet()) {
-                ProductRequest.ProductSpecRequest request = requestBySpecId.get(specId);
-                if (request == null || request.getValue() == null || request.getValue().isBlank()) {
-                    throw new IllegalArgumentException("Missing spec value for attribute " + specId);
-                }
-            }
+        if (requestBySpecId.isEmpty()) {
+            product.getSpecValues().clear();
+            return;
         }
 
         Map<UUID, ProductSpecValue> existingBySpecId = new HashMap<>();
@@ -1056,6 +1057,7 @@ public class ProductServiceImpl implements ProductService {
                         (first, second) -> first));
 
         return product.getSpecValues().stream()
+                .filter(value -> value.getValueText() != null && !value.getValueText().isBlank())
                 .sorted(Comparator.comparing(value ->
                         specSortOrderBySpecId.getOrDefault(
                                 value.getSpecAttribute().getId(),
