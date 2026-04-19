@@ -5,7 +5,11 @@ import com.hoz.hozitech.web.base.RoleAdmin;
 import com.hoz.hozitech.application.services.dashboard.DashboardService;
 import com.hoz.hozitech.application.services.export.ExportService;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
+import com.hoz.hozitech.domain.dtos.response.DashboardRevenueResponse;
+import com.hoz.hozitech.domain.dtos.response.DashboardReviewStatsResponse;
 import com.hoz.hozitech.domain.dtos.response.DashboardStatsResponse;
+import com.hoz.hozitech.domain.dtos.response.DashboardSummaryResponse;
+import com.hoz.hozitech.domain.dtos.response.DashboardTopListsResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +30,40 @@ public class AdminDashboardController {
             @RequestParam(value = "period", defaultValue = "MONTH") String period) {
         return ResponseEntity.ok(ApiResponse.success("Dashboard stats fetched successfully",
                 dashboardService.getDashboardStats(period)));
+    }
+
+    @GetMapping("/summary")
+    public ResponseEntity<ApiResponse<DashboardSummaryResponse>> getDashboardSummary(
+            @RequestParam(value = "period", defaultValue = "MONTH") String period) {
+        return ResponseEntity.ok(ApiResponse.success("Dashboard summary fetched successfully",
+                dashboardService.getDashboardSummary(period)));
+    }
+
+    @GetMapping("/revenue")
+    public ResponseEntity<ApiResponse<DashboardRevenueResponse>> getDashboardRevenue(
+            @RequestParam(value = "period", defaultValue = "MONTH") String period) {
+        return ResponseEntity.ok(ApiResponse.success("Dashboard revenue fetched successfully",
+                dashboardService.getDashboardRevenue(period)));
+    }
+
+    @GetMapping("/top-lists")
+    public ResponseEntity<ApiResponse<DashboardTopListsResponse>> getDashboardTopLists(
+            @RequestParam(value = "period", defaultValue = "MONTH") String period) {
+        return ResponseEntity.ok(ApiResponse.success("Dashboard top lists fetched successfully",
+                dashboardService.getDashboardTopLists(period)));
+    }
+
+    @GetMapping("/recent-orders")
+    public ResponseEntity<ApiResponse<List<DashboardStatsResponse.RecentOrderItem>>> getRecentOrders() {
+        return ResponseEntity.ok(ApiResponse.success("Recent orders fetched successfully",
+                dashboardService.getRecentOrders()));
+    }
+
+    @GetMapping("/reviews")
+    public ResponseEntity<ApiResponse<DashboardReviewStatsResponse>> getDashboardReviews(
+            @RequestParam(value = "period", defaultValue = "MONTH") String period) {
+        return ResponseEntity.ok(ApiResponse.success("Dashboard reviews fetched successfully",
+                dashboardService.getDashboardReviewStats(period)));
     }
 
     @GetMapping("/top-variants")

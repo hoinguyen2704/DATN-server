@@ -11,6 +11,9 @@ import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.domain.dtos.request.ProductRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductBasicRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductVariantsUpdateRequest;
+import com.hoz.hozitech.domain.dtos.response.AdminProductListItemResponse;
+import com.hoz.hozitech.domain.dtos.response.AdminProductPickerItemResponse;
+import com.hoz.hozitech.domain.dtos.response.AdminProductVariantSummaryResponse;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.ProductResponse;
@@ -64,7 +67,7 @@ public class AdminProductController {
         }
 
         @GetMapping
-        public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> getAdminProducts(
+        public ResponseEntity<ApiResponse<PageResponse<AdminProductListItemResponse>>> getAdminProducts(
                         @RequestParam(required = false, defaultValue = "") String keyword,
                         @RequestParam(required = false) UUID categoryId,
                         @RequestParam(required = false) String status,
@@ -77,10 +80,31 @@ public class AdminProductController {
                                                 sortDir)));
         }
 
+        @GetMapping("/picker")
+        public ResponseEntity<ApiResponse<PageResponse<AdminProductPickerItemResponse>>> getAdminProductPickerItems(
+                        @RequestParam(required = false, defaultValue = "") String keyword,
+                        @RequestParam(required = false) UUID categoryId,
+                        @RequestParam(required = false) UUID brandId,
+                        @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
+                        @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_LARGE_STR) int size,
+                        @RequestParam(defaultValue = "createdAt") String sortBy,
+                        @RequestParam(defaultValue = "DESC") String sortDir) {
+                return ResponseEntity.ok(ApiResponse.success("Fetch product picker items successfully",
+                                productService.getAdminProductPickerItems(keyword, categoryId, brandId, page, size, sortBy,
+                                                sortDir)));
+        }
+
         @GetMapping("/{id}")
         public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable UUID id) {
                 return ResponseEntity.ok(ApiResponse.success("Fetch product successfully",
                                 productService.getProductById(id)));
+        }
+
+        @GetMapping("/{id}/variants/summary")
+        public ResponseEntity<ApiResponse<List<AdminProductVariantSummaryResponse>>> getProductVariantSummaries(
+                        @PathVariable UUID id) {
+                return ResponseEntity.ok(ApiResponse.success("Fetch product variant summaries successfully",
+                                productService.getAdminProductVariantSummaries(id)));
         }
 
         @PostMapping

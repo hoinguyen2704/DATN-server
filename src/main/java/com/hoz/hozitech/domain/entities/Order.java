@@ -8,6 +8,7 @@ import com.hoz.hozitech.domain.enums.PaymentStatus;
 import com.hoz.hozitech.domain.enums.TaxMode;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import lombok.*;
@@ -119,4 +120,7 @@ public class Order extends AbstractAuditingEntity {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("createdAt DESC")
     private List<OrderStatusHistory> statusHistories = new ArrayList<>();
+
+    @Formula("(SELECT COALESCE(COUNT(oi.id), 0) FROM order_items oi WHERE oi.order_id = id)")
+    private Integer itemCount;
 }

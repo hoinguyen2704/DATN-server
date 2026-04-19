@@ -5,6 +5,7 @@ import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
 import com.hoz.hozitech.application.services.export.ExportService;
 import com.hoz.hozitech.application.services.order.OrderService;
+import com.hoz.hozitech.domain.dtos.response.AdminOrderListItemResponse;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.OrderResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -28,7 +29,7 @@ public class AdminOrderController {
     private final ExportService exportService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getAllOrders(
+    public ResponseEntity<ApiResponse<PageResponse<AdminOrderListItemResponse>>> getAllOrders(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
@@ -88,4 +89,3 @@ public class AdminOrderController {
         return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
     }
 }
-

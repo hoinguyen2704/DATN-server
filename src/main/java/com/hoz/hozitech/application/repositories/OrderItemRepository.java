@@ -37,7 +37,7 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, UUID> {
             "WHERE oi.order.orderStatus = 'SHIPPED' AND oi.order.createdAt >= :from AND oi.order.createdAt <= :to")
     long sumProductsSoldByDateRange(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
-    @Query("SELECT oi.variant.product.id, oi.variant.product.name, '', " +
+    @Query("SELECT oi.variant.product.id, oi.variant.product.name, " +
             "SUM(oi.quantity), COALESCE(SUM(oi.subtotal), 0) " +
             "FROM OrderItem oi WHERE oi.order.orderStatus = 'SHIPPED' " +
             "AND oi.order.createdAt >= :from AND oi.order.createdAt <= :to " +

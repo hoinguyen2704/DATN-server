@@ -23,12 +23,6 @@ public class Category extends AbstractAuditingEntity {
     @Column(name = "slug", nullable = false, unique = true, length = 150)
     private String slug;
 
-    @Column(name = "description", columnDefinition = "TEXT")
-    private String description;
-
-    @Column(name = "image_url", length = 500)
-    private String imageUrl;
-
     @Column(name = "sort_order")
     private Integer sortOrder;
 

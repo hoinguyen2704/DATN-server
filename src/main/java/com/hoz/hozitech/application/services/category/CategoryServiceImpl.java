@@ -65,8 +65,8 @@ public class CategoryServiceImpl implements CategoryService {
         }
 
         return allCategories.stream()
-                .filter(c -> c.getParentCategory() == null)
-                .map(c -> dtoMap.get(c.getId()))
+                .filter(category -> category.getParentCategory() == null)
+                .map(category -> dtoMap.get(category.getId()))
                 .collect(Collectors.toList());
     }
 
