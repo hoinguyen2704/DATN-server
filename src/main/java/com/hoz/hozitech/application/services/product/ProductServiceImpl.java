@@ -962,6 +962,10 @@ public class ProductServiceImpl implements ProductService {
                 .collect(Collectors.toList());
 
         List<ProductVariantResponse> variants = product.getVariants().stream()
+                .sorted(Comparator
+                        .comparing(ProductVariant::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(ProductVariant::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(ProductVariant::getId, Comparator.nullsLast(Comparator.naturalOrder())))
                 .map(variant -> {
                     List<ProductImageResponse> variantImages = variant.getImages().stream()
                             .sorted(imageComparator)
@@ -996,6 +1000,8 @@ public class ProductServiceImpl implements ProductService {
                             .displayName(variant.getVariantName())
                             .variantName(variant.getVariantName())
                             .variantSignature(variant.getVariantSignature())
+                            .createdAt(variant.getCreatedAt())
+                            .updatedAt(variant.getUpdatedAt())
                             .price(variant.getPrice())
                             .compareAtPrice(variant.getCompareAtPrice())
                             .stockQuantity(variant.getStock())
