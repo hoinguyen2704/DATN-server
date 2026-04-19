@@ -119,7 +119,18 @@ public class CategoryServiceImpl implements CategoryService {
         } else {
             categories = categoryRepository.findAll(pageable);
         }
-        return PageResponse.of(categories.map(this::mapToResponse));
+
+        List<CategoryResponse> content = categories.getContent().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.<CategoryResponse>builder()
+                .data(content)
+                .page(page)
+                .perPage(size)
+                .total(categories.getTotalElements())
+                .lastPage(categories.getTotalPages())
+                .build();
     }
 
     @Override
@@ -141,8 +152,6 @@ public class CategoryServiceImpl implements CategoryService {
         Category category = Category.builder()
                 .name(request.getName())
                 .slug(slug)
-                .description(request.getDescription())
-                .imageUrl(request.getImageUrl())
                 .status(request.getActive() != null ? request.getActive() : true)
                 .parentCategory(parent)
                 .build();
@@ -162,8 +171,6 @@ public class CategoryServiceImpl implements CategoryService {
                 .orElseThrow(() -> new IllegalArgumentException("Category not found"));
 
         category.setName(request.getName());
-        category.setDescription(request.getDescription());
-        category.setImageUrl(request.getImageUrl());
 
         if (request.getActive() != null) {
             category.setStatus(request.getActive());
@@ -216,29 +223,29 @@ public class CategoryServiceImpl implements CategoryService {
         List<CategoryVariantAttribute> variantMappings = category.getCategoryVariantAttributes() == null
                 ? List.of()
                 : category.getCategoryVariantAttributes().stream()
-                        .sorted(Comparator.comparing(CategoryVariantAttribute::getSortOrder))
-                        .toList();
+                .sorted(Comparator.comparing(CategoryVariantAttribute::getSortOrder))
+                .toList();
 
         List<CategoryResponse.VariantAttributeSchemaResponse> variantAttributes = variantMappings.stream()
                 .map(mapping -> {
-                    VariantAttribute attr = mapping.getVariantAttribute();
-                    List<CategoryResponse.VariantOptionResponse> options = attr.getOptions() == null
+                    VariantAttribute attribute = mapping.getVariantAttribute();
+                    List<CategoryResponse.VariantOptionResponse> options = attribute.getOptions() == null
                             ? List.of()
-                            : attr.getOptions().stream()
-                                    .sorted(Comparator.comparing(VariantAttributeOption::getSortOrder))
-                                    .map(opt -> CategoryResponse.VariantOptionResponse.builder()
-                                            .id(opt.getId())
-                                            .label(opt.getLabel())
-                                            .code(opt.getCode())
-                                            .sortOrder(opt.getSortOrder())
-                                            .active(opt.getActive())
-                                            .build())
-                                    .collect(Collectors.toList());
+                            : attribute.getOptions().stream()
+                            .sorted(Comparator.comparing(VariantAttributeOption::getSortOrder))
+                            .map(option -> CategoryResponse.VariantOptionResponse.builder()
+                                    .id(option.getId())
+                                    .label(option.getLabel())
+                                    .code(option.getCode())
+                                    .sortOrder(option.getSortOrder())
+                                    .active(option.getActive())
+                                    .build())
+                            .collect(Collectors.toList());
 
                     return CategoryResponse.VariantAttributeSchemaResponse.builder()
-                            .id(attr.getId())
-                            .name(attr.getName())
-                            .code(attr.getCode())
+                            .id(attribute.getId())
+                            .name(attribute.getName())
+                            .code(attribute.getCode())
                             .sortOrder(mapping.getSortOrder())
                             .options(options)
                             .build();
@@ -248,8 +255,8 @@ public class CategoryServiceImpl implements CategoryService {
         List<CategorySpecAttribute> specMappings = category.getCategorySpecAttributes() == null
                 ? List.of()
                 : category.getCategorySpecAttributes().stream()
-                        .sorted(Comparator.comparing(CategorySpecAttribute::getSortOrder))
-                        .toList();
+                .sorted(Comparator.comparing(CategorySpecAttribute::getSortOrder))
+                .toList();
 
         List<CategoryResponse.SpecSchemaResponse> specAttributes = specMappings.stream()
                 .map(mapping -> CategoryResponse.SpecSchemaResponse.builder()
@@ -265,8 +272,6 @@ public class CategoryServiceImpl implements CategoryService {
                 .id(category.getId())
                 .name(category.getName())
                 .slug(category.getSlug())
-                .description(category.getDescription())
-                .imageUrl(category.getImageUrl())
                 .active(category.getStatus())
                 .productCount(category.getProducts() != null ? (long) category.getProducts().size() : 0L)
                 .createdAt(category.getCreatedAt())
@@ -305,19 +310,19 @@ public class CategoryServiceImpl implements CategoryService {
                 throw new ConflictException("Duplicate variant attribute code in category schema: " + normalizedCode);
             }
 
-            VariantAttribute attr = resolveVariantAttribute(item, normalizedCode);
-            applyVariantOptions(attr, item.getOptions(), normalizedCode);
+            VariantAttribute attribute = resolveVariantAttribute(item, normalizedCode);
+            applyVariantOptions(attribute, item.getOptions(), normalizedCode);
 
-            CategoryVariantAttribute mapping = existingByAttributeId.remove(attr.getId());
+            CategoryVariantAttribute mapping = existingByAttributeId.remove(attribute.getId());
             if (mapping == null) {
                 mapping = CategoryVariantAttribute.builder()
                         .category(category)
-                        .variantAttribute(attr)
+                        .variantAttribute(attribute)
                         .build();
                 mappings.add(mapping);
             }
             mapping.setCategory(category);
-            mapping.setVariantAttribute(attr);
+            mapping.setVariantAttribute(attribute);
             mapping.setSortOrder(item.getSortOrder() != null ? item.getSortOrder() : i);
         }
 
@@ -325,26 +330,30 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     private VariantAttribute resolveVariantAttribute(CategoryRequest.VariantAttributeItem item, String normalizedCode) {
-        VariantAttribute attr;
+        VariantAttribute attribute;
         if (item.getAttributeId() != null) {
-            attr = variantAttributeRepository.findById(item.getAttributeId())
+            attribute = variantAttributeRepository.findById(item.getAttributeId())
                     .orElseThrow(() -> new IllegalArgumentException("Variant attribute not found: " + item.getAttributeId()));
         } else if (!normalizedCode.isBlank()) {
-            attr = variantAttributeRepository.findByCodeIgnoreCase(normalizedCode)
+            attribute = variantAttributeRepository.findByCodeIgnoreCase(normalizedCode)
                     .orElseGet(() -> VariantAttribute.builder().build());
         } else {
-            attr = variantAttributeRepository.findByNameIgnoreCase(item.getName().trim())
+            attribute = variantAttributeRepository.findByNameIgnoreCase(item.getName().trim())
                     .orElseGet(() -> VariantAttribute.builder().build());
         }
 
-        attr.setName(item.getName().trim());
-        attr.setCode(normalizedCode);
-        attr.setActive(Boolean.TRUE);
-        return variantAttributeRepository.save(attr);
+        attribute.setName(item.getName().trim());
+        attribute.setCode(normalizedCode);
+        attribute.setActive(Boolean.TRUE);
+        return variantAttributeRepository.save(attribute);
     }
 
-    private void applyVariantOptions(VariantAttribute attr, List<CategoryRequest.VariantOptionItem> options, String attributeCode) {
-        List<VariantAttributeOption> entities = attr.getOptions();
+    private void applyVariantOptions(
+            VariantAttribute attribute,
+            List<CategoryRequest.VariantOptionItem> options,
+            String attributeCode
+    ) {
+        List<VariantAttributeOption> entities = attribute.getOptions();
         if (options == null) {
             throw new InvalidParamException("Variant attribute " + attributeCode + " must have at least one option");
         }
@@ -378,11 +387,11 @@ public class CategoryServiceImpl implements CategoryService {
             VariantAttributeOption entity = existingByCode.remove(normalizedCode);
             if (entity == null) {
                 entity = VariantAttributeOption.builder()
-                        .variantAttribute(attr)
+                        .variantAttribute(attribute)
                         .build();
                 entities.add(entity);
             }
-            entity.setVariantAttribute(attr);
+            entity.setVariantAttribute(attribute);
             entity.setLabel(option.getLabel().trim());
             entity.setCode(normalizedCode);
             entity.setSortOrder(option.getSortOrder() != null ? option.getSortOrder() : appended);
@@ -398,7 +407,6 @@ public class CategoryServiceImpl implements CategoryService {
         if (!hasActiveOption) {
             throw new InvalidParamException("Variant attribute " + attributeCode + " must have at least one active option");
         }
-
     }
 
     private void applySpecAttributes(Category category, List<CategoryRequest.SpecAttributeItem> items) {
@@ -429,35 +437,35 @@ public class CategoryServiceImpl implements CategoryService {
                 throw new ConflictException("Duplicate spec attribute code in category schema: " + normalizedCode);
             }
 
-            SpecAttribute attr = resolveSpecAttribute(item, normalizedCode);
-            boolean isNewSpecAttribute = attr.getId() == null;
+            SpecAttribute attribute = resolveSpecAttribute(item, normalizedCode);
+            boolean isNewSpecAttribute = attribute.getId() == null;
             boolean hasExplicitCode = item.getCode() != null && !item.getCode().isBlank();
             String normalizedNameCode = normalizeCode(item.getName());
             boolean codeLooksAutoFromName = !hasExplicitCode || normalizedCode.equals(normalizedNameCode);
 
-            attr.setName(item.getName().trim());
+            attribute.setName(item.getName().trim());
             if (isNewSpecAttribute
                     || item.getAttributeId() != null
                     || !codeLooksAutoFromName
-                    || attr.getCode() == null
-                    || attr.getCode().isBlank()) {
-                attr.setCode(normalizedCode);
+                    || attribute.getCode() == null
+                    || attribute.getCode().isBlank()) {
+                attribute.setCode(normalizedCode);
             }
-            attr.setDefaultHint(item.getHint());
-            attr.setSortOrder(item.getSortOrder() != null ? item.getSortOrder() : i);
-            attr.setActive(Boolean.TRUE);
-            attr = specAttributeRepository.save(attr);
+            attribute.setDefaultHint(item.getHint());
+            attribute.setSortOrder(item.getSortOrder() != null ? item.getSortOrder() : i);
+            attribute.setActive(Boolean.TRUE);
+            attribute = specAttributeRepository.save(attribute);
 
-            CategorySpecAttribute mapping = existingBySpecId.remove(attr.getId());
+            CategorySpecAttribute mapping = existingBySpecId.remove(attribute.getId());
             if (mapping == null) {
                 mapping = CategorySpecAttribute.builder()
                         .category(category)
-                        .specAttribute(attr)
+                        .specAttribute(attribute)
                         .build();
                 mappings.add(mapping);
             }
             mapping.setCategory(category);
-            mapping.setSpecAttribute(attr);
+            mapping.setSpecAttribute(attribute);
             mapping.setCustomHint(item.getHint());
             mapping.setSortOrder(item.getSortOrder() != null ? item.getSortOrder() : i);
         }
@@ -491,8 +499,8 @@ public class CategoryServiceImpl implements CategoryService {
 
     private String toSlug(String input) {
         if (input == null) return "";
-        String nowhitespace = WHITE_SPACE.matcher(input).replaceAll("-");
-        String normalized = Normalizer.normalize(nowhitespace, Normalizer.Form.NFD);
+        String noWhitespace = WHITE_SPACE.matcher(input).replaceAll("-");
+        String normalized = Normalizer.normalize(noWhitespace, Normalizer.Form.NFD);
         String slug = NONLATIN.matcher(normalized).replaceAll("");
         return slug.toLowerCase(Locale.ENGLISH).replaceAll("-{2,}", "-").replaceAll("^-|-$", "");
     }

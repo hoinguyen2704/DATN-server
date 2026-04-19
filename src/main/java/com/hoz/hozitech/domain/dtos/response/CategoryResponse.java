@@ -17,8 +17,6 @@ public class CategoryResponse {
     private UUID id;
     private String name;
     private String slug;
-    private String description;
-    private String imageUrl;
     private Boolean active;
     private Long productCount;
     private LocalDateTime createdAt;

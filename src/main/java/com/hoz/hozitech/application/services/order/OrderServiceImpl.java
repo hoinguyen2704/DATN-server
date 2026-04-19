@@ -13,6 +13,7 @@ import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 import com.hoz.hozitech.domain.dtos.request.CheckoutRequest;
 import com.hoz.hozitech.domain.dtos.request.PaymentWebhookRequest;
+import com.hoz.hozitech.domain.dtos.response.AdminOrderListItemResponse;
 import com.hoz.hozitech.domain.dtos.response.OrderResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.entities.Address;
@@ -251,12 +252,12 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<OrderResponse> getAllOrders(String status, String keyword, int page, int size) {
+    public PageResponse<AdminOrderListItemResponse> getAllOrders(String status, String keyword, int page, int size) {
         var pageable = PaginationConstant.of(page, size);
         OrderStatus orderStatus = parseNullableOrderStatus(status);
-        Specification<Order> spec = OrderSpecification.filter(null, orderStatus, null, null, keyword);
+        Specification<Order> spec = OrderSpecification.adminListFilter(orderStatus, keyword);
         Page<Order> orders = orderRepository.findAll(spec, pageable);
-        return PageResponse.of(orders.map(responseMapper::mapToResponse));
+        return PageResponse.of(orders.map(this::mapToAdminListItem));
     }
 
     @Override
@@ -305,6 +306,24 @@ public class OrderServiceImpl implements OrderService {
     private OrderStatus parseNullableOrderStatus(String rawStatus) {
         if (rawStatus == null || rawStatus.isBlank()) return null;
         return parseOrderStatus(rawStatus);
+    }
+
+    private AdminOrderListItemResponse mapToAdminListItem(Order order) {
+        User user = order.getUser();
+        return AdminOrderListItemResponse.builder()
+                .id(order.getId())
+                .orderNumber(order.getOrderNumber())
+                .orderStatus(order.getOrderStatus())
+                .paymentMethod(order.getPaymentMethod())
+                .paymentStatus(order.getPaymentStatus())
+                .totalAmount(order.getTotalAmount())
+                .customerName(user != null ? user.getFullName() : null)
+                .customerEmail(user != null ? user.getEmail() : null)
+                .customerPhone(user != null ? user.getPhoneNumber() : null)
+                .itemCount(order.getItemCount() != null ? order.getItemCount() : 0)
+                .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
+                .build();
     }
 
     private OrderStatus parseOrderStatus(String rawStatus) {

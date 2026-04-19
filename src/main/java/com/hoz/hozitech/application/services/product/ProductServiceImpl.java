@@ -29,6 +29,7 @@ import com.hoz.hozitech.application.repositories.CartRepository;
 import com.hoz.hozitech.application.repositories.CategoryRepository;
 import com.hoz.hozitech.application.repositories.FlashSaleItemRepository;
 import com.hoz.hozitech.application.repositories.OrderItemRepository;
+import com.hoz.hozitech.application.repositories.ProductImageRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.application.repositories.ReturnItemRepository;
@@ -40,6 +41,9 @@ import com.hoz.hozitech.domain.dtos.request.ProductBasicRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductVariantRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductVariantsUpdateRequest;
+import com.hoz.hozitech.domain.dtos.response.AdminProductListItemResponse;
+import com.hoz.hozitech.domain.dtos.response.AdminProductPickerItemResponse;
+import com.hoz.hozitech.domain.dtos.response.AdminProductVariantSummaryResponse;
 import com.hoz.hozitech.domain.dtos.response.CategoryResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.ProductImageResponse;
@@ -67,6 +71,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
+    private final ProductImageRepository productImageRepository;
     private final ProductVariantRepository productVariantRepository;
     private final OrderItemRepository orderItemRepository;
     private final ReturnItemRepository returnItemRepository;
@@ -662,7 +667,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private String generateProductCodeBase() {
-        return "PRD" + RandomStringUtils.random(6, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
+        return "PRD" + RandomStringUtils.random(6, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".toCharArray());
     }
 
     private String sanitizeProductCode(String raw) {
@@ -756,17 +761,9 @@ public class ProductServiceImpl implements ProductService {
                         .findFirst()
                         .orElse(null));
 
-        int totalStock = product.getVariants().stream()
-                .filter(v -> Boolean.TRUE.equals(v.getActive()))
-                .mapToInt(ProductVariant::getStock)
-                .sum();
+        int totalStock = product.getTotalStock() != null ? product.getTotalStock() : 0;
 
-        BigDecimal lowestPrice = product.getVariants().stream()
-                .filter(v -> Boolean.TRUE.equals(v.getActive()))
-                .map(ProductVariant::getPrice)
-                .filter(Objects::nonNull)
-                .min(BigDecimal::compareTo)
-                .orElse(product.getOriginPrice());
+        BigDecimal lowestPrice = product.getLowestPrice() != null ? product.getLowestPrice() : product.getOriginPrice();
 
         List<CategorySpecAttribute> specMappings = getSpecSchema(product.getCategory());
         List<ProductResponse.ProductSpecValueResponse> specs = buildSpecResponses(product, specMappings);
@@ -795,6 +792,63 @@ public class ProductServiceImpl implements ProductService {
                 .createdAt(product.getCreatedAt())
                 .mainImageUrl(mainImageUrl)
                 .outOfStock(totalStock <= 0)
+                .build();
+    }
+
+    private Map<UUID, String> buildListImageMap(List<Product> products) {
+        List<UUID> productIds = products.stream()
+                .map(Product::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        return productImageRepository.findPreferredImageMapByProductIds(productIds);
+    }
+
+    private AdminProductListItemResponse mapToAdminListItem(Product product, String mainImageUrl) {
+        Integer totalStock = product.getTotalStock() != null ? product.getTotalStock() : 0;
+        Integer totalSold = product.getTotalSold() != null ? product.getTotalSold() : 0;
+        return AdminProductListItemResponse.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .slug(product.getSlug())
+                .brandId(product.getBrand() != null ? product.getBrand().getId() : null)
+                .brandName(product.getBrand() != null ? product.getBrand().getName() : null)
+                .categoryId(product.getCategory() != null ? product.getCategory().getId() : null)
+                .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
+                .categorySlug(product.getCategory() != null ? product.getCategory().getSlug() : null)
+                .productCode(product.getProductCode())
+                .originPrice(product.getOriginPrice())
+                .lowestPrice(product.getLowestPrice() != null ? product.getLowestPrice() : product.getOriginPrice())
+                .status(product.getStatus())
+                .isFeatured(product.getIsFeatured())
+                .totalSold(totalSold)
+                .totalStock(totalStock)
+                .outOfStock(totalStock <= 0)
+                .mainImageUrl(mainImageUrl)
+                .createdAt(product.getCreatedAt())
+                .build();
+    }
+
+    private AdminProductPickerItemResponse mapToAdminPickerItem(Product product, String mainImageUrl) {
+        Integer totalStock = product.getTotalStock() != null ? product.getTotalStock() : 0;
+        Integer totalSold = product.getTotalSold() != null ? product.getTotalSold() : 0;
+        return AdminProductPickerItemResponse.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .slug(product.getSlug())
+                .brandId(product.getBrand() != null ? product.getBrand().getId() : null)
+                .brandName(product.getBrand() != null ? product.getBrand().getName() : null)
+                .categoryId(product.getCategory() != null ? product.getCategory().getId() : null)
+                .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
+                .categorySlug(product.getCategory() != null ? product.getCategory().getSlug() : null)
+                .productCode(product.getProductCode())
+                .originPrice(product.getOriginPrice())
+                .lowestPrice(product.getLowestPrice() != null ? product.getLowestPrice() : product.getOriginPrice())
+                .status(product.getStatus())
+                .totalSold(totalSold)
+                .totalStock(totalStock)
+                .outOfStock(totalStock <= 0)
+                .mainImageUrl(mainImageUrl)
+                .createdAt(product.getCreatedAt())
                 .build();
     }
 
@@ -1054,20 +1108,73 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<ProductResponse> getAdminProducts(String keyword, UUID categoryId, String status, int page, int size, String sortBy, String sortDir) {
+    public PageResponse<AdminProductListItemResponse> getAdminProducts(String keyword, UUID categoryId, String status, int page, int size, String sortBy, String sortDir) {
         Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PaginationConstant.of(page, size, sort);
 
-        Specification<Product> spec = ProductSpecification.filter(keyword, categoryId, null, null, null, null, null, status);
+        Specification<Product> spec = ProductSpecification.filter(keyword, categoryId, null, null, null, null, null, status, null);
         Page<Product> products = productRepository.findAll(spec, pageable);
-        List<UUID> variantIds = products.getContent().stream()
-                .flatMap(product -> product.getVariants().stream())
+        Map<UUID, String> imageByProductId = buildListImageMap(products.getContent());
+        return PageResponse.of(products.map(product -> mapToAdminListItem(product, imageByProductId.get(product.getId()))));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AdminProductPickerItemResponse> getAdminProductPickerItems(String keyword, UUID categoryId, UUID brandId, int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageable = PaginationConstant.of(page, size, sort);
+        Specification<Product> spec = ProductSpecification.filter(keyword, categoryId, null, null, null, null, null, null, brandId);
+        Page<Product> products = productRepository.findAll(spec, pageable);
+        Map<UUID, String> imageByProductId = buildListImageMap(products.getContent());
+        return PageResponse.of(products.map(product -> mapToAdminPickerItem(product, imageByProductId.get(product.getId()))));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AdminProductVariantSummaryResponse> getAdminProductVariantSummaries(UUID productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
+        List<UUID> variantIds = product.getVariants().stream()
                 .map(ProductVariant::getId)
                 .filter(Objects::nonNull)
                 .toList();
         Map<UUID, Long> soldByVariantId = buildVariantSoldMap(variantIds);
         Map<UUID, Long> returnedByVariantId = buildVariantReturnedMap(variantIds);
-        return PageResponse.of(products.map(product -> mapToDetailedResponse(product, soldByVariantId, returnedByVariantId)));
+
+        Comparator<ProductImage> imageComparator = Comparator
+                .comparing((ProductImage img) -> !Boolean.TRUE.equals(img.getIsPrimary()))
+                .thenComparing(img -> img.getSortOrder() == null ? Integer.MAX_VALUE : img.getSortOrder())
+                .thenComparing(img -> img.getId() == null ? "" : img.getId().toString());
+
+        String fallbackImageUrl = productImageRepository.findByProductIdAndVariantIsNullOrderBySortOrder(productId).stream()
+                .sorted(imageComparator)
+                .map(ProductImage::getImageUrl)
+                .findFirst()
+                .orElse(null);
+
+        return product.getVariants().stream()
+                .sorted(Comparator.comparing(ProductVariant::getVariantName, Comparator.nullsLast(String::compareToIgnoreCase)))
+                .map(variant -> AdminProductVariantSummaryResponse.builder()
+                        .id(variant.getId())
+                        .productId(product.getId())
+                        .variantName(variant.getVariantName())
+                        .sku(variant.getSku())
+                        .price(variant.getPrice())
+                        .stockQuantity(variant.getStock())
+                        .grossSoldQty(soldByVariantId.getOrDefault(variant.getId(), 0L))
+                        .returnedQty(returnedByVariantId.getOrDefault(variant.getId(), 0L))
+                        .netSoldQty(Math.max(
+                                soldByVariantId.getOrDefault(variant.getId(), 0L)
+                                        - returnedByVariantId.getOrDefault(variant.getId(), 0L),
+                                0L))
+                        .active(variant.getActive())
+                        .imageUrl(variant.getImages().stream()
+                                .sorted(imageComparator)
+                                .map(ProductImage::getImageUrl)
+                                .findFirst()
+                                .orElse(fallbackImageUrl))
+                        .build())
+                .toList();
     }
 
     @Override

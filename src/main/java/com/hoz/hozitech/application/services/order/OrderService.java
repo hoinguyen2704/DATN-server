@@ -2,6 +2,7 @@ package com.hoz.hozitech.application.services.order;
 
 import com.hoz.hozitech.domain.dtos.request.CheckoutRequest;
 import com.hoz.hozitech.domain.dtos.request.PaymentWebhookRequest;
+import com.hoz.hozitech.domain.dtos.response.AdminOrderListItemResponse;
 import com.hoz.hozitech.domain.dtos.response.OrderResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 
@@ -20,7 +21,7 @@ public interface OrderService {
     OrderResponse cancelOrder(UUID userId, UUID orderId);
 
     // Admin
-    PageResponse<OrderResponse> getAllOrders(String status, String keyword, int page, int size);
+    PageResponse<AdminOrderListItemResponse> getAllOrders(String status, String keyword, int page, int size);
 
     OrderResponse updateOrderStatus(UUID orderId, String status);
 

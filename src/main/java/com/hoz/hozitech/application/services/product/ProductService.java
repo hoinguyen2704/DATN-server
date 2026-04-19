@@ -3,9 +3,13 @@ package com.hoz.hozitech.application.services.product;
 import com.hoz.hozitech.domain.dtos.request.ProductBasicRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductVariantsUpdateRequest;
+import com.hoz.hozitech.domain.dtos.response.AdminProductListItemResponse;
+import com.hoz.hozitech.domain.dtos.response.AdminProductPickerItemResponse;
+import com.hoz.hozitech.domain.dtos.response.AdminProductVariantSummaryResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.ProductResponse;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface ProductService {
@@ -19,7 +23,11 @@ public interface ProductService {
     ProductResponse getProductById(UUID id);
 
     // Admin API
-    PageResponse<ProductResponse> getAdminProducts(String keyword, java.util.UUID categoryId, String status, int page, int size, String sortBy, String sortDir);
+    PageResponse<AdminProductListItemResponse> getAdminProducts(String keyword, java.util.UUID categoryId, String status, int page, int size, String sortBy, String sortDir);
+
+    PageResponse<AdminProductPickerItemResponse> getAdminProductPickerItems(String keyword, java.util.UUID categoryId, java.util.UUID brandId, int page, int size, String sortBy, String sortDir);
+
+    List<AdminProductVariantSummaryResponse> getAdminProductVariantSummaries(UUID productId);
 
     ProductResponse createProduct(ProductRequest request);
 

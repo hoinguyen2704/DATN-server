@@ -11,6 +11,8 @@ import com.hoz.hozitech.domain.entities.User_;
 import com.hoz.hozitech.domain.enums.OrderStatus;
 
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 
 public class OrderSpecification {
 
@@ -44,6 +46,29 @@ public class OrderSpecification {
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("orderNumber")), pattern),
                         cb.like(cb.lower(cb.function("text", String.class, root.get("shippingAddressJson"))), pattern)));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    public static Specification<Order> adminListFilter(
+            OrderStatus status,
+            String keyword) {
+        return (root, query, cb) -> {
+            java.util.List<Predicate> predicates = new ArrayList<>();
+            Join<Order, ?> userJoin = root.join(Order_.user, JoinType.LEFT);
+
+            if (status != null) {
+                predicates.add(cb.equal(root.get("orderStatus"), status));
+            }
+
+            if (keyword != null && !keyword.isBlank()) {
+                String pattern = "%" + keyword.toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("orderNumber")), pattern),
+                        cb.like(cb.lower(userJoin.get("fullName")), pattern),
+                        cb.like(cb.lower(userJoin.get("email")), pattern)));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

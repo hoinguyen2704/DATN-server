@@ -21,7 +21,7 @@ public class ProductSpecification {
             BigDecimal maxPrice,
             Boolean inStock,
             Boolean active) {
-        return filter(keyword, categoryId, brand, minPrice, maxPrice, inStock, active, null);
+        return filter(keyword, categoryId, brand, minPrice, maxPrice, inStock, active, null, null);
     }
 
     public static Specification<Product> filter(
@@ -33,6 +33,19 @@ public class ProductSpecification {
             Boolean inStock,
             Boolean active,
             String status) {
+        return filter(keyword, categoryId, brand, minPrice, maxPrice, inStock, active, status, null);
+    }
+
+    public static Specification<Product> filter(
+            String keyword,
+            java.util.UUID categoryId,
+            String brand,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            Boolean inStock,
+            Boolean active,
+            String status,
+            java.util.UUID brandId) {
         return (root, query, cb) -> {
             java.util.List<Predicate> predicates = new ArrayList<>();
 
@@ -53,6 +66,10 @@ public class ProductSpecification {
 
             if (brand != null && !brand.isBlank()) {
                 predicates.add(cb.equal(cb.lower(root.get("brand").get("slug")), brand.toLowerCase()));
+            }
+
+            if (brandId != null) {
+                predicates.add(cb.equal(root.get("brand").get("id"), brandId));
             }
 
             if (minPrice != null) {
