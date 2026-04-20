@@ -4,15 +4,25 @@ import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
 import com.hoz.hozitech.application.services.coupon.CouponService;
+import com.hoz.hozitech.application.services.export.ExportService;
+import com.hoz.hozitech.application.services.export.ReportDateRange;
+import com.hoz.hozitech.application.services.export.ReportRangeMode;
+import com.hoz.hozitech.application.services.export.ReportRangeResolver;
 import com.hoz.hozitech.domain.dtos.request.CouponRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.CouponResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @RestAPI("${api.prefix-admin}/coupons")
@@ -21,6 +31,7 @@ import java.util.UUID;
 public class AdminCouponController {
 
     private final CouponService couponService;
+    private final ExportService exportService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<CouponResponse>>> getAllCoupons(
@@ -50,5 +61,27 @@ public class AdminCouponController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<CouponResponse>> toggleStatus(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success("Coupon status toggled successfully", couponService.toggleStatus(id)));
+    }
+
+    @GetMapping("/report-export")
+    public ResponseEntity<byte[]> exportCouponsReportByRange(
+            @RequestParam ReportRangeMode mode,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) String month,
+            @RequestParam(required = false) Integer year) {
+        ReportDateRange range = ReportRangeResolver.resolve(mode, fromDate, toDate, month, year);
+        byte[] excelBytes = exportService.exportVouchersReportByRange(keyword, range);
+
+        String filename = "vouchers_report_" + range.fileLabel() + ".xlsx";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
+        headers.setContentLength(excelBytes.length);
+
+        return new ResponseEntity<>(excelBytes, headers, HttpStatus.OK);
     }
 }

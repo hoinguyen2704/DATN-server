@@ -573,10 +573,14 @@ public class CategoryServiceImpl implements CategoryService {
         if (input == null) {
             return "";
         }
-        String noWhitespace = WHITE_SPACE.matcher(input.trim()).replaceAll("-");
-        String normalized = Normalizer.normalize(noWhitespace, Normalizer.Form.NFD);
-        String ascii = NONLATIN.matcher(normalized).replaceAll("");
+        String normalized = Normalizer.normalize(input.trim(), Normalizer.Form.NFD);
+        String ascii = normalized
+                .replace("\u0111", "d")
+                .replace("\u0110", "D")
+                .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "")
+                .replace('_', '-');
         return ascii.toUpperCase(Locale.ENGLISH)
+                .replaceAll("[^A-Z0-9-]+", "-")
                 .replaceAll("-{2,}", "-")
                 .replaceAll("^-|-$", "");
     }

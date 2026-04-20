@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.hoz.hozitech.domain.enums.CouponStatus;
+import java.util.Collection;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -29,4 +30,7 @@ public interface CouponRepository extends JpaRepository<Coupon, UUID> {
     List<Coupon> findByIsPublicTrueAndStatusAndEndDateAfter(CouponStatus status, LocalDateTime now);
 
     List<Coupon> findByIsPublicTrueAndStatusAndEndDateIsNull(CouponStatus status);
+
+    @Query("SELECT c FROM Coupon c WHERE UPPER(c.code) IN :codes")
+    List<Coupon> findAllByUpperCodeIn(@Param("codes") Collection<String> codes);
 }

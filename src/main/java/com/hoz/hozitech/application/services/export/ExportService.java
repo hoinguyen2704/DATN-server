@@ -25,4 +25,12 @@ public interface ExportService {
 
     /** Xuất danh sách đơn hoàn hủy dạng Excel */
     byte[] exportReturnsToExcel(String status, String keyword);
+
+    byte[] exportRevenueReportByRange(ReportDateRange range);
+
+    byte[] exportOrdersReportByRange(String status, String keyword, ReportDateRange range);
+
+    byte[] exportReturnsReportByRange(String status, String keyword, ReportDateRange range);
+
+    byte[] exportVouchersReportByRange(String keyword, ReportDateRange range);
 }

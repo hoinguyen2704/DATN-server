@@ -27,6 +27,7 @@ public class ExportServiceImpl implements ExportService {
     private final RevenueReportExporter revenueReportExporter;
     private final DashboardReportExporter dashboardReportExporter;
     private final DataExcelExporter dataExcelExporter;
+    private final TimedReportExcelExporter timedReportExcelExporter;
 
     @Override
     public byte[] exportOrderInvoicePdf(UUID orderId) {
@@ -66,5 +67,25 @@ public class ExportServiceImpl implements ExportService {
     @Override
     public byte[] exportReturnsToExcel(String status, String keyword) {
         return dataExcelExporter.exportReturnsToExcel(status, keyword);
+    }
+
+    @Override
+    public byte[] exportRevenueReportByRange(ReportDateRange range) {
+        return timedReportExcelExporter.exportRevenueReport(range);
+    }
+
+    @Override
+    public byte[] exportOrdersReportByRange(String status, String keyword, ReportDateRange range) {
+        return timedReportExcelExporter.exportOrdersReport(status, keyword, range);
+    }
+
+    @Override
+    public byte[] exportReturnsReportByRange(String status, String keyword, ReportDateRange range) {
+        return timedReportExcelExporter.exportReturnsReport(status, keyword, range);
+    }
+
+    @Override
+    public byte[] exportVouchersReportByRange(String keyword, ReportDateRange range) {
+        return timedReportExcelExporter.exportVouchersReport(keyword, range);
     }
 }

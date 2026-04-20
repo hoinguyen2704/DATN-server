@@ -4,6 +4,9 @@ import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
 import com.hoz.hozitech.application.services.dashboard.DashboardService;
 import com.hoz.hozitech.application.services.export.ExportService;
+import com.hoz.hozitech.application.services.export.ReportDateRange;
+import com.hoz.hozitech.application.services.export.ReportRangeMode;
+import com.hoz.hozitech.application.services.export.ReportRangeResolver;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.DashboardRevenueResponse;
 import com.hoz.hozitech.domain.dtos.response.DashboardReviewStatsResponse;
@@ -11,6 +14,7 @@ import com.hoz.hozitech.domain.dtos.response.DashboardStatsResponse;
 import com.hoz.hozitech.domain.dtos.response.DashboardSummaryResponse;
 import com.hoz.hozitech.domain.dtos.response.DashboardTopListsResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
@@ -81,6 +85,27 @@ public class AdminDashboardController {
         byte[] excelBytes = exportService.exportRevenueReport(period);
 
         String filename = "revenue_report_" + LocalDate.now() + ".xlsx";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
+        headers.setContentLength(excelBytes.length);
+
+        return new ResponseEntity<>(excelBytes, headers, HttpStatus.OK);
+    }
+
+    @GetMapping("/report-export")
+    public ResponseEntity<byte[]> exportRevenueReportByRange(
+            @RequestParam ReportRangeMode mode,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) String month,
+            @RequestParam(required = false) Integer year) {
+        ReportDateRange range = ReportRangeResolver.resolve(mode, fromDate, toDate, month, year);
+        byte[] excelBytes = exportService.exportRevenueReportByRange(range);
+
+        String filename = "revenue_report_" + range.fileLabel() + ".xlsx";
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType(
