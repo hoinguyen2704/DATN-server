@@ -22,6 +22,7 @@ import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.CategoryRepository;
 import com.hoz.hozitech.application.repositories.SpecAttributeRepository;
 import com.hoz.hozitech.application.repositories.VariantAttributeRepository;
+import com.hoz.hozitech.application.repositories.VariantAttributeOptionRepository;
 import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.domain.dtos.request.CategoryRequest;
@@ -33,6 +34,7 @@ import com.hoz.hozitech.domain.entities.CategoryVariantAttribute;
 import com.hoz.hozitech.domain.entities.SpecAttribute;
 import com.hoz.hozitech.domain.entities.VariantAttribute;
 import com.hoz.hozitech.domain.entities.VariantAttributeOption;
+import com.hoz.hozitech.web.exceptions.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -43,6 +45,7 @@ public class CategoryServiceImpl implements CategoryService {
     private final CategoryRepository categoryRepository;
     private final SpecAttributeRepository specAttributeRepository;
     private final VariantAttributeRepository variantAttributeRepository;
+    private final VariantAttributeOptionRepository variantAttributeOptionRepository;
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
     private static final Pattern WHITE_SPACE = Pattern.compile("[\\s]");
 
@@ -200,6 +203,57 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    public CategoryResponse.VariantOptionResponse upsertVariantOption(UUID categoryId, UUID attributeId, String label) {
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + categoryId));
+        String trimmedLabel = label == null ? "" : label.trim();
+        if (trimmedLabel.isBlank()) {
+            throw new InvalidParamException("Variant option label is required");
+        }
+
+        CategoryVariantAttribute mapping = category.getCategoryVariantAttributes().stream()
+                .filter(item -> item.getVariantAttribute() != null
+                        && attributeId.equals(item.getVariantAttribute().getId()))
+                .findFirst()
+                .orElseThrow(() -> new InvalidParamException("Variant attribute does not belong to category"));
+        VariantAttribute attribute = mapping.getVariantAttribute();
+        String normalizedCode = normalizeCode(trimmedLabel);
+        if (normalizedCode.isBlank()) {
+            throw new InvalidParamException("Variant option code is invalid");
+        }
+
+        VariantAttributeOption existing = variantAttributeOptionRepository
+                .findByVariantAttributeIdAndCodeIgnoreCase(attributeId, normalizedCode)
+                .orElse(null);
+        if (existing != null) {
+            if (Boolean.TRUE.equals(existing.getActive())) {
+                throw new ConflictException("Variant option already exists and is active");
+            }
+
+            existing.setLabel(trimmedLabel);
+            existing.setCode(normalizedCode);
+            existing.setActive(Boolean.TRUE);
+            return mapToVariantOptionResponse(variantAttributeOptionRepository.save(existing));
+        }
+
+        int nextSortOrder = attribute.getOptions().stream()
+                .map(option -> option.getSortOrder() == null ? 0 : option.getSortOrder())
+                .max(Integer::compareTo)
+                .orElse(-1) + 1;
+        VariantAttributeOption created = VariantAttributeOption.builder()
+                .variantAttribute(attribute)
+                .label(trimmedLabel)
+                .code(normalizedCode)
+                .sortOrder(nextSortOrder)
+                .active(Boolean.TRUE)
+                .build();
+        created = variantAttributeOptionRepository.save(created);
+        attribute.getOptions().add(created);
+        return mapToVariantOptionResponse(created);
+    }
+
+    @Override
+    @Transactional
     public void deleteCategory(UUID id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Category not found"));
@@ -278,6 +332,16 @@ public class CategoryServiceImpl implements CategoryService {
                 .children(new ArrayList<>())
                 .variantAttributes(variantAttributes)
                 .specAttributes(specAttributes)
+                .build();
+    }
+
+    private CategoryResponse.VariantOptionResponse mapToVariantOptionResponse(VariantAttributeOption option) {
+        return CategoryResponse.VariantOptionResponse.builder()
+                .id(option.getId())
+                .label(option.getLabel())
+                .code(option.getCode())
+                .sortOrder(option.getSortOrder())
+                .active(option.getActive())
                 .build();
     }
 

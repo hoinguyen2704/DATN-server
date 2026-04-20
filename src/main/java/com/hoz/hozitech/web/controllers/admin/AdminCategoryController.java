@@ -3,6 +3,7 @@ package com.hoz.hozitech.web.controllers.admin;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.category.CategoryService;
 import com.hoz.hozitech.domain.dtos.request.CategoryRequest;
+import com.hoz.hozitech.domain.dtos.request.CreateVariantOptionRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.CategoryResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -50,6 +51,17 @@ public class AdminCategoryController {
     public ResponseEntity<ApiResponse<CategoryResponse>> getCategorySchema(@PathVariable UUID id) {
         return ResponseEntity
                 .ok(ApiResponse.success("Fetch category schema successfully", categoryService.getCategorySchema(id)));
+    }
+
+    @PostMapping("/{categoryId}/variant-attributes/{attributeId}/options")
+    public ResponseEntity<ApiResponse<CategoryResponse.VariantOptionResponse>> createVariantAttributeOption(
+            @PathVariable UUID categoryId,
+            @PathVariable UUID attributeId,
+            @Valid @RequestBody CreateVariantOptionRequest request) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "Variant option upserted successfully",
+                        categoryService.upsertVariantOption(categoryId, attributeId, request.getLabel())));
     }
 
     @DeleteMapping("/{id}")

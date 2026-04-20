@@ -27,6 +27,8 @@ public interface CategoryService {
 
     CategoryResponse updateCategory(UUID id, CategoryRequest request);
 
+    CategoryResponse.VariantOptionResponse upsertVariantOption(UUID categoryId, UUID attributeId, String label);
+
     void deleteCategory(UUID id);
 
     CategoryResponse toggleActiveStatus(UUID id);
