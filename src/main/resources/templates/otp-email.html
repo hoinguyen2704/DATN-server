@@ -1,98 +1,121 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HoziTech - Mã Xác Thực</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f1f5f9; padding: 24px 0;">
-    <tr>
-        <td align="center">
-            <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06);">
 
-                <!-- Logo Header -->
-                <tr>
-                    <td style="background: linear-gradient(135deg, #6366f1, #4f46e5); padding: 28px 32px; text-align: center;">
-                        <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
-                            <tr>
-                                <td style="vertical-align: middle; padding-right: 12px;">
-                                    <div style="width: 42px; height: 42px; background-color: rgba(255,255,255,0.2); border-radius: 12px; text-align: center; line-height: 42px;">
-                                        <img src="cid:logo" alt="HoziTech" width="26" height="26" style="vertical-align: middle; display: inline-block;" />
-                                    </div>
-                                </td>
-                                <td style="vertical-align: middle;">
-                                    <span style="font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">HoziTech</span>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
+<body
+    style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+        style="background-color: #f1f5f9; padding: 24px 0;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0"
+                    style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06);">
 
-                <!-- Lock Icon & Title -->
-                <tr>
-                    <td style="padding: 32px 32px 16px; text-align: center;">
-                        <div style="width: 64px; height: 64px; margin: 0 auto 16px; background-color: #eff6ff; border-radius: 50%; line-height: 64px; text-align: center;">
-                            <span style="font-size: 32px; line-height: 64px;">🔐</span>
-                        </div>
-                        <h2 style="margin: 0; font-size: 22px; font-weight: 700; color: #1e293b;">Yêu cầu Đặt Lại Mật Khẩu</h2>
-                    </td>
-                </tr>
+                    <!-- Logo Header -->
+                    <tr>
+                        <td
+                            style="background: linear-gradient(135deg, #6366f1, #4f46e5); padding: 28px 32px; text-align: center;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                                <tr>
+                                    <td style="vertical-align: middle; padding-right: 12px;">
+                                        <div
+                                            style="width: 42px; height: 42px; background-color: rgba(255,255,255,0.2); border-radius: 12px; text-align: center; line-height: 42px;">
+                                            <img src="cid:logo" alt="HoziTech" width="26" height="26"
+                                                style="vertical-align: middle; display: inline-block;" />
+                                        </div>
+                                    </td>
+                                    <td style="vertical-align: middle;">
+                                        <span
+                                            style="font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">HoziTech</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
 
-                <!-- Message -->
-                <tr>
-                    <td style="padding: 0 32px 8px;">
-                        <p style="margin: 0; font-size: 15px; color: #475569; line-height: 1.6; text-align: center;">
-                            Chào bạn,
-                        </p>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="padding: 0 32px 24px;">
-                        <p style="margin: 0; font-size: 15px; color: #475569; line-height: 1.6; text-align: center;">
-                            Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản HoziTech của bạn. Đây là mã xác thực OTP:
-                        </p>
-                    </td>
-                </tr>
+                    <!-- Lock Icon & Title -->
+                    <tr>
+                        <td style="padding: 32px 32px 16px; text-align: center;">
+                            <div
+                                style="width: 64px; height: 64px; margin: 0 auto 16px; background-color: #eff6ff; border-radius: 50%; line-height: 64px; text-align: center;">
+                                <span style="font-size: 32px; line-height: 64px;">🔐</span>
+                            </div>
+                            <h2 style="margin: 0; font-size: 22px; font-weight: 700; color: #1e293b;">Yêu cầu Đặt Lại
+                                Mật Khẩu</h2>
+                        </td>
+                    </tr>
 
-                <!-- OTP Code -->
-                <tr>
-                    <td style="padding: 0 32px 24px; text-align: center;">
-                        <div style="display: inline-block; padding: 18px 40px; background: linear-gradient(135deg, #6366f1, #4f46e5); border-radius: 14px; box-shadow: 0 4px 20px rgba(99,102,241,0.3);">
-                            <span th:text="${otpCode}" style="font-size: 32px; font-weight: 800; color: #ffffff; letter-spacing: 8px; font-family: 'Courier New', monospace;">123456</span>
-                        </div>
-                    </td>
-                </tr>
+                    <!-- Message -->
+                    <tr>
+                        <td style="padding: 0 32px 8px;">
+                            <p
+                                style="margin: 0; font-size: 15px; color: #475569; line-height: 1.6; text-align: center;">
+                                Chào bạn,
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0 32px 24px;">
+                            <p
+                                style="margin: 0; font-size: 15px; color: #475569; line-height: 1.6; text-align: center;">
+                                Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản HoziTech của bạn. Đây là mã
+                                xác thực OTP:
+                            </p>
+                        </td>
+                    </tr>
 
-                <!-- Timer Notice -->
-                <tr>
-                    <td style="padding: 0 32px 8px; text-align: center;">
-                        <div style="display: inline-block; padding: 8px 20px; background-color: #fef3c7; border-radius: 8px;">
-                            <span style="font-size: 13px; color: #92400e; font-weight: 600;">⏱ Mã có hiệu lực trong 5 phút</span>
-                        </div>
-                    </td>
-                </tr>
+                    <!-- OTP Code -->
+                    <tr>
+                        <td style="padding: 0 32px 24px; text-align: center;">
+                            <div
+                                style="display: inline-block; padding: 18px 40px; background: linear-gradient(135deg, #6366f1, #4f46e5); border-radius: 14px; box-shadow: 0 4px 20px rgba(99,102,241,0.3);">
+                                <span th:text="${otpCode}"
+                                    style="font-size: 32px; font-weight: 800; color: #ffffff; letter-spacing: 8px; font-family: 'Courier New', monospace;">123456</span>
+                            </div>
+                        </td>
+                    </tr>
 
-                <!-- Warning -->
-                <tr>
-                    <td style="padding: 16px 32px 32px;">
-                        <p style="margin: 0; font-size: 14px; color: #94a3b8; line-height: 1.6; text-align: center;">
-                            Nếu bạn không yêu cầu đặt lại mật khẩu, xin vui lòng bỏ qua email này. Tài khoản của bạn vẫn an toàn.
-                        </p>
-                    </td>
-                </tr>
+                    <!-- Timer Notice -->
+                    <tr>
+                        <td style="padding: 0 32px 8px; text-align: center;">
+                            <div
+                                style="display: inline-block; padding: 8px 20px; background-color: #fef3c7; border-radius: 8px;">
+                                <span style="font-size: 13px; color: #92400e; font-weight: 600;">⏱ Mã có hiệu lực trong
+                                    5 phút</span>
+                            </div>
+                        </td>
+                    </tr>
 
-                <!-- Footer -->
-                <tr>
-                    <td style="background-color: #f8fafc; padding: 24px 32px; border-top: 1px solid #e2e8f0; text-align: center;">
-                        <p style="margin: 0 0 4px; font-size: 13px; color: #0d00ff;">Đội ngũ HoziTech Support</p>
-                        <p style="margin: 0; font-size: 12px; color: #0d00ff;">132 Cầu Diễn, Hà Nội · 0828443833 · support@hozitech.com</p>
-                    </td>
-                </tr>
+                    <!-- Warning -->
+                    <tr>
+                        <td style="padding: 16px 32px 32px;">
+                            <p
+                                style="margin: 0; font-size: 14px; color: #94a3b8; line-height: 1.6; text-align: center;">
+                                Nếu bạn không yêu cầu đặt lại mật khẩu, xin vui lòng bỏ qua email này. Tài khoản của bạn
+                                vẫn an toàn.
+                            </p>
+                        </td>
+                    </tr>
 
-            </table>
-        </td>
-    </tr>
-</table>
+                    <!-- Footer -->
+                    <tr>
+                        <td
+                            style="background-color: #f8fafc; padding: 24px 32px; border-top: 1px solid #e2e8f0; text-align: center;">
+                            <p style="margin: 0 0 4px; font-size: 13px; color: #0d00ff;">Đội ngũ HoziTech Support</p>
+                            <p style="margin: 0; font-size: 12px; color: #0d00ff;">132 Cầu Diễn, Hà Nội · 0828443833 ·
+                                hozinium@gmail.com</p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
+
 </html>
