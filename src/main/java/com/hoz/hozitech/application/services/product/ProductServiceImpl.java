@@ -1117,7 +1117,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<AdminProductListItemResponse> getAdminProducts(String keyword, UUID categoryId, String status, int page, int size, String sortBy, String sortDir) {
-        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Sort sort = resolveAdminProductSort(sortBy, sortDir);
         Pageable pageable = PaginationConstant.of(page, size, sort);
 
         Specification<Product> spec = ProductSpecification.filter(keyword, categoryId, null, null, null, null, null, status, null);
@@ -1129,12 +1129,39 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<AdminProductPickerItemResponse> getAdminProductPickerItems(String keyword, UUID categoryId, UUID brandId, int page, int size, String sortBy, String sortDir) {
-        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Sort sort = resolveAdminProductSort(sortBy, sortDir);
         Pageable pageable = PaginationConstant.of(page, size, sort);
         Specification<Product> spec = ProductSpecification.filter(keyword, categoryId, null, null, null, null, null, null, brandId);
         Page<Product> products = productRepository.findAll(spec, pageable);
         Map<UUID, String> imageByProductId = buildListImageMap(products.getContent());
         return PageResponse.of(products.map(product -> mapToAdminPickerItem(product, imageByProductId.get(product.getId()))));
+    }
+
+    private Sort resolveAdminProductSort(String sortBy, String sortDir) {
+        Sort.Direction direction = Sort.Direction.ASC.name().equalsIgnoreCase(sortDir)
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        String resolvedField = switch (sortBy == null ? "" : sortBy) {
+            case "name" -> "name";
+            case "originPrice" -> "originPrice";
+            case "totalStock" -> "totalStock";
+            case "totalSold" -> "totalSold";
+            case "status" -> "status";
+            case "createdAt" -> "createdAt";
+            default -> "createdAt";
+        };
+
+        if ("createdAt".equals(resolvedField)) {
+            return Sort.by(
+                    new Sort.Order(direction, resolvedField),
+                    Sort.Order.desc("id"));
+        }
+
+        return Sort.by(
+                new Sort.Order(direction, resolvedField),
+                Sort.Order.desc("createdAt"),
+                Sort.Order.desc("id"));
     }
 
     @Override
