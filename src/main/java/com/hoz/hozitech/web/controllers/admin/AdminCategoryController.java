@@ -3,6 +3,7 @@ package com.hoz.hozitech.web.controllers.admin;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.category.CategoryService;
 import com.hoz.hozitech.domain.dtos.request.CategoryRequest;
+import com.hoz.hozitech.domain.dtos.request.CreateVariantAttributeRequest;
 import com.hoz.hozitech.domain.dtos.request.CreateVariantOptionRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.CategoryResponse;
@@ -28,9 +29,11 @@ public class AdminCategoryController {
             @RequestParam(required = false, defaultValue = "") String keyword,
             @RequestParam(required = false) UUID brandId,
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
-            @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
+            @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size,
+            @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
+            @RequestParam(required = false, defaultValue = "DESC") String sortDir) {
         return ResponseEntity.ok(ApiResponse.success("Fetch admin categories successfully",
-                categoryService.getAdminCategories(keyword, brandId, page, size)));
+                categoryService.getAdminCategories(keyword, brandId, page, size, sortBy, sortDir)));
     }
 
     @PostMapping
@@ -51,6 +54,19 @@ public class AdminCategoryController {
     public ResponseEntity<ApiResponse<CategoryResponse>> getCategorySchema(@PathVariable UUID id) {
         return ResponseEntity
                 .ok(ApiResponse.success("Fetch category schema successfully", categoryService.getCategorySchema(id)));
+    }
+
+    @PostMapping("/{categoryId}/variant-attributes")
+    public ResponseEntity<ApiResponse<CategoryResponse.VariantAttributeSchemaResponse>> createVariantAttribute(
+            @PathVariable UUID categoryId,
+            @Valid @RequestBody CreateVariantAttributeRequest request) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "Variant attribute upserted successfully",
+                        categoryService.upsertVariantAttribute(
+                                categoryId,
+                                request.getName(),
+                                request.getOptionLabelsText())));
     }
 
     @PostMapping("/{categoryId}/variant-attributes/{attributeId}/options")

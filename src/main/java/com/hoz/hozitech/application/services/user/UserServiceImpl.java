@@ -216,8 +216,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public PageResponse<UserResponse> getDetailedUsers(String keyword, String role, int page, int size, String sortBy,
             String sortDir) {
-        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.by(sortBy).ascending()
-                : Sort.by(sortBy).descending();
+        Sort sort = resolveAdminUserSort(sortBy, sortDir);
 
         // page - 1 because Spring Data JPA is 0-indexed
         Pageable pageable = PaginationConstant.of(page, size, sort);
@@ -236,6 +235,22 @@ public class UserServiceImpl implements UserService {
         Page<UserResponse> responsePage = users.map(this::mapToResponse);
 
         return PageResponse.of(responsePage);
+    }
+
+    private Sort resolveAdminUserSort(String sortBy, String sortDir) {
+        Sort.Direction direction = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name())
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        return switch (sortBy == null ? "" : sortBy) {
+            case "fullName" -> Sort.by(direction, "fullName");
+            case "email" -> Sort.by(direction, "email");
+            case "phoneNumber" -> Sort.by(direction, "phoneNumber");
+            case "role" -> Sort.by(direction, "role.id");
+            case "status" -> Sort.by(direction, "status");
+            case "createdAt" -> Sort.by(direction, "createdAt");
+            default -> Sort.by(Sort.Direction.DESC, "createdAt");
+        };
     }
 
     @Override

@@ -21,11 +21,22 @@ public interface CategoryService {
     List<CategoryResponse> getAllActiveCategories();
 
     // Admin operations
-    PageResponse<CategoryResponse> getAdminCategories(String keyword, UUID brandId, int page, int size);
+    PageResponse<CategoryResponse> getAdminCategories(
+            String keyword,
+            UUID brandId,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir);
 
     CategoryResponse createCategory(CategoryRequest request);
 
     CategoryResponse updateCategory(UUID id, CategoryRequest request);
+
+    CategoryResponse.VariantAttributeSchemaResponse upsertVariantAttribute(
+            UUID categoryId,
+            String name,
+            String optionLabelsText);
 
     CategoryResponse.VariantOptionResponse upsertVariantOption(UUID categoryId, UUID attributeId, String label);
 

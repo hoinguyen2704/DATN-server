@@ -17,6 +17,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.JpaSort;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.CategoryRepository;
@@ -107,8 +109,14 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<CategoryResponse> getAdminCategories(String keyword, UUID brandId, int page, int size) {
-        Pageable pageable = PaginationConstant.of(page, size);
+    public PageResponse<CategoryResponse> getAdminCategories(
+            String keyword,
+            UUID brandId,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
+        Pageable pageable = PaginationConstant.of(page, size, resolveAdminCategorySort(sortBy, sortDir));
         Page<Category> categories;
         boolean hasKeyword = keyword != null && !keyword.isBlank();
         if (brandId != null) {
@@ -134,6 +142,22 @@ public class CategoryServiceImpl implements CategoryService {
                 .total(categories.getTotalElements())
                 .lastPage(categories.getTotalPages())
                 .build();
+    }
+
+    private Sort resolveAdminCategorySort(String sortBy, String sortDir) {
+        Sort.Direction direction = "ASC".equalsIgnoreCase(sortDir)
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        return switch (sortBy == null ? "" : sortBy) {
+            case "name" -> Sort.by(direction, "name");
+            case "slug" -> Sort.by(direction, "slug");
+            case "status" -> Sort.by(direction, "status");
+            case "specCount" -> JpaSort.unsafe(direction, "size(categorySpecAttributes)");
+            case "productCount" -> JpaSort.unsafe(direction, "size(products)");
+            case "createdAt" -> Sort.by(direction, "createdAt");
+            default -> Sort.by(Sort.Direction.DESC, "createdAt");
+        };
     }
 
     @Override
@@ -199,6 +223,68 @@ public class CategoryServiceImpl implements CategoryService {
         applySpecAttributes(category, request.getSpecAttributes());
 
         return mapToResponse(categoryRepository.save(category));
+    }
+
+    @Override
+    @Transactional
+    public CategoryResponse.VariantAttributeSchemaResponse upsertVariantAttribute(
+            UUID categoryId,
+            String name,
+            String optionLabelsText) {
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + categoryId));
+
+        String trimmedName = name == null ? "" : name.trim();
+        if (trimmedName.isBlank()) {
+            throw new InvalidParamException("Variant attribute name is required");
+        }
+
+        List<CategoryRequest.VariantOptionItem> initialOptions = parseVariantOptionItems(optionLabelsText);
+        if (initialOptions.isEmpty()) {
+            throw new InvalidParamException("At least one variant option label is required");
+        }
+
+        String normalizedCode = normalizeCode(trimmedName);
+        if (normalizedCode.isBlank()) {
+            throw new InvalidParamException("Variant attribute code is invalid");
+        }
+
+        boolean attributeExistsInCategory = category.getCategoryVariantAttributes().stream()
+                .anyMatch(mapping -> mapping.getVariantAttribute() != null
+                        && normalizedCode.equalsIgnoreCase(mapping.getVariantAttribute().getCode()));
+        if (attributeExistsInCategory) {
+            throw new ConflictException("Variant attribute already exists in category schema");
+        }
+
+        CategoryRequest.VariantAttributeItem item = new CategoryRequest.VariantAttributeItem(
+                null,
+                trimmedName,
+                normalizedCode,
+                null,
+                initialOptions);
+
+        VariantAttribute attribute = resolveVariantAttribute(item, normalizedCode);
+        applyVariantOptions(attribute, item.getOptions(), normalizedCode);
+
+        int nextSortOrder = category.getCategoryVariantAttributes().stream()
+                .map(mapping -> mapping.getSortOrder() == null ? 0 : mapping.getSortOrder())
+                .max(Integer::compareTo)
+                .orElse(-1) + 1;
+
+        CategoryVariantAttribute mapping = CategoryVariantAttribute.builder()
+                .category(category)
+                .variantAttribute(attribute)
+                .sortOrder(nextSortOrder)
+                .build();
+        category.getCategoryVariantAttributes().add(mapping);
+
+        Category savedCategory = categoryRepository.save(category);
+        CategoryVariantAttribute savedMapping = savedCategory.getCategoryVariantAttributes().stream()
+                .filter(existingMapping -> existingMapping.getVariantAttribute() != null
+                        && attribute.getId().equals(existingMapping.getVariantAttribute().getId()))
+                .findFirst()
+                .orElse(mapping);
+        return mapToVariantAttributeSchemaResponse(savedMapping);
     }
 
     @Override
@@ -281,29 +367,7 @@ public class CategoryServiceImpl implements CategoryService {
                 .toList();
 
         List<CategoryResponse.VariantAttributeSchemaResponse> variantAttributes = variantMappings.stream()
-                .map(mapping -> {
-                    VariantAttribute attribute = mapping.getVariantAttribute();
-                    List<CategoryResponse.VariantOptionResponse> options = attribute.getOptions() == null
-                            ? List.of()
-                            : attribute.getOptions().stream()
-                            .sorted(Comparator.comparing(VariantAttributeOption::getSortOrder))
-                            .map(option -> CategoryResponse.VariantOptionResponse.builder()
-                                    .id(option.getId())
-                                    .label(option.getLabel())
-                                    .code(option.getCode())
-                                    .sortOrder(option.getSortOrder())
-                                    .active(option.getActive())
-                                    .build())
-                            .collect(Collectors.toList());
-
-                    return CategoryResponse.VariantAttributeSchemaResponse.builder()
-                            .id(attribute.getId())
-                            .name(attribute.getName())
-                            .code(attribute.getCode())
-                            .sortOrder(mapping.getSortOrder())
-                            .options(options)
-                            .build();
-                })
+                .map(this::mapToVariantAttributeSchemaResponse)
                 .collect(Collectors.toList());
 
         List<CategorySpecAttribute> specMappings = category.getCategorySpecAttributes() == null
@@ -342,6 +406,48 @@ public class CategoryServiceImpl implements CategoryService {
                 .code(option.getCode())
                 .sortOrder(option.getSortOrder())
                 .active(option.getActive())
+                .build();
+    }
+
+    private List<CategoryRequest.VariantOptionItem> parseVariantOptionItems(String optionLabelsText) {
+        if (optionLabelsText == null || optionLabelsText.isBlank()) {
+            return List.of();
+        }
+
+        String[] rawLabels = optionLabelsText.split("[,，]");
+        List<CategoryRequest.VariantOptionItem> optionItems = new ArrayList<>();
+        for (String rawLabel : rawLabels) {
+            String trimmedLabel = rawLabel == null ? "" : rawLabel.trim();
+            if (trimmedLabel.isBlank()) {
+                continue;
+            }
+
+            optionItems.add(new CategoryRequest.VariantOptionItem(
+                    null,
+                    trimmedLabel,
+                    null,
+                    optionItems.size(),
+                    Boolean.TRUE));
+        }
+        return optionItems;
+    }
+
+    private CategoryResponse.VariantAttributeSchemaResponse mapToVariantAttributeSchemaResponse(
+            CategoryVariantAttribute mapping) {
+        VariantAttribute attribute = mapping.getVariantAttribute();
+        List<CategoryResponse.VariantOptionResponse> options = attribute.getOptions() == null
+                ? List.of()
+                : attribute.getOptions().stream()
+                .sorted(Comparator.comparing(VariantAttributeOption::getSortOrder))
+                .map(this::mapToVariantOptionResponse)
+                .collect(Collectors.toList());
+
+        return CategoryResponse.VariantAttributeSchemaResponse.builder()
+                .id(attribute.getId())
+                .name(attribute.getName())
+                .code(attribute.getCode())
+                .sortOrder(mapping.getSortOrder())
+                .options(options)
                 .build();
     }
 
