@@ -23,7 +23,27 @@ public interface FeedbackRepository extends JpaRepository<Feedback, UUID>, JpaSp
 
     Page<Feedback> findByProductIdAndStatus(UUID productId, FeedbackStatus status, Pageable pageable);
 
+    @Query("""
+            SELECT f FROM Feedback f
+            WHERE f.product.id = :productId
+              AND f.status = :status
+              AND (:rating IS NULL OR f.rating = :rating)
+              AND (
+                :hasComment IS NULL
+                OR (:hasComment = TRUE AND LENGTH(TRIM(COALESCE(f.content, ''))) > 0)
+                OR (:hasComment = FALSE AND LENGTH(TRIM(COALESCE(f.content, ''))) = 0)
+              )
+            """)
+    Page<Feedback> findPublicByProductWithFilters(
+            @Param("productId") UUID productId,
+            @Param("status") FeedbackStatus status,
+            @Param("rating") Integer rating,
+            @Param("hasComment") Boolean hasComment,
+            Pageable pageable);
+
     Page<Feedback> findByStatus(FeedbackStatus status, Pageable pageable);
+
+    long countByProductIdAndStatus(UUID productId, FeedbackStatus status);
 
     boolean existsByUserIdAndProductIdAndOrderId(UUID userId, UUID productId, UUID orderId);
     
@@ -38,5 +58,26 @@ public interface FeedbackRepository extends JpaRepository<Feedback, UUID>, JpaSp
 
     @Query("SELECT f.rating, COUNT(f) FROM Feedback f GROUP BY f.rating ORDER BY f.rating")
     List<Object[]> getRatingDistribution();
-}
 
+    @Query("""
+            SELECT f.rating, COUNT(f)
+            FROM Feedback f
+            WHERE f.product.id = :productId
+              AND f.status = :status
+            GROUP BY f.rating
+            """)
+    List<Object[]> countRatingDistributionByProductIdAndStatus(
+            @Param("productId") UUID productId,
+            @Param("status") FeedbackStatus status);
+
+    @Query("""
+            SELECT COUNT(f)
+            FROM Feedback f
+            WHERE f.product.id = :productId
+              AND f.status = :status
+              AND LENGTH(TRIM(COALESCE(f.content, ''))) > 0
+            """)
+    long countWithContentByProductIdAndStatus(
+            @Param("productId") UUID productId,
+            @Param("status") FeedbackStatus status);
+}

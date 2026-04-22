@@ -9,6 +9,7 @@ import com.hoz.hozitech.domain.dtos.request.FeedbackRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.FeedbackResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
+import com.hoz.hozitech.domain.dtos.response.ProductFeedbackPageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -26,12 +27,14 @@ public class FeedbackController {
     private final FeedbackService feedbackService;
 
     @GetMapping("/product/{productId}")
-    public ResponseEntity<ApiResponse<PageResponse<FeedbackResponse>>> getProductFeedbacks(
+    public ResponseEntity<ApiResponse<ProductFeedbackPageResponse>> getProductFeedbacks(
             @PathVariable UUID productId,
+            @RequestParam(required = false) Integer rating,
+            @RequestParam(required = false) Boolean hasComment,
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
         return ResponseEntity.ok(ApiResponse.success("Fetch product feedbacks successfully",
-                feedbackService.getFeedbacksByProduct(productId, page, size)));
+                feedbackService.getFeedbacksByProduct(productId, rating, hasComment, page, size)));
     }
 
     @PostMapping

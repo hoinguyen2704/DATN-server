@@ -7,8 +7,10 @@ import com.hoz.hozitech.application.repositories.OrderRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.domain.dtos.request.FeedbackRequest;
+import com.hoz.hozitech.domain.dtos.response.FeedbackFilterSummaryResponse;
 import com.hoz.hozitech.domain.dtos.response.FeedbackResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
+import com.hoz.hozitech.domain.dtos.response.ProductFeedbackPageResponse;
 import com.hoz.hozitech.domain.entities.Feedback;
 import com.hoz.hozitech.domain.entities.Order;
 import com.hoz.hozitech.domain.entities.Product;
@@ -22,8 +24,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 
@@ -39,11 +43,18 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<FeedbackResponse> getFeedbacksByProduct(UUID productId, int page, int size) {
+    public ProductFeedbackPageResponse getFeedbacksByProduct(UUID productId, Integer rating, Boolean hasComment, int page, int size) {
         Pageable pageable = PaginationConstant.of(page, size);
-        // For public view, only show APPROVED feedbacks
-        Page<Feedback> feedbacks = feedbackRepository.findByProductIdAndStatus(productId, FeedbackStatus.APPROVED, pageable);
-        return PageResponse.of(feedbacks.map(this::mapToResponse));
+        Page<Feedback> feedbacks = feedbackRepository.findPublicByProductWithFilters(
+                productId,
+                FeedbackStatus.APPROVED,
+                rating,
+                hasComment,
+                pageable);
+
+        return ProductFeedbackPageResponse.of(
+                feedbacks.map(this::mapToResponse),
+                buildFeedbackSummary(productId));
     }
 
     @Override
@@ -169,6 +180,25 @@ public class FeedbackServiceImpl implements FeedbackService {
                 .adminReply(feedback.getAdminReply())
                 .repliedAt(feedback.getRepliedAt())
                 .editCount(feedback.getEditCount())
+                .build();
+    }
+
+    private FeedbackFilterSummaryResponse buildFeedbackSummary(UUID productId) {
+        Map<Integer, Long> ratingCounts = IntStream.rangeClosed(1, 5)
+                .boxed()
+                .collect(Collectors.toMap(rating -> rating, rating -> 0L));
+
+        feedbackRepository.countRatingDistributionByProductIdAndStatus(productId, FeedbackStatus.APPROVED)
+                .forEach(row -> {
+                    Integer rating = (Integer) row[0];
+                    Long count = ((Number) row[1]).longValue();
+                    ratingCounts.put(rating, count);
+                });
+
+        return FeedbackFilterSummaryResponse.builder()
+                .total(feedbackRepository.countByProductIdAndStatus(productId, FeedbackStatus.APPROVED))
+                .withContent(feedbackRepository.countWithContentByProductIdAndStatus(productId, FeedbackStatus.APPROVED))
+                .ratingCounts(ratingCounts)
                 .build();
     }
 }
