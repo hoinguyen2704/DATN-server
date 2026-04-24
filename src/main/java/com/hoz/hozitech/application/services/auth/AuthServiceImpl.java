@@ -322,6 +322,11 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    public String exchangeGoogleAuthorizationCodeForIdToken(String code) {
+        return exchangeGoogleAuthorizationCode(code).idToken();
+    }
+
+    @Override
     @Transactional
     public String createGoogleLoginTicketFromAuthorizationCode(String code, String redirectTo) {
         GoogleOAuthTokenResponse tokenResponse = exchangeGoogleAuthorizationCode(code);

@@ -41,6 +41,8 @@ public class SecurityConfig {
             "/api/v1/auth/social-login",
             "/api/v1/auth/google/start",
             "/api/v1/auth/google/callback",
+            "/api/v1/auth/google/link/start",
+            "/api/v1/auth/google/link/callback",
             "/api/v1/auth/google/exchange-ticket",
             "/api/v1/products/**",
             "/api/v1/categories/**",

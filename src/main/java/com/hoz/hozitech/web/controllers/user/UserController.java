@@ -11,6 +11,7 @@ import com.hoz.hozitech.domain.dtos.request.UnlinkSocialAccountRequest;
 import com.hoz.hozitech.domain.dtos.request.UpdateUserRequest;
 import com.hoz.hozitech.domain.dtos.request.VerifyEmailChangeRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
+import com.hoz.hozitech.domain.dtos.response.GoogleLinkIntentResponse;
 import com.hoz.hozitech.domain.dtos.response.LinkedSocialAccountResponse;
 import com.hoz.hozitech.domain.dtos.response.UserResponse;
 import jakarta.validation.Valid;
@@ -74,6 +75,13 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Load social accounts success",
                 userService.getCurrentUserSocialAccounts()));
+    }
+
+    @PostMapping("/me/social-accounts/GOOGLE/link-intent")
+    public ResponseEntity<ApiResponse<GoogleLinkIntentResponse>> issueGoogleLinkIntent() {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Issue Google link intent successfully",
+                userService.issueGoogleLinkIntent()));
     }
 
     @PostMapping("/me/social-accounts/link")

@@ -23,6 +23,7 @@ import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.EmailChangeOtpRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.repositories.UserSocialAccountRepository;
+import com.hoz.hozitech.application.services.auth.GoogleLinkIntentTicketService;
 import com.hoz.hozitech.application.services.auth.GoogleTokenVerifierService;
 import com.hoz.hozitech.application.services.audit.AuditLogService;
 import com.hoz.hozitech.application.services.email.EmailService;
@@ -40,6 +41,7 @@ import com.hoz.hozitech.domain.dtos.request.UnlinkSocialAccountRequest;
 import com.hoz.hozitech.domain.dtos.request.UpdateUserRequest;
 import com.hoz.hozitech.domain.dtos.request.VerifyEmailChangeRequest;
 import com.hoz.hozitech.domain.dtos.response.AuditLogResponse;
+import com.hoz.hozitech.domain.dtos.response.GoogleLinkIntentResponse;
 import com.hoz.hozitech.domain.dtos.response.LinkedSocialAccountResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.UserResponse;
@@ -67,6 +69,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final EmailChangeOtpRepository emailChangeOtpRepository;
     private final UserSocialAccountRepository userSocialAccountRepository;
+    private final GoogleLinkIntentTicketService googleLinkIntentTicketService;
     private final GoogleTokenVerifierService googleTokenVerifierService;
     private final AuditLogService auditLogService;
     private final EmailService emailService;
@@ -344,6 +347,14 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public GoogleLinkIntentResponse issueGoogleLinkIntent() {
+        User user = getCurrentUserEntity();
+        return GoogleLinkIntentResponse.builder()
+                .ticket(googleLinkIntentTicketService.issue(user.getId()))
+                .build();
+    }
+
+    @Override
     @Transactional
     public LinkedSocialAccountResponse linkCurrentUserSocialAccount(LinkSocialAccountRequest request) {
         String provider = normalizeProvider(request.getProvider());
@@ -353,44 +364,15 @@ public class UserServiceImpl implements UserService {
                     HttpStatus.BAD_REQUEST);
         }
 
-        User user = getCurrentUserEntity();
-        GoogleTokenVerifierService.GoogleTokenPayload googlePayload = googleTokenVerifierService.verify(request.getToken());
+        return linkGoogleSocialAccount(getCurrentUserEntity(), request.getToken());
+    }
 
-        if (!user.getEmail().equalsIgnoreCase(googlePayload.email())) {
-            throw new BusinessException(BusinessErrorCode.GOOGLE_EMAIL_MISMATCH,
-                    "Google account email must match your current account email",
-                    HttpStatus.CONFLICT);
-        }
-
-        Optional<UserSocialAccount> existingByProviderUserId = userSocialAccountRepository
-                .findByProviderAndProviderUserId(provider, googlePayload.providerUserId());
-        if (existingByProviderUserId.isPresent()) {
-            UserSocialAccount existing = existingByProviderUserId.get();
-            if (existing.getUser().getId().equals(user.getId())) {
-                return mapToLinkedSocialResponse(existing);
-            }
-            throw new BusinessException(BusinessErrorCode.SOCIAL_ACCOUNT_ALREADY_LINKED,
-                    "This Google account is already linked to another user",
-                    HttpStatus.CONFLICT);
-        }
-
-        Optional<UserSocialAccount> existingByUserProvider = userSocialAccountRepository
-                .findByUserIdAndProvider(user.getId(), provider);
-        if (existingByUserProvider.isPresent()) {
-            throw new BusinessException(BusinessErrorCode.SOCIAL_ACCOUNT_ALREADY_LINKED,
-                    "Your account is already linked to another Google identity",
-                    HttpStatus.CONFLICT);
-        }
-
-        UserSocialAccount socialAccount = UserSocialAccount.builder()
-                .user(user)
-                .provider(provider)
-                .providerUserId(googlePayload.providerUserId())
-                .providerEmail(googlePayload.email())
-                .linkedAt(LocalDateTime.now())
-                .build();
-
-        return mapToLinkedSocialResponse(userSocialAccountRepository.save(socialAccount));
+    @Override
+    @Transactional
+    public LinkedSocialAccountResponse linkGoogleSocialAccountByUserId(UUID userId, String token) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return linkGoogleSocialAccount(user, token);
     }
 
     @Override
@@ -505,6 +487,46 @@ public class UserServiceImpl implements UserService {
                 .email(socialAccount.getProviderEmail())
                 .linkedAt(socialAccount.getLinkedAt())
                 .build();
+    }
+
+    private LinkedSocialAccountResponse linkGoogleSocialAccount(User user, String token) {
+        GoogleTokenVerifierService.GoogleTokenPayload googlePayload = googleTokenVerifierService.verify(token);
+
+        if (!user.getEmail().equalsIgnoreCase(googlePayload.email())) {
+            throw new BusinessException(BusinessErrorCode.GOOGLE_EMAIL_MISMATCH,
+                    "Google account email must match your current account email",
+                    HttpStatus.CONFLICT);
+        }
+
+        Optional<UserSocialAccount> existingByProviderUserId = userSocialAccountRepository
+                .findByProviderAndProviderUserId(PROVIDER_GOOGLE, googlePayload.providerUserId());
+        if (existingByProviderUserId.isPresent()) {
+            UserSocialAccount existing = existingByProviderUserId.get();
+            if (existing.getUser().getId().equals(user.getId())) {
+                return mapToLinkedSocialResponse(existing);
+            }
+            throw new BusinessException(BusinessErrorCode.SOCIAL_ACCOUNT_ALREADY_LINKED,
+                    "This Google account is already linked to another user",
+                    HttpStatus.CONFLICT);
+        }
+
+        Optional<UserSocialAccount> existingByUserProvider = userSocialAccountRepository
+                .findByUserIdAndProvider(user.getId(), PROVIDER_GOOGLE);
+        if (existingByUserProvider.isPresent()) {
+            throw new BusinessException(BusinessErrorCode.SOCIAL_ACCOUNT_ALREADY_LINKED,
+                    "Your account is already linked to another Google identity",
+                    HttpStatus.CONFLICT);
+        }
+
+        UserSocialAccount socialAccount = UserSocialAccount.builder()
+                .user(user)
+                .provider(PROVIDER_GOOGLE)
+                .providerUserId(googlePayload.providerUserId())
+                .providerEmail(googlePayload.email())
+                .linkedAt(LocalDateTime.now())
+                .build();
+
+        return mapToLinkedSocialResponse(userSocialAccountRepository.save(socialAccount));
     }
 
     private UserResponse mapToResponse(User user) {

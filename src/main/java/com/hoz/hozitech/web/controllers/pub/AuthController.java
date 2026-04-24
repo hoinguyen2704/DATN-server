@@ -2,6 +2,8 @@ package com.hoz.hozitech.web.controllers.pub;
 
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.application.services.auth.AuthService;
+import com.hoz.hozitech.application.services.auth.GoogleLinkIntentTicketService;
+import com.hoz.hozitech.application.services.user.UserService;
 import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 import com.hoz.hozitech.domain.dtos.request.LoginRequest;
 import com.hoz.hozitech.domain.dtos.request.GoogleTicketExchangeRequest;
@@ -30,9 +32,15 @@ public class AuthController {
 
     private static final String GOOGLE_STATE_COOKIE = "google_oauth_state";
     private static final String GOOGLE_FROM_COOKIE = "google_oauth_from";
+    private static final String GOOGLE_LINK_STATE_COOKIE = "google_link_oauth_state";
+    private static final String GOOGLE_LINK_FROM_COOKIE = "google_link_oauth_from";
+    private static final String GOOGLE_LINK_TICKET_COOKIE = "google_link_oauth_ticket";
     private static final long GOOGLE_COOKIE_TTL_SECONDS = 300;
+    private static final String DEFAULT_GOOGLE_LINK_REDIRECT_PATH = "/user/settings";
 
     private final AuthService authService;
+    private final GoogleLinkIntentTicketService googleLinkIntentTicketService;
+    private final UserService userService;
 
     @Value("${social.google.frontend-base-url}")
     private String frontendBaseUrl;
@@ -168,6 +176,135 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Google login successful", response));
     }
 
+    @GetMapping("/google/link/start")
+    public ResponseEntity<Void> startGoogleLink(
+            @RequestParam String ticket,
+            @RequestParam(required = false) String from) {
+        String normalizedFrom = normalizeGoogleLinkRedirectPath(from);
+        if (ticket == null || ticket.isBlank()) {
+            return redirectToSettingsWithLinkResult(
+                    normalizedFrom,
+                    "error",
+                    "GOOGLE_LINK_TICKET_MISSING",
+                    "Yeu cau lien ket Google khong hop le. Vui long thu lai.",
+                    clearCookie(GOOGLE_LINK_STATE_COOKIE),
+                    clearCookie(GOOGLE_LINK_FROM_COOKIE),
+                    clearCookie(GOOGLE_LINK_TICKET_COOKIE));
+        }
+
+        String state = UUID.randomUUID().toString();
+        String googleAuthorizationUrl = authService.buildGoogleAuthorizationUrl(state);
+
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, googleAuthorizationUrl)
+                .header(HttpHeaders.SET_COOKIE, buildCookie(GOOGLE_LINK_STATE_COOKIE, state, GOOGLE_COOKIE_TTL_SECONDS).toString())
+                .header(HttpHeaders.SET_COOKIE, buildCookie(GOOGLE_LINK_FROM_COOKIE, normalizedFrom, GOOGLE_COOKIE_TTL_SECONDS).toString())
+                .header(HttpHeaders.SET_COOKIE, buildCookie(GOOGLE_LINK_TICKET_COOKIE, ticket, GOOGLE_COOKIE_TTL_SECONDS).toString())
+                .build();
+    }
+
+    @GetMapping("/google/link/callback")
+    public ResponseEntity<Void> handleGoogleLinkCallback(
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String state,
+            @RequestParam(name = "error", required = false) String googleError,
+            @RequestParam(name = "error_description", required = false) String errorDescription,
+            @CookieValue(name = GOOGLE_LINK_STATE_COOKIE, required = false) String expectedState,
+            @CookieValue(name = GOOGLE_LINK_FROM_COOKIE, required = false) String fromCookie,
+            @CookieValue(name = GOOGLE_LINK_TICKET_COOKIE, required = false) String linkTicket) {
+
+        String redirectTo = normalizeGoogleLinkRedirectPath(fromCookie);
+        ResponseCookie clearStateCookie = clearCookie(GOOGLE_LINK_STATE_COOKIE);
+        ResponseCookie clearFromCookie = clearCookie(GOOGLE_LINK_FROM_COOKIE);
+        ResponseCookie clearTicketCookie = clearCookie(GOOGLE_LINK_TICKET_COOKIE);
+
+        if (googleError != null && !googleError.isBlank()) {
+            return redirectToSettingsWithLinkResult(
+                    redirectTo,
+                    "error",
+                    "GOOGLE_AUTH_ERROR",
+                    errorDescription,
+                    clearStateCookie,
+                    clearFromCookie,
+                    clearTicketCookie);
+        }
+
+        if (expectedState == null || state == null || !expectedState.equals(state)) {
+            return redirectToSettingsWithLinkResult(
+                    redirectTo,
+                    "error",
+                    "GOOGLE_AUTH_STATE_INVALID",
+                    "Yeu cau lien ket Google khong hop le. Vui long thu lai.",
+                    clearStateCookie,
+                    clearFromCookie,
+                    clearTicketCookie);
+        }
+
+        if (linkTicket == null || linkTicket.isBlank()) {
+            return redirectToSettingsWithLinkResult(
+                    redirectTo,
+                    "error",
+                    "GOOGLE_LINK_TICKET_MISSING",
+                    "Yeu cau lien ket Google khong hop le. Vui long thu lai.",
+                    clearStateCookie,
+                    clearFromCookie,
+                    clearTicketCookie);
+        }
+
+        if (code == null || code.isBlank()) {
+            return redirectToSettingsWithLinkResult(
+                    redirectTo,
+                    "error",
+                    "GOOGLE_AUTH_CODE_MISSING",
+                    "Khong nhan duoc ma lien ket tu Google.",
+                    clearStateCookie,
+                    clearFromCookie,
+                    clearTicketCookie);
+        }
+
+        try {
+            GoogleLinkIntentTicketService.TicketPayload payload = googleLinkIntentTicketService.consume(linkTicket);
+            String idToken = authService.exchangeGoogleAuthorizationCodeForIdToken(code);
+            userService.linkGoogleSocialAccountByUserId(payload.userId(), idToken);
+
+            return redirectToSettingsWithLinkResult(
+                    redirectTo,
+                    "success",
+                    null,
+                    null,
+                    clearStateCookie,
+                    clearFromCookie,
+                    clearTicketCookie);
+        } catch (BusinessException ex) {
+            return redirectToSettingsWithLinkResult(
+                    redirectTo,
+                    "error",
+                    ex.getErrorCode().name(),
+                    ex.getMessage(),
+                    clearStateCookie,
+                    clearFromCookie,
+                    clearTicketCookie);
+        } catch (UnauthorizedException ex) {
+            return redirectToSettingsWithLinkResult(
+                    redirectTo,
+                    "error",
+                    "GOOGLE_LINK_FAILED",
+                    ex.getMessage(),
+                    clearStateCookie,
+                    clearFromCookie,
+                    clearTicketCookie);
+        } catch (Exception ex) {
+            return redirectToSettingsWithLinkResult(
+                    redirectTo,
+                    "error",
+                    "GOOGLE_LINK_FAILED",
+                    "Lien ket Google that bai. Vui long thu lai.",
+                    clearStateCookie,
+                    clearFromCookie,
+                    clearTicketCookie);
+        }
+    }
+
     @PostMapping("/logout")
     @Authenticated
     public ResponseEntity<ApiResponse<Void>> logout(
@@ -195,6 +332,33 @@ public class AuthController {
                 .build();
     }
 
+    private ResponseEntity<Void> redirectToSettingsWithLinkResult(
+            String redirectPath,
+            String status,
+            String code,
+            String message,
+            ResponseCookie clearStateCookie,
+            ResponseCookie clearFromCookie,
+            ResponseCookie clearTicketCookie) {
+        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(frontendBaseUrl)
+                .path(normalizeGoogleLinkRedirectPath(redirectPath))
+                .queryParam("google_link_status", status);
+
+        if (code != null && !code.isBlank()) {
+            builder.queryParam("google_error_code", code);
+        }
+        if (message != null && !message.isBlank()) {
+            builder.queryParam("google_error_message", message);
+        }
+
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, builder.build().encode().toUriString())
+                .header(HttpHeaders.SET_COOKIE, clearStateCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, clearFromCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, clearTicketCookie.toString())
+                .build();
+    }
+
     private String buildFrontendUrl(String path, Map<String, String> queryParams) {
         UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(frontendBaseUrl)
                 .path(path);
@@ -213,6 +377,14 @@ public class AuthController {
         }
 
         return value;
+    }
+
+    private String normalizeGoogleLinkRedirectPath(String from) {
+        String normalized = normalizeRedirectPath(from);
+        if ("/".equals(normalized)) {
+            return DEFAULT_GOOGLE_LINK_REDIRECT_PATH;
+        }
+        return normalized;
     }
 
     private ResponseCookie buildCookie(String name, String value, long maxAgeSeconds) {

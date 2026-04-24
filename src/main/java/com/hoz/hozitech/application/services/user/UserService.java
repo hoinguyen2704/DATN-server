@@ -9,6 +9,7 @@ import com.hoz.hozitech.domain.dtos.request.UnlinkSocialAccountRequest;
 import com.hoz.hozitech.domain.dtos.request.UpdateUserRequest;
 import com.hoz.hozitech.domain.dtos.request.VerifyEmailChangeRequest;
 import com.hoz.hozitech.domain.dtos.response.AuditLogResponse;
+import com.hoz.hozitech.domain.dtos.response.GoogleLinkIntentResponse;
 import com.hoz.hozitech.domain.dtos.response.LinkedSocialAccountResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.UserResponse;
@@ -50,7 +51,11 @@ public interface UserService {
 
     List<LinkedSocialAccountResponse> getCurrentUserSocialAccounts();
 
+    GoogleLinkIntentResponse issueGoogleLinkIntent();
+
     LinkedSocialAccountResponse linkCurrentUserSocialAccount(LinkSocialAccountRequest request);
+
+    LinkedSocialAccountResponse linkGoogleSocialAccountByUserId(UUID userId, String token);
 
     void unlinkCurrentUserSocialAccount(String provider, UnlinkSocialAccountRequest request);
 

@@ -22,6 +22,8 @@ public interface AuthService {
 
     String buildGoogleAuthorizationUrl(String state);
 
+    String exchangeGoogleAuthorizationCodeForIdToken(String code);
+
     String createGoogleLoginTicketFromAuthorizationCode(String code, String redirectTo);
 
     GoogleLoginExchangeResponse exchangeGoogleLoginTicket(String ticket);
