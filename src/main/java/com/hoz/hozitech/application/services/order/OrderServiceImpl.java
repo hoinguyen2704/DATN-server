@@ -6,7 +6,10 @@ import com.hoz.hozitech.application.repositories.CartRepository;
 import com.hoz.hozitech.application.repositories.OrderRepository;
 import com.hoz.hozitech.application.repositories.OrderStatusHistoryRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
+import com.hoz.hozitech.application.services.notification.AdminNotificationService;
 import com.hoz.hozitech.application.services.notification.NotificationService;
+import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
+import com.hoz.hozitech.application.services.notification.UserNotificationTemplates;
 import com.hoz.hozitech.application.services.setting.SettingService;
 import com.hoz.hozitech.application.specifications.OrderSpecification;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
@@ -31,6 +34,7 @@ import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,6 +79,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final SettingService settingService;
     private final NotificationService notificationService;
+    private final AdminNotificationService adminNotificationService;
 
     // Extracted helpers
     private final OrderCheckoutHelper checkoutHelper;
@@ -184,8 +189,8 @@ public class OrderServiceImpl implements OrderService {
 
         // Send email & notification
         emailSender.sendOrderCreatedEmail(savedOrder, user, address);
-        notificationService.createForUser(userId, "Đặt hàng thành công",
-                "Đơn hàng " + savedOrder.getOrderNumber() + " đã được tạo thành công.", "ORDER", savedOrder.getId());
+        notificationService.createForUser(userId, UserNotificationTemplates.orderCreated(savedOrder));
+        adminNotificationService.createShared(AdminNotificationTemplates.orderCreated(savedOrder), false);
 
         return responseMapper.buildCheckoutResponse(savedOrder, ipAddress);
     }
@@ -244,16 +249,15 @@ public class OrderServiceImpl implements OrderService {
         Order savedOrder = orderRepository.save(order);
         orderStatusHistoryRepository.save(OrderStatusHistory.builder()
                 .order(savedOrder).status(OrderStatus.CANCELLED).description("Người dùng đã huỷ đơn hàng").build());
-        notificationService.createForUser(userId, "Đơn hàng đã bị huỷ",
-                "Đơn hàng " + savedOrder.getOrderNumber() + " đã được huỷ theo yêu cầu của bạn.", "ORDER", savedOrder.getId());
+        notificationService.createForUser(userId, UserNotificationTemplates.orderCancelled(savedOrder));
 
         return responseMapper.mapToResponse(savedOrder);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<AdminOrderListItemResponse> getAllOrders(String status, String keyword, int page, int size) {
-        var pageable = PaginationConstant.of(page, size);
+    public PageResponse<AdminOrderListItemResponse> getAllOrders(String status, String keyword, int page, int size, String sortBy, String sortDir) {
+        var pageable = PaginationConstant.of(page, size, resolveAdminOrderSort(sortBy, sortDir));
         OrderStatus orderStatus = parseNullableOrderStatus(status);
         Specification<Order> spec = OrderSpecification.adminListFilter(orderStatus, keyword);
         Page<Order> orders = orderRepository.findAll(spec, pageable);
@@ -289,9 +293,7 @@ public class OrderServiceImpl implements OrderService {
                 .order(updatedOrder).status(newStatus).description(newStatus.getDescription()).build());
 
         if (oldStatus != newStatus) {
-            notificationService.createForUser(updatedOrder.getUser().getId(), "Cập nhật đơn hàng",
-                    "Đơn hàng " + updatedOrder.getOrderNumber() + " đã chuyển sang trạng thái " + newStatus.getLabel() + ".",
-                    "ORDER", updatedOrder.getId());
+            notificationService.createForUser(updatedOrder.getUser().getId(), UserNotificationTemplates.orderStatusChanged(updatedOrder));
         }
 
         if (newStatus == OrderStatus.SHIPPED) {
@@ -324,6 +326,33 @@ public class OrderServiceImpl implements OrderService {
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
                 .build();
+    }
+
+    private Sort resolveAdminOrderSort(String sortBy, String sortDir) {
+        Sort.Direction direction = Sort.Direction.ASC.name().equalsIgnoreCase(sortDir)
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        String resolvedField = switch (sortBy == null ? "" : sortBy) {
+            case "orderNumber" -> "orderNumber";
+            case "createdAt" -> "createdAt";
+            case "itemCount" -> "itemCount";
+            case "totalAmount" -> "totalAmount";
+            case "paymentMethod" -> "paymentMethod";
+            case "orderStatus" -> "orderStatus";
+            default -> "createdAt";
+        };
+
+        if ("createdAt".equals(resolvedField)) {
+            return Sort.by(
+                    new Sort.Order(direction, resolvedField),
+                    Sort.Order.desc("id"));
+        }
+
+        return Sort.by(
+                new Sort.Order(direction, resolvedField),
+                Sort.Order.desc("createdAt"),
+                Sort.Order.desc("id"));
     }
 
     private OrderStatus parseOrderStatus(String rawStatus) {

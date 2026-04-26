@@ -2,6 +2,8 @@ package com.hoz.hozitech.application.services.ticket;
 
 import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 import java.util.LinkedHashMap;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -10,13 +12,18 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.constant.RealtimeEventType;
 import com.hoz.hozitech.application.repositories.TicketMessageRepository;
 import com.hoz.hozitech.application.repositories.TicketRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
+import com.hoz.hozitech.application.services.notification.AdminNotificationService;
+import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
 import com.hoz.hozitech.application.services.notification.NotificationService;
+import com.hoz.hozitech.application.services.notification.UserNotificationTemplates;
 import com.hoz.hozitech.application.services.realtime.RealtimeEventPushService;
 import com.hoz.hozitech.domain.dtos.request.ContactRequest;
 import com.hoz.hozitech.domain.dtos.request.TicketMessageRequest;
@@ -38,6 +45,7 @@ public class TicketServiceImpl implements TicketService {
     private final TicketMessageRepository ticketMessageRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final AdminNotificationService adminNotificationService;
     private final RealtimeEventPushService realtimeEventPushService;
 
     @Override
@@ -61,7 +69,7 @@ public class TicketServiceImpl implements TicketService {
                 .user(user)
                 .build();
 
-        ticket = ticketRepository.save(ticket);
+        ticket = ticketRepository.saveAndFlush(ticket);
 
         TicketMessage initialMessage = TicketMessage.builder()
                 .senderType("USER")
@@ -70,13 +78,14 @@ public class TicketServiceImpl implements TicketService {
                 .ticket(ticket)
                 .build();
 
-        ticketMessageRepository.save(initialMessage);
+        initialMessage = ticketMessageRepository.saveAndFlush(initialMessage);
         
         // Reload ticket to include messages list if necessary, or just rely on mappings next fetch.
         ticket.getMessages().add(initialMessage);
         publishToUserAndAdmins(RealtimeEventType.SUPPORT_TICKET_CREATED, ticket, initialMessage);
+        adminNotificationService.createShared(AdminNotificationTemplates.supportTicketCreated(ticket), false);
 
-        return mapToResponse(ticket);
+        return mapToFreshResponse(ticket.getId());
     }
 
     @Override
@@ -91,7 +100,7 @@ public class TicketServiceImpl implements TicketService {
                 .guestPhone(request.getPhone())
                 .build();
 
-        ticket = ticketRepository.save(ticket);
+        ticket = ticketRepository.saveAndFlush(ticket);
 
         TicketMessage initialMessage = TicketMessage.builder()
                 .senderType("USER")
@@ -99,17 +108,18 @@ public class TicketServiceImpl implements TicketService {
                 .ticket(ticket)
                 .build();
 
-        ticketMessageRepository.save(initialMessage);
+        initialMessage = ticketMessageRepository.saveAndFlush(initialMessage);
         ticket.getMessages().add(initialMessage);
         publishToAdmins(RealtimeEventType.SUPPORT_TICKET_CREATED, ticket, initialMessage);
+        adminNotificationService.createShared(AdminNotificationTemplates.supportTicketCreated(ticket), false);
 
-        return mapToResponse(ticket);
+        return mapToFreshResponse(ticket.getId());
     }
 
     @Override
     @Transactional(readOnly = true)
     public TicketResponse getTicketDetail(UUID userId, UUID ticketId) {
-        Ticket ticket = ticketRepository.findById(ticketId)
+        Ticket ticket = ticketRepository.findDetailById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
 
         if (!ticket.getUser().getId().equals(userId)) {
@@ -136,15 +146,16 @@ public class TicketServiceImpl implements TicketService {
                 .ticket(ticket)
                 .build();
 
-        ticketMessageRepository.save(reply);
+        reply = ticketMessageRepository.saveAndFlush(reply);
         
         // Optionally update ticket status
         ticket.setStatus(TicketStatus.OPEN);
-        ticketRepository.save(ticket);
+        ticketRepository.saveAndFlush(ticket);
         ticket.getMessages().add(reply);
         publishToUserAndAdmins(RealtimeEventType.SUPPORT_MESSAGE_CREATED, ticket, reply);
+        adminNotificationService.createShared(AdminNotificationTemplates.supportUserReplied(ticket), false);
 
-        return mapToResponse(ticket);
+        return mapToFreshResponse(ticket.getId());
     }
 
     @Override
@@ -163,7 +174,7 @@ public class TicketServiceImpl implements TicketService {
     @Override
     @Transactional(readOnly = true)
     public TicketResponse getTicketByIdAdmin(UUID ticketId) {
-        Ticket ticket = ticketRepository.findById(ticketId)
+        Ticket ticket = ticketRepository.findDetailById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
         return mapToResponse(ticket);
     }
@@ -181,23 +192,18 @@ public class TicketServiceImpl implements TicketService {
                 .ticket(ticket)
                 .build();
 
-        ticketMessageRepository.save(reply);
+        reply = ticketMessageRepository.saveAndFlush(reply);
 
         ticket.setStatus(TicketStatus.ANSWERED);
-        ticketRepository.save(ticket);
+        ticketRepository.saveAndFlush(ticket);
         ticket.getMessages().add(reply);
         publishToAdmins(RealtimeEventType.SUPPORT_MESSAGE_CREATED, ticket, reply);
         publishToUser(RealtimeEventType.SUPPORT_MESSAGE_CREATED, ticket, reply);
         if (ticket.getUser() != null) {
-            notificationService.createForUser(
-                    ticket.getUser().getId(),
-                    "Bạn có phản hồi hỗ trợ mới",
-                    "Yêu cầu " + ticket.getTicketNumber() + " đã được admin phản hồi.",
-                    "SUPPORT"
-            );
+            notificationService.createForUser(ticket.getUser().getId(), UserNotificationTemplates.supportAdminReplied(ticket));
         }
 
-        return mapToResponse(ticket);
+        return mapToFreshResponse(ticket.getId());
     }
 
     @Override
@@ -209,18 +215,13 @@ public class TicketServiceImpl implements TicketService {
 
         TicketStatus newStatus = TicketStatus.valueOf(status.toUpperCase());
         ticket.setStatus(newStatus);
-        Ticket saved = ticketRepository.save(ticket);
+        Ticket saved = ticketRepository.saveAndFlush(ticket);
         if (ticket.getUser() != null && oldStatus != newStatus) {
-            notificationService.createForUser(
-                    ticket.getUser().getId(),
-                    "Cập nhật trạng thái hỗ trợ",
-                    "Yêu cầu " + ticket.getTicketNumber() + " đã chuyển sang trạng thái " + newStatus.getDescription() + ".",
-                    "SUPPORT"
-            );
+            notificationService.createForUser(ticket.getUser().getId(), UserNotificationTemplates.supportStatusChanged(ticket));
         }
         publishToAdmins(RealtimeEventType.SUPPORT_STATUS_UPDATED, saved, null);
         publishToUser(RealtimeEventType.SUPPORT_STATUS_UPDATED, saved, null);
-        return mapToResponse(saved);
+        return mapToFreshResponse(saved.getId());
     }
 
     private String generateTicketNumber() {
@@ -233,14 +234,17 @@ public class TicketServiceImpl implements TicketService {
     }
 
     private void publishToAdmins(String eventType, Ticket ticket, TicketMessage message) {
-        realtimeEventPushService.sendToAdmins(eventType, buildRealtimePayload(ticket, message));
+        Map<String, Object> payload = buildRealtimePayload(ticket, message);
+        runAfterCommit(() -> realtimeEventPushService.sendToAdmins(eventType, payload));
     }
 
     private void publishToUser(String eventType, Ticket ticket, TicketMessage message) {
         if (ticket.getUser() == null) {
             return;
         }
-        realtimeEventPushService.sendToUser(ticket.getUser().getId(), eventType, buildRealtimePayload(ticket, message));
+        UUID userId = ticket.getUser().getId();
+        Map<String, Object> payload = buildRealtimePayload(ticket, message);
+        runAfterCommit(() -> realtimeEventPushService.sendToUser(userId, eventType, payload));
     }
 
     private Map<String, Object> buildRealtimePayload(Ticket ticket, TicketMessage message) {
@@ -285,6 +289,14 @@ public class TicketServiceImpl implements TicketService {
         String uName = ticket.getUser() != null ? 
             (ticket.getUser().getFullName() != null ? ticket.getUser().getFullName() : ticket.getUser().getUserName()) 
             : ticket.getGuestName() != null ? ticket.getGuestName() : "Khách";
+        List<TicketMessageResponse> messages = ticket.getMessages() == null
+                ? List.of()
+                : ticket.getMessages().stream()
+                        .sorted(Comparator
+                                .comparing(TicketMessage::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                                .thenComparing(TicketMessage::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+                        .map(this::mapMessageToResponse)
+                        .collect(Collectors.toList());
             
         return TicketResponse.builder()
                 .id(ticket.getId())
@@ -295,10 +307,28 @@ public class TicketServiceImpl implements TicketService {
                 .userId(ticket.getUser() != null ? ticket.getUser().getId() : null)
                 .userName(uName)
                 .userEmail(ticket.getUser() != null ? ticket.getUser().getEmail() : ticket.getGuestEmail())
-                .messages(ticket.getMessages() != null ? 
-                        ticket.getMessages().stream().map(this::mapMessageToResponse).collect(Collectors.toList()) 
-                        : null)
+                .messages(messages)
                 .build();
+    }
+
+    private TicketResponse mapToFreshResponse(UUID ticketId) {
+        Ticket freshTicket = ticketRepository.findDetailById(ticketId)
+                .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+        return mapToResponse(freshTicket);
+    }
+
+    private void runAfterCommit(Runnable action) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                action.run();
+            }
+        });
     }
 
     private TicketMessageResponse mapMessageToResponse(TicketMessage msg) {

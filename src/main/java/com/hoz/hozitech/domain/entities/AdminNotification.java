@@ -1,9 +1,15 @@
 package com.hoz.hozitech.domain.entities;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hoz.hozitech.domain.entities.base.AbstractAuditingEntity;
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -11,11 +17,11 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "notifications", indexes = {
-        @Index(name = "idx_notification_user", columnList = "user_id"),
-        @Index(name = "idx_notification_read", columnList = "is_read")
+@Table(name = "admin_notifications", indexes = {
+        @Index(name = "idx_admin_notification_created_at", columnList = "created_at"),
+        @Index(name = "idx_admin_notification_type", columnList = "type")
 })
-public class Notification extends AbstractAuditingEntity {
+public class AdminNotification extends AbstractAuditingEntity {
 
     @Column(name = "title", nullable = false, length = 200)
     private String title;
@@ -23,11 +29,7 @@ public class Notification extends AbstractAuditingEntity {
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    @Builder.Default
-    @Column(name = "is_read", nullable = false)
-    private Boolean isRead = Boolean.FALSE;
-
-    @Column(name = "type", length = 50)
+    @Column(name = "type", nullable = false, length = 50)
     private String type;
 
     @Column(name = "event_code", length = 80)
@@ -44,13 +46,4 @@ public class Notification extends AbstractAuditingEntity {
 
     @Column(name = "metadata_json", columnDefinition = "TEXT")
     private String metadataJson;
-
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id")
-    private Order order;
 }

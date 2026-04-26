@@ -36,9 +36,11 @@ public class AdminOrderController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
-            @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_LARGE_STR) int size) {
+            @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_LARGE_STR) int size,
+            @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
+            @RequestParam(required = false, defaultValue = "DESC") String sortDir) {
         return ResponseEntity.ok(ApiResponse.success("Orders fetched",
-                orderService.getAllOrders(status, keyword, page, size)));
+                orderService.getAllOrders(status, keyword, page, size, sortBy, sortDir)));
     }
 
     @PatchMapping("/{orderId}/status")

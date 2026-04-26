@@ -21,7 +21,7 @@ public interface OrderService {
     OrderResponse cancelOrder(UUID userId, UUID orderId);
 
     // Admin
-    PageResponse<AdminOrderListItemResponse> getAllOrders(String status, String keyword, int page, int size);
+    PageResponse<AdminOrderListItemResponse> getAllOrders(String status, String keyword, int page, int size, String sortBy, String sortDir);
 
     OrderResponse updateOrderStatus(UUID orderId, String status);
 

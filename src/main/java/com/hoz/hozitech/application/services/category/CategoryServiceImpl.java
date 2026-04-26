@@ -25,6 +25,8 @@ import com.hoz.hozitech.application.repositories.CategoryRepository;
 import com.hoz.hozitech.application.repositories.SpecAttributeRepository;
 import com.hoz.hozitech.application.repositories.VariantAttributeRepository;
 import com.hoz.hozitech.application.repositories.VariantAttributeOptionRepository;
+import com.hoz.hozitech.application.services.notification.AdminNotificationService;
+import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
 import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.domain.dtos.request.CategoryRequest;
@@ -48,6 +50,7 @@ public class CategoryServiceImpl implements CategoryService {
     private final SpecAttributeRepository specAttributeRepository;
     private final VariantAttributeRepository variantAttributeRepository;
     private final VariantAttributeOptionRepository variantAttributeOptionRepository;
+    private final AdminNotificationService adminNotificationService;
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
     private static final Pattern WHITE_SPACE = Pattern.compile("[\\s]");
 
@@ -186,7 +189,9 @@ public class CategoryServiceImpl implements CategoryService {
         applyVariantAttributes(category, request.getVariantAttributes());
         applySpecAttributes(category, request.getSpecAttributes());
 
-        return mapToResponse(categoryRepository.save(category));
+        Category saved = categoryRepository.save(category);
+        adminNotificationService.createShared(AdminNotificationTemplates.categoryCreated(saved), true);
+        return mapToResponse(saved);
     }
 
     @Override
@@ -222,7 +227,9 @@ public class CategoryServiceImpl implements CategoryService {
         applyVariantAttributes(category, request.getVariantAttributes());
         applySpecAttributes(category, request.getSpecAttributes());
 
-        return mapToResponse(categoryRepository.save(category));
+        Category saved = categoryRepository.save(category);
+        adminNotificationService.createShared(AdminNotificationTemplates.categoryUpdated(saved), true);
+        return mapToResponse(saved);
     }
 
     @Override
@@ -356,7 +363,9 @@ public class CategoryServiceImpl implements CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Category not found"));
         category.setStatus(!category.getStatus());
-        return mapToResponse(categoryRepository.save(category));
+        Category saved = categoryRepository.save(category);
+        adminNotificationService.createShared(AdminNotificationTemplates.categoryUpdated(saved), true);
+        return mapToResponse(saved);
     }
 
     private CategoryResponse mapToResponse(Category category) {

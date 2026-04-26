@@ -21,6 +21,8 @@ import com.hoz.hozitech.application.repositories.CouponRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.repositories.UserSavedCouponRepository;
+import com.hoz.hozitech.application.services.notification.AdminNotificationService;
+import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
 import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.domain.dtos.request.CouponRequest;
@@ -46,6 +48,7 @@ public class CouponServiceImpl implements CouponService {
     private final ProductRepository productRepository;
     private final UserSavedCouponRepository userSavedCouponRepository;
     private final UserRepository userRepository;
+    private final AdminNotificationService adminNotificationService;
 
     @Value("${app.timezone}")
     private String appTimezone;
@@ -107,7 +110,9 @@ public class CouponServiceImpl implements CouponService {
         // Link applicable products
         applyProductScope(coupon, request);
 
-        return mapToResponse(couponRepository.save(coupon));
+        Coupon saved = couponRepository.save(coupon);
+        adminNotificationService.createShared(AdminNotificationTemplates.couponCreated(saved), true);
+        return mapToResponse(saved);
     }
 
     @Override
@@ -140,7 +145,9 @@ public class CouponServiceImpl implements CouponService {
         // Re-link applicable products
         applyProductScope(coupon, request);
 
-        return mapToResponse(couponRepository.save(coupon));
+        Coupon saved = couponRepository.save(coupon);
+        adminNotificationService.createShared(AdminNotificationTemplates.couponUpdated(saved), true);
+        return mapToResponse(saved);
     }
 
     @Override
@@ -155,7 +162,9 @@ public class CouponServiceImpl implements CouponService {
             coupon.setStatus(CouponStatus.ACTIVE);
         }
 
-        return mapToResponse(couponRepository.save(coupon));
+        Coupon saved = couponRepository.save(coupon);
+        adminNotificationService.createShared(AdminNotificationTemplates.couponStatusChanged(saved), true);
+        return mapToResponse(saved);
     }
 
     //

@@ -27,6 +27,8 @@ import com.hoz.hozitech.application.services.auth.GoogleLinkIntentTicketService;
 import com.hoz.hozitech.application.services.auth.GoogleTokenVerifierService;
 import com.hoz.hozitech.application.services.audit.AuditLogService;
 import com.hoz.hozitech.application.services.email.EmailService;
+import com.hoz.hozitech.application.services.notification.AdminNotificationService;
+import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
 import com.hoz.hozitech.config.utils.PhoneNumberUtils;
 import com.hoz.hozitech.application.specifications.UserSpecification;
 import com.hoz.hozitech.config.exceptions.ConflictException;
@@ -74,6 +76,7 @@ public class UserServiceImpl implements UserService {
     private final AuditLogService auditLogService;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
+    private final AdminNotificationService adminNotificationService;
 
     @Override
     public User getCurrentUserEntity() {
@@ -290,6 +293,7 @@ public class UserServiceImpl implements UserService {
                 previousStatus.name(),
                 savedUser.getStatus().name(),
                 null);
+        adminNotificationService.createShared(AdminNotificationTemplates.userStatusChanged(savedUser), true);
 
         return mapToResponse(savedUser);
     }
@@ -320,6 +324,7 @@ public class UserServiceImpl implements UserService {
                 oldPhone,
                 normalizedPhone,
                 request.getReason().trim());
+        adminNotificationService.createShared(AdminNotificationTemplates.userPhoneUpdated(savedUser), true);
 
         return mapToResponse(savedUser);
     }

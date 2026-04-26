@@ -15,9 +15,5 @@ public interface NotificationService {
     
     void markAllAsRead(UUID userId);
 
-    void createForUser(UUID userId, String title, String content, String type, UUID orderId);
-
-    default void createForUser(UUID userId, String title, String content, String type) {
-        createForUser(userId, title, content, type, null);
-    }
+    void createForUser(UUID userId, NotificationPayload payload);
 }

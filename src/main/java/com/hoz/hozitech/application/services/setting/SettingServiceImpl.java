@@ -1,6 +1,8 @@
 package com.hoz.hozitech.application.services.setting;
 
 import com.hoz.hozitech.application.repositories.SettingRepository;
+import com.hoz.hozitech.application.services.notification.AdminNotificationService;
+import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
 import com.hoz.hozitech.domain.dtos.request.SettingRequest;
 import com.hoz.hozitech.domain.dtos.response.SettingResponse;
 import com.hoz.hozitech.domain.entities.Setting;
@@ -20,6 +22,7 @@ import java.util.stream.Collectors;
 public class SettingServiceImpl implements SettingService {
 
     private final SettingRepository settingRepository;
+    private final AdminNotificationService adminNotificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -75,6 +78,7 @@ public class SettingServiceImpl implements SettingService {
             setting.setSettingValue(req.getSettingValue());
             settingRepository.save(setting);
         }
+        adminNotificationService.createShared(AdminNotificationTemplates.settingUpdated(requests.size()), true);
         log.info("Batch updated {} settings", requests.size());
     }
 

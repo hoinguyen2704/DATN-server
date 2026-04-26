@@ -33,6 +33,8 @@ import com.hoz.hozitech.application.repositories.ProductImageRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.application.repositories.ReturnItemRepository;
+import com.hoz.hozitech.application.services.notification.AdminNotificationService;
+import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
 import com.hoz.hozitech.application.specifications.ProductSpecification;
 import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
@@ -80,6 +82,7 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final BrandRepository brandRepository;
     private final EntityManager entityManager;
+    private final AdminNotificationService adminNotificationService;
 
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
     private static final Pattern WHITE_SPACE = Pattern.compile("[\\s]");
@@ -161,7 +164,9 @@ public class ProductServiceImpl implements ProductService {
             throw new IllegalArgumentException("At least one variant is required");
         }
 
-        return mapToDetailedResponse(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        adminNotificationService.createShared(AdminNotificationTemplates.productCreated(saved), true);
+        return mapToDetailedResponse(saved);
     }
 
     @Override
@@ -184,7 +189,9 @@ public class ProductServiceImpl implements ProductService {
                 false);
         applyProductSpecs(product, request.getSpecs());
         applyVariants(product, request.getVariants(), false);
-        return mapToDetailedResponse(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        adminNotificationService.createShared(AdminNotificationTemplates.productUpdated(saved), true);
+        return mapToDetailedResponse(saved);
     }
 
     @Override
@@ -206,7 +213,9 @@ public class ProductServiceImpl implements ProductService {
                 request.getIsFeatured(),
                 false);
         applyProductSpecs(product, request.getSpecs());
-        return mapToDetailedResponse(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        adminNotificationService.createShared(AdminNotificationTemplates.productUpdated(saved), true);
+        return mapToDetailedResponse(saved);
     }
 
     @Override
@@ -214,7 +223,9 @@ public class ProductServiceImpl implements ProductService {
     public ProductResponse updateProductVariants(UUID id, ProductVariantsUpdateRequest request) {
         Product product = requireProduct(id);
         applyVariants(product, request.getVariants(), false);
-        return mapToDetailedResponse(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        adminNotificationService.createShared(AdminNotificationTemplates.productUpdated(saved), true);
+        return mapToDetailedResponse(saved);
     }
 
     private Product requireProduct(UUID id) {
@@ -741,7 +752,9 @@ public class ProductServiceImpl implements ProductService {
         } else {
             product.setStatus(ProductStatus.ACTIVE);
         }
-        return mapToDetailedResponse(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        adminNotificationService.createShared(AdminNotificationTemplates.productUpdated(saved), true);
+        return mapToDetailedResponse(saved);
     }
 
     private ProductResponse mapToResponse(Product product) {

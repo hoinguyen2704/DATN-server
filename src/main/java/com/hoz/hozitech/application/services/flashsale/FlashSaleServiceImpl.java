@@ -6,6 +6,8 @@ import com.hoz.hozitech.application.repositories.FlashSaleRepository;
 import com.hoz.hozitech.application.repositories.OrderItemRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.application.repositories.ReturnItemRepository;
+import com.hoz.hozitech.application.services.notification.AdminNotificationService;
+import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
 import com.hoz.hozitech.domain.dtos.request.FlashSaleRequest;
 import com.hoz.hozitech.domain.dtos.response.FlashSaleResponse;
 import com.hoz.hozitech.domain.dtos.response.FlashSaleResponse.FlashSaleItemResponse;
@@ -37,6 +39,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     private final ProductVariantRepository productVariantRepository;
     private final OrderItemRepository orderItemRepository;
     private final ReturnItemRepository returnItemRepository;
+    private final AdminNotificationService adminNotificationService;
 
     @Override
     @Transactional
@@ -68,6 +71,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
             }
         }
 
+        adminNotificationService.createShared(AdminNotificationTemplates.flashSaleCreated(flashSale), true);
         return toResponse(flashSale);
     }
 
@@ -101,6 +105,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         }
 
         flashSale = flashSaleRepository.save(flashSale);
+        adminNotificationService.createShared(AdminNotificationTemplates.flashSaleUpdated(flashSale), true);
         return toResponse(flashSale);
     }
 
@@ -111,6 +116,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                 .orElseThrow(() -> new ResourceNotFoundException("Flash sale", id));
         flashSale.setStatus(status);
         flashSale = flashSaleRepository.save(flashSale);
+        adminNotificationService.createShared(AdminNotificationTemplates.flashSaleStatusChanged(flashSale), true);
         return toResponse(flashSale);
     }
 

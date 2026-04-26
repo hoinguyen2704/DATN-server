@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.BrandRepository;
+import com.hoz.hozitech.application.services.notification.AdminNotificationService;
+import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
 import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.domain.dtos.request.BrandRequest;
@@ -28,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 public class BrandServiceImpl implements BrandService {
 
     private final BrandRepository brandRepository;
+    private final AdminNotificationService adminNotificationService;
 
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
     private static final Pattern WHITE_SPACE = Pattern.compile("[\\s]");
@@ -87,7 +90,9 @@ public class BrandServiceImpl implements BrandService {
                 .logoUrl(request.getLogoUrl())
                 .build();
 
-        return mapToResponse(brandRepository.save(brand));
+        Brand saved = brandRepository.save(brand);
+        adminNotificationService.createShared(AdminNotificationTemplates.brandCreated(saved), true);
+        return mapToResponse(saved);
     }
 
     @Override
@@ -102,7 +107,9 @@ public class BrandServiceImpl implements BrandService {
             brand.setLogoUrl(request.getLogoUrl());
         }
 
-        return mapToResponse(brandRepository.save(brand));
+        Brand saved = brandRepository.save(brand);
+        adminNotificationService.createShared(AdminNotificationTemplates.brandUpdated(saved), true);
+        return mapToResponse(saved);
     }
 
     @Override

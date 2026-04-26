@@ -10,4 +10,5 @@ public final class RealtimeEventType {
     public static final String SUPPORT_MESSAGE_CREATED = "SUPPORT_MESSAGE_CREATED";
     public static final String SUPPORT_STATUS_UPDATED = "SUPPORT_STATUS_UPDATED";
     public static final String USER_NOTIFICATION_CREATED = "USER_NOTIFICATION_CREATED";
+    public static final String ADMIN_NOTIFICATION_CREATED = "ADMIN_NOTIFICATION_CREATED";
 }

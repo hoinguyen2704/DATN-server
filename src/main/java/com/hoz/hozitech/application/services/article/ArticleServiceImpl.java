@@ -3,6 +3,8 @@ package com.hoz.hozitech.application.services.article;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.ArticleRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
+import com.hoz.hozitech.application.services.notification.AdminNotificationService;
+import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
 import com.hoz.hozitech.domain.dtos.request.ArticleRequest;
 import com.hoz.hozitech.domain.dtos.response.ArticleResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -24,6 +26,7 @@ public class ArticleServiceImpl implements ArticleService {
 
     private final ArticleRepository articleRepository;
     private final UserRepository userRepository;
+    private final AdminNotificationService adminNotificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -69,7 +72,9 @@ public class ArticleServiceImpl implements ArticleService {
                 .author(author)
                 .build();
 
-        return mapToResponse(articleRepository.save(article));
+        Article saved = articleRepository.save(article);
+        adminNotificationService.createShared(AdminNotificationTemplates.cmsArticleCreated(saved), true);
+        return mapToResponse(saved);
     }
 
     @Override
@@ -77,6 +82,7 @@ public class ArticleServiceImpl implements ArticleService {
     public ArticleResponse updateArticle(UUID id, ArticleRequest request) {
         Article article = articleRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Article not found"));
+        boolean wasPublished = Boolean.TRUE.equals(article.getIsPublished());
 
         if (request.getTitle() != null && !request.getTitle().equals(article.getTitle())) {
             article.setTitle(request.getTitle());
@@ -91,7 +97,14 @@ public class ArticleServiceImpl implements ArticleService {
         if (request.getThumbnailUrl() != null) article.setThumbnailUrl(request.getThumbnailUrl());
         if (request.getIsPublished() != null) article.setIsPublished(request.getIsPublished());
 
-        return mapToResponse(articleRepository.save(article));
+        Article saved = articleRepository.save(article);
+        boolean isPublished = Boolean.TRUE.equals(saved.getIsPublished());
+        if (!wasPublished && isPublished) {
+            adminNotificationService.createShared(AdminNotificationTemplates.cmsArticlePublished(saved), true);
+        } else {
+            adminNotificationService.createShared(AdminNotificationTemplates.cmsArticleUpdated(saved), true);
+        }
+        return mapToResponse(saved);
     }
 
     @Override

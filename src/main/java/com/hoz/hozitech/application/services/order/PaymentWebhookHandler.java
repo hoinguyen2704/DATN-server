@@ -15,7 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.hoz.hozitech.application.repositories.OrderRepository;
 import com.hoz.hozitech.application.repositories.OrderStatusHistoryRepository;
 import com.hoz.hozitech.application.repositories.PaymentWebhookEventRepository;
+import com.hoz.hozitech.application.services.notification.AdminNotificationService;
+import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
 import com.hoz.hozitech.application.services.notification.NotificationService;
+import com.hoz.hozitech.application.services.notification.UserNotificationTemplates;
 import com.hoz.hozitech.application.services.setting.SettingService;
 import com.hoz.hozitech.domain.dtos.request.PaymentWebhookRequest;
 import com.hoz.hozitech.domain.dtos.response.OrderResponse;
@@ -43,6 +46,7 @@ class PaymentWebhookHandler {
     private final PaymentWebhookEventRepository paymentWebhookEventRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final NotificationService notificationService;
+    private final AdminNotificationService adminNotificationService;
     private final OrderResponseMapper responseMapper;
     private final OrderCheckoutHelper checkoutHelper;
     private final CouponApplier couponApplier;
@@ -141,12 +145,8 @@ class PaymentWebhookHandler {
                 order.setOrderStatus(OrderStatus.CANCELLED);
                 appendStatusHistory(order, OrderStatus.CANCELLED, "Thanh toán thất bại từ webhook, đơn đã huỷ");
             }
-            notificationService.createForUser(
-                    order.getUser().getId(),
-                    "Thanh toán thất bại",
-                    "Đơn hàng " + order.getOrderNumber() + " thanh toán không thành công.",
-                    "ORDER",
-                    order.getId());
+            notificationService.createForUser(order.getUser().getId(), UserNotificationTemplates.paymentFailed(order));
+            adminNotificationService.createShared(AdminNotificationTemplates.paymentFailed(order), false);
             return;
         }
 
@@ -155,22 +155,14 @@ class PaymentWebhookHandler {
                 order.setOrderStatus(OrderStatus.RETURNED);
                 appendStatusHistory(order, OrderStatus.RETURNED, "Đơn hàng đã được hoàn tiền qua webhook");
             }
-            notificationService.createForUser(
-                    order.getUser().getId(),
-                    "Đã hoàn tiền",
-                    "Đơn hàng " + order.getOrderNumber() + " đã được hoàn tiền.",
-                    "ORDER",
-                    order.getId());
+            notificationService.createForUser(order.getUser().getId(), UserNotificationTemplates.paymentRefunded(order));
+            adminNotificationService.createShared(AdminNotificationTemplates.paymentRefunded(order), false);
             return;
         }
 
         if (incomingStatus == PaymentStatus.COMPLETED) {
-            notificationService.createForUser(
-                    order.getUser().getId(),
-                    "Thanh toán thành công",
-                    "Đơn hàng " + order.getOrderNumber() + " đã được thanh toán.",
-                    "ORDER",
-                    order.getId());
+            notificationService.createForUser(order.getUser().getId(), UserNotificationTemplates.paymentSuccess(order));
+            adminNotificationService.createShared(AdminNotificationTemplates.paymentSuccess(order), false);
         }
     }
 

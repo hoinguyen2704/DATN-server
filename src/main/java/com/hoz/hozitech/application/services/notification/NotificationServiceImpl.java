@@ -1,12 +1,7 @@
 package com.hoz.hozitech.application.services.notification;
 
-import java.util.UUID;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.constant.RealtimeEventType;
 import com.hoz.hozitech.application.repositories.NotificationRepository;
@@ -19,8 +14,15 @@ import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.entities.Notification;
 import com.hoz.hozitech.domain.entities.Order;
 import com.hoz.hozitech.domain.entities.User;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +32,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final RealtimeEventPushService realtimeEventPushService;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional(readOnly = true)
@@ -67,21 +70,31 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional
-    public void createForUser(UUID userId, String title, String content, String type, UUID orderId) {
+    public void createForUser(UUID userId, NotificationPayload payload) {
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
             return;
         }
 
         Order order = null;
-        if (orderId != null) {
-            order = orderRepository.findById(orderId).orElse(null);
+        if (payload.getTargetType() != null
+                && "ORDER".equalsIgnoreCase(payload.getTargetType())
+                && payload.getTargetId() != null) {
+            UUID orderId = parseUuid(payload.getTargetId());
+            if (orderId != null) {
+                order = orderRepository.findById(orderId).orElse(null);
+            }
         }
 
         Notification notification = Notification.builder()
-                .title(title)
-                .content(content)
-                .type(type)
+                .title(payload.getTitle())
+                .content(payload.getContent())
+                .type(payload.getType())
+                .eventCode(payload.getEventCode())
+                .targetUrl(payload.getTargetUrl())
+                .targetType(payload.getTargetType())
+                .targetId(payload.getTargetId())
+                .metadataJson(writeMetadata(payload.getMetadata()))
                 .user(user)
                 .order(order)
                 .build();
@@ -96,8 +109,43 @@ public class NotificationServiceImpl implements NotificationService {
                 .content(n.getContent())
                 .isRead(n.getIsRead())
                 .type(n.getType())
+                .eventCode(n.getEventCode())
                 .orderId(n.getOrder() != null ? n.getOrder().getId() : null)
+                .targetUrl(n.getTargetUrl())
+                .targetType(n.getTargetType())
+                .targetId(n.getTargetId())
+                .metadata(readMetadata(n.getMetadataJson()))
                 .createdAt(n.getCreatedAt())
                 .build();
+    }
+
+    private UUID parseUuid(String raw) {
+        try {
+            return UUID.fromString(raw);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private String writeMetadata(Map<String, Object> metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(metadata);
+        } catch (IOException ex) {
+            return null;
+        }
+    }
+
+    private Map<String, Object> readMetadata(String metadataJson) {
+        if (metadataJson == null || metadataJson.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(metadataJson, new TypeReference<>() {});
+        } catch (IOException ex) {
+            return null;
+        }
     }
 }

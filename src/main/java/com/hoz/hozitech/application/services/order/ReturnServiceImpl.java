@@ -7,7 +7,10 @@ import com.hoz.hozitech.application.repositories.RefundTransactionRepository;
 import com.hoz.hozitech.application.repositories.ReturnItemRepository;
 import com.hoz.hozitech.application.repositories.ReturnRequestRepository;
 import com.hoz.hozitech.application.repositories.ReturnStatusHistoryRepository;
+import com.hoz.hozitech.application.services.notification.AdminNotificationService;
+import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
 import com.hoz.hozitech.application.services.notification.NotificationService;
+import com.hoz.hozitech.application.services.notification.UserNotificationTemplates;
 import com.hoz.hozitech.application.services.setting.SettingService;
 import com.hoz.hozitech.application.specifications.ReturnRequestSpecification;
 import com.hoz.hozitech.domain.dtos.request.CreateReturnRequest;
@@ -78,6 +81,7 @@ public class ReturnServiceImpl implements ReturnService {
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final ReturnStatusHistoryRepository returnStatusHistoryRepository;
     private final NotificationService notificationService;
+    private final AdminNotificationService adminNotificationService;
     private final SettingService settingService;
     private final ReturnEmailSender returnEmailSender;
 
@@ -183,12 +187,8 @@ public class ReturnServiceImpl implements ReturnService {
 
         appendReturnStatusHistory(saved, ReturnRequestStatus.REQUESTED, "Yêu cầu trả hàng mới đã được tạo");
 
-        notificationService.createForUser(
-                userId,
-                "Yêu cầu trả hàng đã tạo",
-                "Yêu cầu " + saved.getReturnNumber() + " cho đơn " + order.getOrderNumber() + " đã được gửi.",
-                "RETURN",
-                order.getId());
+        notificationService.createForUser(userId, UserNotificationTemplates.returnCreated(saved));
+        adminNotificationService.createShared(AdminNotificationTemplates.returnCreated(saved), false);
 
         returnEmailSender.sendReturnUpdatedEmail(
                 saved,
@@ -302,12 +302,8 @@ public class ReturnServiceImpl implements ReturnService {
                 item.setApprovedQuantity(item.getRequestedQuantity());
             }
 
-            notificationService.createForUser(
-                    rr.getUser().getId(),
-                    "Yêu cầu trả hàng đã duyệt",
-                    "Yêu cầu " + rr.getReturnNumber() + " đã được duyệt.",
-                    "RETURN",
-                    rr.getOrder().getId());
+            notificationService.createForUser(rr.getUser().getId(), UserNotificationTemplates.returnApproved(rr));
+            adminNotificationService.createShared(AdminNotificationTemplates.returnApproved(rr), true);
         } else {
             rr.setStatus(ReturnRequestStatus.REJECTED);
             rr.setRefundStatus(RefundStatus.FAILED);
@@ -319,12 +315,8 @@ public class ReturnServiceImpl implements ReturnService {
                 item.setApprovedQuantity(0);
             }
 
-            notificationService.createForUser(
-                    rr.getUser().getId(),
-                    "Yêu cầu trả hàng bị từ chối",
-                    "Yêu cầu " + rr.getReturnNumber() + " đã bị từ chối.",
-                    "RETURN",
-                    rr.getOrder().getId());
+            notificationService.createForUser(rr.getUser().getId(), UserNotificationTemplates.returnRejected(rr));
+            adminNotificationService.createShared(AdminNotificationTemplates.returnRejected(rr), true);
         }
 
         ReturnRequest saved = returnRequestRepository.save(rr);
@@ -395,12 +387,8 @@ public class ReturnServiceImpl implements ReturnService {
 
         appendReturnStatusHistory(saved, targetStatus, targetStatus.getDescription());
 
-        notificationService.createForUser(
-                saved.getUser().getId(),
-                "Cập nhật yêu cầu trả hàng",
-                "Yêu cầu " + saved.getReturnNumber() + " chuyển sang trạng thái " + saved.getStatus().getDescription() + ".",
-                "RETURN",
-                saved.getOrder().getId());
+        notificationService.createForUser(saved.getUser().getId(), UserNotificationTemplates.returnStatusChanged(saved));
+        adminNotificationService.createShared(AdminNotificationTemplates.returnStatusChanged(saved), true);
 
         returnEmailSender.sendReturnUpdatedEmail(
                 saved,
@@ -498,12 +486,8 @@ public class ReturnServiceImpl implements ReturnService {
 
         appendReturnStatusHistory(saved, ReturnRequestStatus.REFUNDED, "Hoàn tiền thành công, mã giao dịch: " + transactionId);
 
-        notificationService.createForUser(
-                saved.getUser().getId(),
-                "Hoàn tiền thành công",
-                "Yêu cầu " + saved.getReturnNumber() + " đã được hoàn tiền thành công.",
-                "RETURN",
-                saved.getOrder().getId());
+        notificationService.createForUser(saved.getUser().getId(), UserNotificationTemplates.refundSuccess(saved));
+        adminNotificationService.createShared(AdminNotificationTemplates.refundSuccess(saved), true);
 
         returnEmailSender.sendReturnUpdatedEmail(
                 saved,

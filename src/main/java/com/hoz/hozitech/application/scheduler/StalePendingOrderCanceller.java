@@ -9,7 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.hoz.hozitech.application.repositories.OrderRepository;
 import com.hoz.hozitech.application.repositories.OrderStatusHistoryRepository;
+import com.hoz.hozitech.application.services.notification.AdminNotificationService;
+import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
 import com.hoz.hozitech.application.services.notification.NotificationService;
+import com.hoz.hozitech.application.services.notification.UserNotificationTemplates;
 import com.hoz.hozitech.application.services.order.OrderCheckoutHelper;
 import com.hoz.hozitech.application.services.order.CouponApplier;
 import com.hoz.hozitech.domain.entities.Order;
@@ -43,6 +46,7 @@ public class StalePendingOrderCanceller {
     private final OrderCheckoutHelper checkoutHelper;
     private final CouponApplier couponApplier;
     private final NotificationService notificationService;
+    private final AdminNotificationService adminNotificationService;
 
     /**
      * Runs every 5 minutes. Finds PENDING orders with online payment methods
@@ -94,11 +98,7 @@ public class StalePendingOrderCanceller {
                 .build());
 
         // Notify user
-        notificationService.createForUser(
-                order.getUser().getId(),
-                "Đơn hàng đã bị hủy",
-                "Đơn hàng " + order.getOrderNumber() + " đã bị tự động hủy do không hoàn tất thanh toán trong thời gian quy định.",
-                "ORDER",
-                order.getId());
+        notificationService.createForUser(order.getUser().getId(), UserNotificationTemplates.orderAutoCancelled(order));
+        adminNotificationService.createShared(AdminNotificationTemplates.orderAutoCancelled(order), false);
     }
 }

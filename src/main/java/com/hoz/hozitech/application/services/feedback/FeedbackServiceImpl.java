@@ -6,6 +6,8 @@ import com.hoz.hozitech.application.repositories.FeedbackRepository;
 import com.hoz.hozitech.application.repositories.OrderRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
+import com.hoz.hozitech.application.services.notification.AdminNotificationService;
+import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
 import com.hoz.hozitech.domain.dtos.request.FeedbackRequest;
 import com.hoz.hozitech.domain.dtos.response.FeedbackFilterSummaryResponse;
 import com.hoz.hozitech.domain.dtos.response.FeedbackResponse;
@@ -40,6 +42,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     private final com.hoz.hozitech.application.repositories.ProductVariantRepository productVariantRepository;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
+    private final AdminNotificationService adminNotificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -104,7 +107,9 @@ public class FeedbackServiceImpl implements FeedbackService {
                 .editCount(0) // Unused now but kept for compatibility
                 .build();
 
-        return mapToResponse(feedbackRepository.save(feedback));
+        Feedback saved = feedbackRepository.save(feedback);
+        adminNotificationService.createShared(AdminNotificationTemplates.feedbackCreated(saved), false);
+        return mapToResponse(saved);
     }
 
     @Override
@@ -131,7 +136,9 @@ public class FeedbackServiceImpl implements FeedbackService {
                 .orElseThrow(() -> new IllegalArgumentException("Feedback not found"));
 
         feedback.setStatus(FeedbackStatus.valueOf(status.toUpperCase())); // APPROVED, HIDDEN, SPAM
-        return mapToResponse(feedbackRepository.save(feedback));
+        Feedback saved = feedbackRepository.save(feedback);
+        adminNotificationService.createShared(AdminNotificationTemplates.feedbackStatusChanged(saved), true);
+        return mapToResponse(saved);
     }
 
     @Override

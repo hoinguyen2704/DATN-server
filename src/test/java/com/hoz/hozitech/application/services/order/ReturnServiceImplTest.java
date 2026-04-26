@@ -6,6 +6,8 @@ import com.hoz.hozitech.application.repositories.RefundTransactionRepository;
 import com.hoz.hozitech.application.repositories.ReturnItemRepository;
 import com.hoz.hozitech.application.repositories.ReturnRequestRepository;
 import com.hoz.hozitech.application.repositories.ReturnStatusHistoryRepository;
+import com.hoz.hozitech.application.services.notification.AdminNotificationService;
+import com.hoz.hozitech.application.services.notification.NotificationPayload;
 import com.hoz.hozitech.application.services.notification.NotificationService;
 import com.hoz.hozitech.application.services.setting.SettingService;
 import com.hoz.hozitech.domain.dtos.request.CreateReturnRequest;
@@ -68,6 +70,8 @@ class ReturnServiceImplTest {
     @Mock
     private NotificationService notificationService;
     @Mock
+    private AdminNotificationService adminNotificationService;
+    @Mock
     private SettingService settingService;
     @Mock
     private ReturnEmailSender returnEmailSender;
@@ -90,6 +94,7 @@ class ReturnServiceImplTest {
                 orderStatusHistoryRepository,
                 returnStatusHistoryRepository,
                 notificationService,
+                adminNotificationService,
                 settingService,
                 returnEmailSender);
 
@@ -196,7 +201,9 @@ class ReturnServiceImplTest {
         assertTrue(response.getReturnNumber().startsWith("RET-"));
 
         verify(returnRequestRepository).save(any(ReturnRequest.class));
-        verify(notificationService).createForUser(eq(userId), anyString(), anyString(), eq("RETURN"), eq(orderId));
+        ArgumentCaptor<NotificationPayload> payloadCaptor = ArgumentCaptor.forClass(NotificationPayload.class);
+        verify(notificationService).createForUser(eq(userId), payloadCaptor.capture());
+        assertEquals("RETURN_CREATED", payloadCaptor.getValue().getEventCode());
     }
 
     @Test
