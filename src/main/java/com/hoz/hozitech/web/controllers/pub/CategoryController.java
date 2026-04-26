@@ -17,10 +17,10 @@ public class CategoryController {
 
     private final CategoryService categoryService;
 
-    @GetMapping("/tree")
-    public ResponseEntity<ApiResponse<List<CategoryResponse>>> getCategoryTree() {
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<CategoryResponse>>> getCategories() {
         return ResponseEntity
-                .ok(ApiResponse.success("Fetch category tree successfully", categoryService.getCategoryTree()));
+                .ok(ApiResponse.success("Fetch active categories successfully", categoryService.getAllActiveCategories()));
     }
 
     @GetMapping("/{slug}")

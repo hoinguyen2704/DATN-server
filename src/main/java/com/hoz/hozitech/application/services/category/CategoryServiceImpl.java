@@ -56,30 +56,6 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CategoryResponse> getCategoryTree() {
-        List<Category> allCategories = categoryRepository.findAll();
-        Map<UUID, CategoryResponse> dtoMap = allCategories.stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toMap(CategoryResponse::getId, Function.identity()));
-
-        for (Category category : allCategories) {
-            if (category.getParentCategory() != null) {
-                CategoryResponse childDto = dtoMap.get(category.getId());
-                CategoryResponse parentDto = dtoMap.get(category.getParentCategory().getId());
-                if (parentDto != null && childDto != null) {
-                    parentDto.getChildren().add(childDto);
-                }
-            }
-        }
-
-        return allCategories.stream()
-                .filter(category -> category.getParentCategory() == null)
-                .map(category -> dtoMap.get(category.getId()))
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public CategoryResponse getCategoryBySlug(String slug) {
         Category category = categoryRepository.findBySlug(slug)
                 .orElseThrow(() -> new IllegalArgumentException("Category not found with slug: " + slug));
@@ -168,12 +144,6 @@ public class CategoryServiceImpl implements CategoryService {
     public CategoryResponse createCategory(CategoryRequest request) {
         validateSchemaRequest(request);
 
-        Category parent = null;
-        if (request.getParentId() != null) {
-            parent = categoryRepository.findById(request.getParentId())
-                    .orElseThrow(() -> new IllegalArgumentException("Parent category not found"));
-        }
-
         String slug = toSlug(request.getName());
         if (categoryRepository.existsBySlug(slug)) {
             slug = slug + "-" + UUID.randomUUID().toString().substring(0, 8);
@@ -183,7 +153,6 @@ public class CategoryServiceImpl implements CategoryService {
                 .name(request.getName())
                 .slug(slug)
                 .status(request.getActive() != null ? request.getActive() : true)
-                .parentCategory(parent)
                 .build();
 
         applyVariantAttributes(category, request.getVariantAttributes());
@@ -206,17 +175,6 @@ public class CategoryServiceImpl implements CategoryService {
 
         if (request.getActive() != null) {
             category.setStatus(request.getActive());
-        }
-
-        if (request.getParentId() != null) {
-            if (request.getParentId().equals(id)) {
-                throw new InvalidParamException("A category cannot be its own parent");
-            }
-            Category parent = categoryRepository.findById(request.getParentId())
-                    .orElseThrow(() -> new IllegalArgumentException("Parent category not found"));
-            category.setParentCategory(parent);
-        } else {
-            category.setParentCategory(null);
         }
 
         String newSlug = toSlug(request.getName());
@@ -350,10 +308,6 @@ public class CategoryServiceImpl implements CategoryService {
     public void deleteCategory(UUID id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Category not found"));
-        if (!category.getChildren().isEmpty()) {
-            throw new InvalidParamException(
-                    "Cannot delete category with children. Please reassign or delete children first.");
-        }
         categoryRepository.delete(category);
     }
 
@@ -402,7 +356,6 @@ public class CategoryServiceImpl implements CategoryService {
                 .active(category.getStatus())
                 .productCount(category.getProducts() != null ? (long) category.getProducts().size() : 0L)
                 .createdAt(category.getCreatedAt())
-                .children(new ArrayList<>())
                 .variantAttributes(variantAttributes)
                 .specAttributes(specAttributes)
                 .build();

@@ -17,8 +17,6 @@ public class CategoryRequest {
     @NotBlank(message = "Category name is required")
     private String name;
 
-    private UUID parentId;
-
     private Boolean active;
 
     private List<VariantAttributeItem> variantAttributes;

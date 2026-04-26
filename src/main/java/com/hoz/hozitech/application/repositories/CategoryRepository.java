@@ -20,13 +20,6 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
 
     List<Category> findByStatusTrue();
 
-    List<Category> findByParentCategoryIsNullAndStatusTrue();
-
-    List<Category> findByParentCategoryIdAndStatusTrue(UUID parentId);
-
-    @Query("SELECT c FROM Category c LEFT JOIN FETCH c.children WHERE c.parentCategory IS NULL AND c.status = true")
-    List<Category> findAllRootCategoriesWithChildren();
-
     Page<Category> findByNameContainingIgnoreCase(String keyword, Pageable pageable);
 
     @Query(

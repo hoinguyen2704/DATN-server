@@ -30,16 +30,6 @@ public class Category extends AbstractAuditingEntity {
     @Column(name = "status", nullable = false)
     private Boolean status = Boolean.TRUE;
 
-    // Self-referencing for parent-child hierarchy
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_id")
-    @JsonIgnore
-    private Category parentCategory;
-
-    @Builder.Default
-    @OneToMany(mappedBy = "parentCategory", cascade = CascadeType.ALL)
-    private List<Category> children = new ArrayList<>();
-
     @Builder.Default
     @JsonIgnore
     @OneToMany(mappedBy = "category")

@@ -10,8 +10,6 @@ import java.util.UUID;
 public interface CategoryService {
 
     // Public operations
-    List<CategoryResponse> getCategoryTree();
-
     CategoryResponse getCategoryBySlug(String slug);
 
     CategoryResponse getCategoryById(UUID id);

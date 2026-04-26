@@ -21,9 +21,6 @@ public class CategoryResponse {
     private Long productCount;
     private LocalDateTime createdAt;
 
-    // For Tree View
-    private List<CategoryResponse> children;
-
     // New schema for dynamic variant/spec rendering.
     private List<VariantAttributeSchemaResponse> variantAttributes;
     private List<SpecSchemaResponse> specAttributes;

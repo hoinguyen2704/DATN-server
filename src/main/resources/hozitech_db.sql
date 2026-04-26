@@ -139,8 +139,7 @@ CREATE TABLE public.categories (
     name character varying(100) NOT NULL,
     slug character varying(150) NOT NULL,
     sort_order integer,
-    status boolean NOT NULL,
-    parent_id uuid
+    status boolean NOT NULL
 );
 
 
@@ -1381,15 +1380,15 @@ COPY public.carts (id, created_at, created_by, updated_at, updated_by, quantity,
 -- Data for Name: categories; Type: TABLE DATA; Schema: public; Owner: dev
 --
 
-COPY public.categories (id, created_at, created_by, updated_at, updated_by, description, image_url, name, slug, sort_order, status, parent_id) FROM stdin;
-27dbd870-d431-4fe1-9ff2-3e1fb952e707	2026-04-19 21:12:13.791928	\N	2026-04-19 21:12:13.791928	\N	\N	\N	Laptop	laptop	0	t	\N
-d2fbe6ea-1ebc-44f7-88dc-5d5b11cfbbe6	2026-04-19 21:12:13.791928	\N	2026-04-19 21:12:13.791928	\N	\N	\N	Máy tính bảng	may-tinh-bang	0	t	\N
-a27f3b0d-f121-4eb9-9b00-4ab01716d935	2026-04-19 21:12:13.791928	\N	2026-04-19 21:12:13.791928	\N	\N	\N	Tai nghe	tai-nghe	0	t	\N
-dcb72a16-48ef-4593-8a2e-f2b0a2648d89	2026-04-19 21:12:13.791928	\N	2026-04-19 21:12:13.791928	\N	\N	\N	Loa	loa	0	t	\N
-c3c9ca24-3b5f-4e8f-b296-dc03c73dc5d9	2026-04-19 21:12:13.791928	\N	2026-04-19 21:12:13.791928	\N	\N	\N	Bàn phím	ban-phim	0	t	\N
-89d7cecc-ed2d-4f93-9066-e8a171d2dddc	2026-04-19 21:12:13.791928	\N	2026-04-19 21:12:13.791928	\N	\N	\N	Chuột	chuot	0	t	\N
-56367791-95a4-42fd-9ba7-0dc29010da57	2026-04-19 21:12:13.791928	\N	2026-04-19 21:12:13.791928	\N	\N	\N	Màn hình	man-hinh	0	t	\N
-5a227dc5-0e0a-488d-b656-55a795c216cf	2026-04-19 21:12:13.791928	\N	2026-04-20 11:20:29.698129	hozinium@gmail.com	\N	\N	Điện thoại	ien-thoai	0	t	\N
+COPY public.categories (id, created_at, created_by, updated_at, updated_by, description, image_url, name, slug, sort_order, status) FROM stdin;
+27dbd870-d431-4fe1-9ff2-3e1fb952e707	2026-04-19 21:12:13.791928	\N	2026-04-19 21:12:13.791928	\N	\N	\N	Laptop	laptop	0	t
+d2fbe6ea-1ebc-44f7-88dc-5d5b11cfbbe6	2026-04-19 21:12:13.791928	\N	2026-04-19 21:12:13.791928	\N	\N	\N	Máy tính bảng	may-tinh-bang	0	t
+a27f3b0d-f121-4eb9-9b00-4ab01716d935	2026-04-19 21:12:13.791928	\N	2026-04-19 21:12:13.791928	\N	\N	\N	Tai nghe	tai-nghe	0	t
+dcb72a16-48ef-4593-8a2e-f2b0a2648d89	2026-04-19 21:12:13.791928	\N	2026-04-19 21:12:13.791928	\N	\N	\N	Loa	loa	0	t
+c3c9ca24-3b5f-4e8f-b296-dc03c73dc5d9	2026-04-19 21:12:13.791928	\N	2026-04-19 21:12:13.791928	\N	\N	\N	Bàn phím	ban-phim	0	t
+89d7cecc-ed2d-4f93-9066-e8a171d2dddc	2026-04-19 21:12:13.791928	\N	2026-04-19 21:12:13.791928	\N	\N	\N	Chuột	chuot	0	t
+56367791-95a4-42fd-9ba7-0dc29010da57	2026-04-19 21:12:13.791928	\N	2026-04-19 21:12:13.791928	\N	\N	\N	Màn hình	man-hinh	0	t
+5a227dc5-0e0a-488d-b656-55a795c216cf	2026-04-19 21:12:13.791928	\N	2026-04-20 11:20:29.698129	hozinium@gmail.com	\N	\N	Điện thoại	ien-thoai	0	t
 \.
 
 
@@ -9690,15 +9689,6 @@ ALTER TABLE ONLY public.product_images
     ADD CONSTRAINT fkqnqjv00ocaxfmu2k6b99ycdad FOREIGN KEY (variant_id) REFERENCES public.product_variants(id);
 
 
---
--- Name: categories fksaok720gsu4u2wrgbk10b5n8d; Type: FK CONSTRAINT; Schema: public; Owner: dev
---
-
-ALTER TABLE ONLY public.categories
-    ADD CONSTRAINT fksaok720gsu4u2wrgbk10b5n8d FOREIGN KEY (parent_id) REFERENCES public.categories(id);
-
-
---
 -- Name: feedbacks fkti2ywtwc29ys1i591rmmaveyc; Type: FK CONSTRAINT; Schema: public; Owner: dev
 --
 
