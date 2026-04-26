@@ -3,7 +3,9 @@ package com.hoz.hozitech.application.services.user;
 import com.hoz.hozitech.domain.dtos.request.ChangePasswordRequest;
 import com.hoz.hozitech.domain.dtos.request.EmailChangeRequest;
 import com.hoz.hozitech.domain.dtos.request.LinkSocialAccountRequest;
+import com.hoz.hozitech.domain.dtos.request.AdminCreateUserRequest;
 import com.hoz.hozitech.domain.dtos.request.AdminUpdatePhoneRequest;
+import com.hoz.hozitech.domain.dtos.request.AdminUpdateUserProfileRequest;
 import com.hoz.hozitech.domain.dtos.request.ResendEmailChangeOtpRequest;
 import com.hoz.hozitech.domain.dtos.request.UnlinkSocialAccountRequest;
 import com.hoz.hozitech.domain.dtos.request.UpdateUserRequest;
@@ -40,9 +42,13 @@ public interface UserService {
     PageResponse<UserResponse> getDetailedUsers(String keyword, String role, int page, int size, String sortBy,
             String sortDir);
 
+    UserResponse adminCreateCustomer(AdminCreateUserRequest request);
+
     UserResponse getUserById(UUID id);
 
     UserResponse toggleUserStatus(UUID id);
+
+    UserResponse adminUpdateProfile(UUID id, AdminUpdateUserProfileRequest request);
 
     UserResponse adminUpdatePhone(UUID id, AdminUpdatePhoneRequest request);
 

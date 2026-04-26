@@ -1,10 +1,14 @@
 package com.hoz.hozitech.application.services.user;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.security.SecureRandom;
 
@@ -19,8 +23,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.EmailChangeOtpRepository;
+import com.hoz.hozitech.application.repositories.RoleRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.repositories.UserSocialAccountRepository;
 import com.hoz.hozitech.application.services.auth.GoogleLinkIntentTicketService;
@@ -34,7 +41,9 @@ import com.hoz.hozitech.application.specifications.UserSpecification;
 import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.config.exceptions.UnauthorizedException;
+import com.hoz.hozitech.domain.dtos.request.AdminCreateUserRequest;
 import com.hoz.hozitech.domain.dtos.request.AdminUpdatePhoneRequest;
+import com.hoz.hozitech.domain.dtos.request.AdminUpdateUserProfileRequest;
 import com.hoz.hozitech.domain.dtos.request.ChangePasswordRequest;
 import com.hoz.hozitech.domain.dtos.request.EmailChangeRequest;
 import com.hoz.hozitech.domain.dtos.request.LinkSocialAccountRequest;
@@ -48,12 +57,14 @@ import com.hoz.hozitech.domain.dtos.response.LinkedSocialAccountResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.UserResponse;
 import com.hoz.hozitech.domain.entities.EmailChangeOtp;
+import com.hoz.hozitech.domain.entities.Role;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.entities.UserSocialAccount;
 import com.hoz.hozitech.domain.enums.BusinessErrorCode;
 import com.hoz.hozitech.domain.enums.RoleType;
 import com.hoz.hozitech.domain.enums.UserStatus;
 import com.hoz.hozitech.web.exceptions.BusinessException;
+import com.hoz.hozitech.web.exceptions.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -67,8 +78,13 @@ public class UserServiceImpl implements UserService {
     private static final int EMAIL_CHANGE_OTP_RATE_WINDOW_MINUTES = 15;
     private static final int EMAIL_CHANGE_OTP_MAX_REQUESTS = 3;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final Set<String> ALLOWED_GENDERS = Set.of("MALE", "FEMALE", "OTHER");
+    private static final int MIN_PASSWORD_LENGTH = 6;
+    private static final int MAX_USERNAME_LENGTH = 50;
+    private static final int GENERATED_USERNAME_BASE_MAX_LENGTH = 40;
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final EmailChangeOtpRepository emailChangeOtpRepository;
     private final UserSocialAccountRepository userSocialAccountRepository;
     private final GoogleLinkIntentTicketService googleLinkIntentTicketService;
@@ -77,6 +93,7 @@ public class UserServiceImpl implements UserService {
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final AdminNotificationService adminNotificationService;
+    private final ObjectMapper objectMapper;
 
     @Override
     public User getCurrentUserEntity() {
@@ -243,6 +260,51 @@ public class UserServiceImpl implements UserService {
         return PageResponse.of(responsePage);
     }
 
+    @Override
+    @Transactional
+    public UserResponse adminCreateCustomer(AdminCreateUserRequest request) {
+        User actor = getCurrentUserEntity();
+        String normalizedFullName = normalizeRequiredFullName(request.getFullName());
+        String normalizedEmail = normalizeEmail(request.getEmail());
+        String normalizedPhone = normalizeRequiredPhoneNumber(request.getPhoneNumber());
+        String normalizedGender = normalizeOptionalGender(request.getGender());
+        String normalizedPassword = normalizeRequiredPassword(request.getPassword());
+        String normalizedAvatarUrl = normalizeOptionalAvatarUrl(request.getAvatarUrl());
+
+        if (userRepository.existsByEmail(normalizedEmail)) {
+            throw new ConflictException("Email is already in use");
+        }
+        ensurePhoneNumberAvailable(normalizedPhone, null);
+
+        Role userRole = roleRepository.findById(RoleType.USER)
+                .orElseThrow(() -> new ResourceNotFoundException("Role", RoleType.USER));
+
+        User createdUser = userRepository.save(User.builder()
+                .fullName(normalizedFullName)
+                .userName(generateUniqueUsername(normalizedEmail))
+                .email(normalizedEmail)
+                .phoneNumber(normalizedPhone)
+                .password(passwordEncoder.encode(normalizedPassword))
+                .dateOfBirth(request.getDateOfBirth())
+                .gender(normalizedGender)
+                .avatarUrl(normalizedAvatarUrl)
+                .role(userRole)
+                .status(UserStatus.ACTIVE)
+                .authProvider(AUTH_PROVIDER_LOCAL)
+                .build());
+
+        auditLogService.record(
+                actor,
+                "ADMIN_CREATE_USER",
+                "USER",
+                createdUser.getId(),
+                null,
+                writeAuditSnapshot(buildCreatedUserSnapshot(createdUser)),
+                null);
+
+        return mapToResponse(createdUser);
+    }
+
     private Sort resolveAdminUserSort(String sortBy, String sortDir) {
         Sort.Direction direction = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name())
                 ? Sort.Direction.ASC
@@ -300,13 +362,69 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    public UserResponse adminUpdateProfile(UUID id, AdminUpdateUserProfileRequest request) {
+        User actor = getCurrentUserEntity();
+        User target = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        ensureAdminCanEditTarget(actor, target);
+
+        String normalizedFullName = normalizeRequiredFullName(request.getFullName());
+        String normalizedPhone = normalizeOptionalPhoneNumber(request.getPhoneNumber());
+        LocalDate requestedDateOfBirth = request.getDateOfBirth();
+        String normalizedGender = normalizeOptionalGender(request.getGender());
+        String normalizedAvatarUrl = normalizeOptionalAvatarUrl(request.getAvatarUrl());
+        String normalizedReason = normalizeRequiredReason(request.getReason());
+
+        String currentPhone = normalizeOptionalPhoneNumber(target.getPhoneNumber());
+        boolean fullNameChanged = !Objects.equals(target.getFullName(), normalizedFullName);
+        boolean phoneChanged = !Objects.equals(currentPhone, normalizedPhone);
+        boolean dateOfBirthChanged = !Objects.equals(target.getDateOfBirth(), requestedDateOfBirth);
+        boolean genderChanged = !Objects.equals(target.getGender(), normalizedGender);
+        boolean avatarChanged = !Objects.equals(target.getAvatarUrl(), normalizedAvatarUrl);
+
+        if (!fullNameChanged && !phoneChanged && !dateOfBirthChanged && !genderChanged && !avatarChanged) {
+            throw new InvalidParamException("No profile changes detected");
+        }
+
+        ensurePhoneNumberAvailable(normalizedPhone, target.getId());
+        String oldSnapshot = writeAuditSnapshot(buildEditableProfileSnapshot(target));
+
+        target.setFullName(normalizedFullName);
+        target.setPhoneNumber(normalizedPhone);
+        target.setDateOfBirth(requestedDateOfBirth);
+        target.setGender(normalizedGender);
+        target.setAvatarUrl(normalizedAvatarUrl);
+        User savedUser = userRepository.save(target);
+
+        auditLogService.record(
+                actor,
+                "ADMIN_UPDATE_USER_PROFILE",
+                "USER",
+                savedUser.getId(),
+                oldSnapshot,
+                writeAuditSnapshot(buildEditableProfileSnapshot(savedUser)),
+                normalizedReason);
+
+        if (phoneChanged) {
+            adminNotificationService.createShared(AdminNotificationTemplates.userPhoneUpdated(savedUser), true);
+        }
+
+        return mapToResponse(savedUser);
+    }
+
+    @Override
+    @Transactional
     public UserResponse adminUpdatePhone(UUID id, AdminUpdatePhoneRequest request) {
         User actor = getCurrentUserEntity();
         User target = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
+        ensureAdminCanEditTarget(actor, target);
+
         String normalizedPhone = normalizeRequiredPhoneNumber(request.getPhoneNumber());
         ensurePhoneNumberAvailable(normalizedPhone, target.getId());
+        String normalizedReason = normalizeRequiredReason(request.getReason());
 
         String oldPhone = target.getPhoneNumber();
         if (oldPhone != null && oldPhone.equals(normalizedPhone)) {
@@ -323,7 +441,7 @@ public class UserServiceImpl implements UserService {
                 savedUser.getId(),
                 oldPhone,
                 normalizedPhone,
-                request.getReason().trim());
+                normalizedReason);
         adminNotificationService.createShared(AdminNotificationTemplates.userPhoneUpdated(savedUser), true);
 
         return mapToResponse(savedUser);
@@ -447,6 +565,57 @@ public class UserServiceImpl implements UserService {
         return email.trim().toLowerCase(Locale.ROOT);
     }
 
+    private String normalizeRequiredFullName(String fullName) {
+        if (fullName == null || fullName.isBlank()) {
+            throw new InvalidParamException("Full name is required");
+        }
+
+        String normalizedFullName = fullName.trim();
+        if (normalizedFullName.length() < 3 || normalizedFullName.length() > 100) {
+            throw new InvalidParamException("Full name must be between 3 and 100 characters");
+        }
+
+        return normalizedFullName;
+    }
+
+    private String normalizeOptionalGender(String gender) {
+        if (gender == null || gender.isBlank()) {
+            return null;
+        }
+
+        String normalizedGender = gender.trim().toUpperCase(Locale.ROOT);
+        if (!ALLOWED_GENDERS.contains(normalizedGender)) {
+            throw new InvalidParamException("Invalid gender value");
+        }
+
+        return normalizedGender;
+    }
+
+    private String normalizeRequiredReason(String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new InvalidParamException("Reason is required");
+        }
+
+        return reason.trim();
+    }
+
+    private String normalizeRequiredPassword(String password) {
+        if (password == null || password.isBlank()) {
+            throw new InvalidParamException("Password is required");
+        }
+        if (password.length() < MIN_PASSWORD_LENGTH) {
+            throw new InvalidParamException("Password must be at least 6 characters");
+        }
+        return password;
+    }
+
+    private String normalizeOptionalAvatarUrl(String avatarUrl) {
+        if (avatarUrl == null || avatarUrl.isBlank()) {
+            return null;
+        }
+        return avatarUrl.trim();
+    }
+
     private String normalizeRequiredPhoneNumber(String phoneNumber) {
         return PhoneNumberUtils.normalizeVietnamesePhoneNumber(phoneNumber)
                 .orElseThrow(() -> new InvalidParamException("Invalid Vietnamese phone number format"));
@@ -470,6 +639,73 @@ public class UserServiceImpl implements UserService {
                     .ifPresent(existing -> {
                         throw new ConflictException("Phone number is already in use");
                     });
+        }
+    }
+
+    private void ensureAdminCanEditTarget(User actor, User target) {
+        if (target.getRole().getId() == RoleType.ADMIN && !target.getId().equals(actor.getId())) {
+            throw new InvalidParamException("Cannot edit another admin account");
+        }
+    }
+
+    private String generateUniqueUsername(String email) {
+        String emailLocalPart = email.contains("@") ? email.substring(0, email.indexOf('@')) : email;
+        String sanitizedBase = emailLocalPart.toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9._-]", "")
+                .replaceAll("^[._-]+|[._-]+$", "");
+
+        if (sanitizedBase.isBlank()) {
+            sanitizedBase = "customer";
+        }
+        if (sanitizedBase.length() < 3) {
+            sanitizedBase = "user-" + sanitizedBase;
+        }
+        if (sanitizedBase.length() > GENERATED_USERNAME_BASE_MAX_LENGTH) {
+            sanitizedBase = sanitizedBase.substring(0, GENERATED_USERNAME_BASE_MAX_LENGTH);
+        }
+
+        String candidate = sanitizedBase;
+        int suffix = 1;
+        while (userRepository.existsByUserName(candidate)) {
+            String suffixText = "-" + suffix++;
+            int maxBaseLength = Math.max(3, MAX_USERNAME_LENGTH - suffixText.length());
+            String base = sanitizedBase.length() > maxBaseLength
+                    ? sanitizedBase.substring(0, maxBaseLength)
+                    : sanitizedBase;
+            candidate = base + suffixText;
+        }
+        return candidate;
+    }
+
+    private Map<String, Object> buildEditableProfileSnapshot(User user) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("fullName", user.getFullName());
+        snapshot.put("phoneNumber", user.getPhoneNumber());
+        snapshot.put("dateOfBirth", user.getDateOfBirth());
+        snapshot.put("gender", user.getGender());
+        snapshot.put("avatarUrl", user.getAvatarUrl());
+        return snapshot;
+    }
+
+    private Map<String, Object> buildCreatedUserSnapshot(User user) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("userName", user.getUserName());
+        snapshot.put("fullName", user.getFullName());
+        snapshot.put("email", user.getEmail());
+        snapshot.put("phoneNumber", user.getPhoneNumber());
+        snapshot.put("dateOfBirth", user.getDateOfBirth());
+        snapshot.put("gender", user.getGender());
+        snapshot.put("avatarUrl", user.getAvatarUrl());
+        snapshot.put("status", user.getStatus());
+        snapshot.put("role", user.getRole() != null ? user.getRole().getId().name() : null);
+        return snapshot;
+    }
+
+    private String writeAuditSnapshot(Map<String, Object> snapshot) {
+        try {
+            return objectMapper.writeValueAsString(snapshot);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to serialize audit snapshot", ex);
         }
     }
 
