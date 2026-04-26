@@ -10,6 +10,7 @@ import com.hoz.hozitech.application.services.notification.AdminNotificationServi
 import com.hoz.hozitech.application.services.notification.NotificationPayload;
 import com.hoz.hozitech.application.services.notification.NotificationService;
 import com.hoz.hozitech.application.services.setting.SettingService;
+import com.hoz.hozitech.application.services.storage.FileStorageService;
 import com.hoz.hozitech.domain.dtos.request.CreateReturnRequest;
 import com.hoz.hozitech.domain.dtos.request.ProcessRefundRequest;
 import com.hoz.hozitech.domain.dtos.request.UpdateReturnStatusRequest;
@@ -34,6 +35,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
@@ -76,6 +78,8 @@ class ReturnServiceImplTest {
     @Mock
     private ReturnEmailSender returnEmailSender;
     @Mock
+    private FileStorageService fileStorageService;
+    @Mock
     private ReturnStatusHistoryRepository returnStatusHistoryRepository;
     @Mock
     private EntityManager entityManager;
@@ -96,7 +100,8 @@ class ReturnServiceImplTest {
                 notificationService,
                 adminNotificationService,
                 settingService,
-                returnEmailSender);
+                returnEmailSender,
+                fileStorageService);
 
         ReflectionTestUtils.setField(service, "entityManager", entityManager);
 
@@ -126,7 +131,7 @@ class ReturnServiceImplTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> service.createReturnRequest(userId, request, " "));
+                () -> service.createReturnRequest(userId, request, List.of(), " "));
 
         assertEquals(BusinessErrorCode.RETURN_IDEMPOTENCY_KEY_REQUIRED, ex.getErrorCode());
     }
@@ -156,7 +161,7 @@ class ReturnServiceImplTest {
 
         BusinessException ex = assertThrows(
                 BusinessException.class,
-                () -> service.createReturnRequest(userId, request, "idemp-1"));
+                () -> service.createReturnRequest(userId, request, List.of(), "idemp-1"));
 
         assertEquals(BusinessErrorCode.ORDER_NOT_ELIGIBLE_FOR_RETURN, ex.getErrorCode());
     }
@@ -186,6 +191,8 @@ class ReturnServiceImplTest {
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
         when(returnItemRepository.existsInNonRejectedRequest(orderItemId)).thenReturn(false);
         when(returnRequestRepository.existsByReturnNumber(anyString())).thenReturn(false);
+        when(fileStorageService.uploadFile(any(), eq("returns")))
+                .thenReturn("https://cdn.example.com/returns/evidence-1.jpg");
         when(returnRequestRepository.save(any(ReturnRequest.class))).thenAnswer(invocation -> {
             ReturnRequest rr = invocation.getArgument(0);
             rr.setId(UUID.randomUUID());
@@ -193,14 +200,26 @@ class ReturnServiceImplTest {
             return rr;
         });
 
-        ReturnRequestResponse response = service.createReturnRequest(userId, request, "idemp-create");
+        MockMultipartFile evidenceFile = new MockMultipartFile(
+                "files",
+                "evidence-1.jpg",
+                "image/jpeg",
+                new byte[]{1, 2, 3});
+
+        ReturnRequestResponse response = service.createReturnRequest(
+                userId,
+                request,
+                List.of(evidenceFile),
+                "idemp-create");
 
         assertEquals("REQUESTED", response.getStatus());
         assertEquals("PENDING", response.getRefundStatus());
         assertEquals("100000.00", response.getRequestedAmount().toPlainString());
         assertTrue(response.getReturnNumber().startsWith("RET-"));
+        assertEquals(List.of("https://cdn.example.com/returns/evidence-1.jpg"), response.getEvidenceImageUrls());
 
         verify(returnRequestRepository).save(any(ReturnRequest.class));
+        verify(fileStorageService).uploadFile(any(), eq("returns"));
         ArgumentCaptor<NotificationPayload> payloadCaptor = ArgumentCaptor.forClass(NotificationPayload.class);
         verify(notificationService).createForUser(eq(userId), payloadCaptor.capture());
         assertEquals("RETURN_CREATED", payloadCaptor.getValue().getEventCode());

@@ -35,4 +35,6 @@ public class AdminCreateUserRequest {
 
     @Size(max = 500, message = "Avatar URL must be at most 500 characters")
     private String avatarUrl;
+
+    private String role;
 }

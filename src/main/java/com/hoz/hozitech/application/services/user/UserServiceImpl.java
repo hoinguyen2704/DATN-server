@@ -276,8 +276,19 @@ public class UserServiceImpl implements UserService {
         }
         ensurePhoneNumberAvailable(normalizedPhone, null);
 
-        Role userRole = roleRepository.findById(RoleType.USER)
-                .orElseThrow(() -> new ResourceNotFoundException("Role", RoleType.USER));
+        RoleType parsedRoleType = RoleType.USER;
+        if (request.getRole() != null && !request.getRole().isBlank()) {
+            try {
+                parsedRoleType = RoleType.valueOf(request.getRole().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                throw new InvalidParamException("Invalid role");
+            }
+        }
+        
+        final RoleType finalRoleType = parsedRoleType;
+
+        Role userRole = roleRepository.findById(finalRoleType)
+                .orElseThrow(() -> new ResourceNotFoundException("Role", finalRoleType));
 
         User createdUser = userRepository.save(User.builder()
                 .fullName(normalizedFullName)

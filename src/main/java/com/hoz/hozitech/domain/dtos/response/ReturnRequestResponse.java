@@ -31,6 +31,7 @@ public class ReturnRequestResponse {
 
     private String reason;
     private String evidenceNote;
+    private List<String> evidenceImageUrls;
     private String adminNote;
 
     private BigDecimal requestedAmount;

@@ -6,12 +6,18 @@ import com.hoz.hozitech.domain.dtos.request.ReviewReturnRequest;
 import com.hoz.hozitech.domain.dtos.request.UpdateReturnStatusRequest;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.ReturnRequestResponse;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface ReturnService {
 
-    ReturnRequestResponse createReturnRequest(UUID userId, CreateReturnRequest request, String idempotencyKey);
+    ReturnRequestResponse createReturnRequest(
+            UUID userId,
+            CreateReturnRequest request,
+            List<MultipartFile> evidenceFiles,
+            String idempotencyKey);
 
     PageResponse<ReturnRequestResponse> getMyReturnRequests(UUID userId, String status, String keyword, int page, int size);
 

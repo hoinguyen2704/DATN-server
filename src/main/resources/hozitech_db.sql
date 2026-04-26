@@ -646,6 +646,19 @@ CREATE TABLE public.return_requests (
 ALTER TABLE public.return_requests OWNER TO dev;
 
 --
+-- Name: return_request_evidence_images; Type: TABLE; Schema: public; Owner: dev
+--
+
+CREATE TABLE public.return_request_evidence_images (
+    return_request_id uuid NOT NULL,
+    display_order integer NOT NULL,
+    image_url character varying(1000) NOT NULL
+);
+
+
+ALTER TABLE public.return_request_evidence_images OWNER TO dev;
+
+--
 -- Name: return_status_history; Type: TABLE; Schema: public; Owner: dev
 --
 
@@ -7733,6 +7746,14 @@ COPY public.return_requests (id, created_at, created_by, updated_at, updated_by,
 
 
 --
+-- Data for Name: return_request_evidence_images; Type: TABLE DATA; Schema: public; Owner: dev
+--
+
+COPY public.return_request_evidence_images (return_request_id, display_order, image_url) FROM stdin;
+\.
+
+
+--
 -- Data for Name: return_status_history; Type: TABLE DATA; Schema: public; Owner: dev
 --
 
@@ -9406,6 +9427,14 @@ ALTER TABLE ONLY public.return_requests
 
 
 --
+-- Name: return_request_evidence_images fk_return_request_evidence_images_return_request; Type: FK CONSTRAINT; Schema: public; Owner: dev
+--
+
+ALTER TABLE ONLY public.return_request_evidence_images
+    ADD CONSTRAINT fk_return_request_evidence_images_return_request FOREIGN KEY (return_request_id) REFERENCES public.return_requests(id);
+
+
+--
 -- Name: flash_sale_items fk86yyoqeiisx1rsodorhrao4bt; Type: FK CONSTRAINT; Schema: public; Owner: dev
 --
 
@@ -9863,4 +9892,3 @@ ALTER DEFAULT PRIVILEGES FOR ROLE hoinguyen IN SCHEMA public GRANT SELECT ON TAB
 --
 
 \unrestrict xrDVks44G4jzSumVr95fHgX8pVXF4seGYrJ3LlLH9YAtOnEFWilSEXYu7oTP54m
-

@@ -42,6 +42,15 @@ public class ReturnRequest extends AbstractAuditingEntity {
     @Column(name = "evidence_note", length = 1000)
     private String evidenceNote;
 
+    @Builder.Default
+    @ElementCollection
+    @CollectionTable(
+            name = "return_request_evidence_images",
+            joinColumns = @JoinColumn(name = "return_request_id"))
+    @OrderColumn(name = "display_order")
+    @Column(name = "image_url", nullable = false, length = 1000)
+    private List<String> evidenceImageUrls = new ArrayList<>();
+
     @Column(name = "admin_note", length = 1000)
     private String adminNote;
 

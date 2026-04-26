@@ -12,6 +12,7 @@ import com.hoz.hozitech.application.services.notification.AdminNotificationTempl
 import com.hoz.hozitech.application.services.notification.NotificationService;
 import com.hoz.hozitech.application.services.notification.UserNotificationTemplates;
 import com.hoz.hozitech.application.services.setting.SettingService;
+import com.hoz.hozitech.application.services.storage.FileStorageService;
 import com.hoz.hozitech.application.specifications.ReturnRequestSpecification;
 import com.hoz.hozitech.domain.dtos.request.CreateReturnRequest;
 import com.hoz.hozitech.domain.dtos.request.ProcessRefundRequest;
@@ -35,10 +36,12 @@ import com.hoz.hozitech.web.exceptions.BusinessException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -49,15 +52,19 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ReturnServiceImpl implements ReturnService {
 
     private static final int MONEY_SCALE = 2;
+    private static final int MAX_EVIDENCE_IMAGES = 5;
+    private static final String RETURN_EVIDENCE_FOLDER = "returns";
     private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
 
     private static final Map<ReturnRequestStatus, Set<ReturnRequestStatus>> ALLOWED_STATUS_TRANSITIONS = Map.ofEntries(
@@ -84,13 +91,18 @@ public class ReturnServiceImpl implements ReturnService {
     private final AdminNotificationService adminNotificationService;
     private final SettingService settingService;
     private final ReturnEmailSender returnEmailSender;
+    private final FileStorageService fileStorageService;
 
     @PersistenceContext
     private EntityManager entityManager;
 
     @Override
     @Transactional
-    public ReturnRequestResponse createReturnRequest(UUID userId, CreateReturnRequest request, String idempotencyKey) {
+    public ReturnRequestResponse createReturnRequest(
+            UUID userId,
+            CreateReturnRequest request,
+            List<MultipartFile> evidenceFiles,
+            String idempotencyKey) {
         String normalizedKey = normalizeIdempotencyKey(idempotencyKey);
         if (normalizedKey == null) {
             throw new BusinessException(
@@ -120,6 +132,8 @@ public class ReturnServiceImpl implements ReturnService {
 
         Map<UUID, OrderItem> orderItemsById = order.getOrderItems().stream()
                 .collect(Collectors.toMap(OrderItem::getId, item -> item));
+        List<MultipartFile> normalizedEvidenceFiles = normalizeEvidenceFiles(evidenceFiles);
+        validateEvidenceFiles(normalizedEvidenceFiles);
 
         List<ReturnItem> returnItems = new ArrayList<>();
         BigDecimal requestedAmount = ZERO;
@@ -163,39 +177,48 @@ public class ReturnServiceImpl implements ReturnService {
             throw new BusinessException(BusinessErrorCode.RETURN_ITEM_NOT_FOUND, "No valid return item found");
         }
 
-        ReturnRequest returnRequest = ReturnRequest.builder()
-                .returnNumber(generateReturnNumber())
-                .idempotencyKey(normalizedKey)
-                .reason(request.getReason())
-                .evidenceNote(trimToNull(request.getEvidenceNote()))
-                .status(ReturnRequestStatus.REQUESTED)
-                .refundStatus(RefundStatus.PENDING)
-                .requestedAmount(money(requestedAmount))
-                .approvedAmount(null)
-                .refundAmount(ZERO)
-                .order(order)
-                .user(order.getUser())
-                .items(new ArrayList<>())
-                .build();
+        List<String> evidenceImageUrls = List.of();
+        try {
+            evidenceImageUrls = uploadEvidenceImages(normalizedEvidenceFiles);
 
-        for (ReturnItem item : returnItems) {
-            item.setReturnRequest(returnRequest);
-            returnRequest.getItems().add(item);
+            ReturnRequest returnRequest = ReturnRequest.builder()
+                    .returnNumber(generateReturnNumber())
+                    .idempotencyKey(normalizedKey)
+                    .reason(request.getReason())
+                    .evidenceNote(trimToNull(request.getEvidenceNote()))
+                    .evidenceImageUrls(new ArrayList<>(evidenceImageUrls))
+                    .status(ReturnRequestStatus.REQUESTED)
+                    .refundStatus(RefundStatus.PENDING)
+                    .requestedAmount(money(requestedAmount))
+                    .approvedAmount(null)
+                    .refundAmount(ZERO)
+                    .order(order)
+                    .user(order.getUser())
+                    .items(new ArrayList<>())
+                    .build();
+
+            for (ReturnItem item : returnItems) {
+                item.setReturnRequest(returnRequest);
+                returnRequest.getItems().add(item);
+            }
+
+            ReturnRequest saved = returnRequestRepository.save(returnRequest);
+
+            appendReturnStatusHistory(saved, ReturnRequestStatus.REQUESTED, "Yêu cầu trả hàng mới đã được tạo");
+
+            notificationService.createForUser(userId, UserNotificationTemplates.returnCreated(saved));
+            adminNotificationService.createShared(AdminNotificationTemplates.returnCreated(saved), false);
+
+            returnEmailSender.sendReturnUpdatedEmail(
+                    saved,
+                    "Yêu cầu trả hàng đã được tiếp nhận",
+                    "Yêu cầu " + saved.getReturnNumber() + " của bạn đã được tạo thành công.");
+
+            return mapToFreshResponse(saved);
+        } catch (RuntimeException ex) {
+            cleanupEvidenceImages(evidenceImageUrls);
+            throw ex;
         }
-
-        ReturnRequest saved = returnRequestRepository.save(returnRequest);
-
-        appendReturnStatusHistory(saved, ReturnRequestStatus.REQUESTED, "Yêu cầu trả hàng mới đã được tạo");
-
-        notificationService.createForUser(userId, UserNotificationTemplates.returnCreated(saved));
-        adminNotificationService.createShared(AdminNotificationTemplates.returnCreated(saved), false);
-
-        returnEmailSender.sendReturnUpdatedEmail(
-                saved,
-                "Yêu cầu trả hàng đã được tiếp nhận",
-                "Yêu cầu " + saved.getReturnNumber() + " của bạn đã được tạo thành công.");
-
-        return mapToFreshResponse(saved);
     }
 
     @Override
@@ -546,6 +569,7 @@ public class ReturnServiceImpl implements ReturnService {
                 .refundStatus(rr.getRefundStatus().name())
                 .reason(rr.getReason())
                 .evidenceNote(rr.getEvidenceNote())
+                .evidenceImageUrls(rr.getEvidenceImageUrls() == null ? List.of() : new ArrayList<>(rr.getEvidenceImageUrls()))
                 .adminNote(rr.getAdminNote())
                 .requestedAmount(rr.getRequestedAmount())
                 .approvedAmount(rr.getApprovedAmount())
@@ -563,6 +587,65 @@ public class ReturnServiceImpl implements ReturnService {
         entityManager.flush();
         entityManager.refresh(rr);
         return mapToResponse(rr);
+    }
+
+    private List<MultipartFile> normalizeEvidenceFiles(List<MultipartFile> evidenceFiles) {
+        if (evidenceFiles == null || evidenceFiles.isEmpty()) {
+            return List.of();
+        }
+
+        return evidenceFiles.stream()
+                .filter(Objects::nonNull)
+                .filter(file -> !file.isEmpty())
+                .collect(Collectors.toList());
+    }
+
+    private void validateEvidenceFiles(List<MultipartFile> evidenceFiles) {
+        if (evidenceFiles.size() > MAX_EVIDENCE_IMAGES) {
+            throw new BusinessException(
+                    BusinessErrorCode.RETURN_EVIDENCE_IMAGE_LIMIT_EXCEEDED,
+                    "A maximum of " + MAX_EVIDENCE_IMAGES + " evidence images is allowed");
+        }
+
+        for (MultipartFile file : evidenceFiles) {
+            String contentType = trimToNull(file.getContentType());
+            if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
+                throw new BusinessException(
+                        BusinessErrorCode.RETURN_EVIDENCE_IMAGE_INVALID,
+                        "Only image files can be uploaded as return evidence");
+            }
+        }
+    }
+
+    private List<String> uploadEvidenceImages(List<MultipartFile> evidenceFiles) {
+        if (evidenceFiles.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> uploadedUrls = new ArrayList<>(evidenceFiles.size());
+        try {
+            for (MultipartFile file : evidenceFiles) {
+                uploadedUrls.add(fileStorageService.uploadFile(file, RETURN_EVIDENCE_FOLDER));
+            }
+            return uploadedUrls;
+        } catch (RuntimeException ex) {
+            cleanupEvidenceImages(uploadedUrls);
+            throw ex;
+        }
+    }
+
+    private void cleanupEvidenceImages(List<String> evidenceImageUrls) {
+        if (evidenceImageUrls == null || evidenceImageUrls.isEmpty()) {
+            return;
+        }
+
+        for (String imageUrl : evidenceImageUrls) {
+            try {
+                fileStorageService.deleteFile(imageUrl);
+            } catch (RuntimeException cleanupEx) {
+                log.warn("return_evidence_cleanup_failed imageUrl={}", imageUrl, cleanupEx);
+            }
+        }
     }
 
     private void appendReturnStatusHistory(ReturnRequest rr, ReturnRequestStatus status, String description) {
