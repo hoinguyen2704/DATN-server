@@ -2,6 +2,7 @@ package com.hoz.hozitech.application.repositories;
 
 import com.hoz.hozitech.domain.entities.Coupon;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -33,4 +34,10 @@ public interface CouponRepository extends JpaRepository<Coupon, UUID> {
 
     @Query("SELECT c FROM Coupon c WHERE UPPER(c.code) IN :codes")
     List<Coupon> findAllByUpperCodeIn(@Param("codes") Collection<String> codes);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Coupon c SET c.status = com.hoz.hozitech.domain.enums.CouponStatus.EXPIRED " +
+            "WHERE c.status <> com.hoz.hozitech.domain.enums.CouponStatus.EXPIRED " +
+            "AND c.endDate IS NOT NULL AND c.endDate < :now")
+    int markExpiredCoupons(@Param("now") LocalDateTime now);
 }

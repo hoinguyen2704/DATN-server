@@ -63,6 +63,12 @@ public class AdminCouponController {
         return ResponseEntity.ok(ApiResponse.success("Coupon status toggled successfully", couponService.toggleStatus(id)));
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteCoupon(@PathVariable UUID id) {
+        couponService.deleteCoupon(id);
+        return ResponseEntity.ok(ApiResponse.success("Coupon deleted successfully"));
+    }
+
     @GetMapping("/report-export")
     public ResponseEntity<byte[]> exportCouponsReportByRange(
             @RequestParam ReportRangeMode mode,

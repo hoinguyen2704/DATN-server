@@ -4,9 +4,12 @@ import com.hoz.hozitech.domain.entities.FlashSale;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,4 +21,22 @@ public interface FlashSaleRepository extends JpaRepository<FlashSale, UUID> {
     List<FlashSale> findActiveFlashSales();
 
     Page<FlashSale> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE FlashSale fs SET fs.status = com.hoz.hozitech.domain.enums.FlashSaleStatus.SCHEDULED " +
+            "WHERE fs.startTime > :now " +
+            "AND fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.SCHEDULED")
+    int markScheduledFlashSales(@Param("now") LocalDateTime now);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE FlashSale fs SET fs.status = com.hoz.hozitech.domain.enums.FlashSaleStatus.ACTIVE " +
+            "WHERE fs.startTime <= :now AND fs.endTime >= :now " +
+            "AND fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.ACTIVE")
+    int markActiveFlashSales(@Param("now") LocalDateTime now);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE FlashSale fs SET fs.status = com.hoz.hozitech.domain.enums.FlashSaleStatus.ENDED " +
+            "WHERE fs.endTime < :now " +
+            "AND fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.ENDED")
+    int markEndedFlashSales(@Param("now") LocalDateTime now);
 }

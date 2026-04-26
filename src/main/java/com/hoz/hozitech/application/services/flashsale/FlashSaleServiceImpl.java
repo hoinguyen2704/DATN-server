@@ -8,6 +8,7 @@ import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.application.repositories.ReturnItemRepository;
 import com.hoz.hozitech.application.services.notification.AdminNotificationService;
 import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
+import com.hoz.hozitech.application.services.promotion.PromotionStatusSyncService;
 import com.hoz.hozitech.domain.dtos.request.FlashSaleRequest;
 import com.hoz.hozitech.domain.dtos.response.FlashSaleResponse;
 import com.hoz.hozitech.domain.dtos.response.FlashSaleResponse.FlashSaleItemResponse;
@@ -40,6 +41,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     private final OrderItemRepository orderItemRepository;
     private final ReturnItemRepository returnItemRepository;
     private final AdminNotificationService adminNotificationService;
+    private final PromotionStatusSyncService promotionStatusSyncService;
 
     @Override
     @Transactional
@@ -49,7 +51,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                 .description(request.getDescription())
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
-                .status(FlashSaleStatus.SCHEDULED)
+                .status(resolveStatus(request.getStartTime(), request.getEndTime()))
                 .build();
 
         flashSale = flashSaleRepository.save(flashSale);
@@ -85,6 +87,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         flashSale.setDescription(request.getDescription());
         flashSale.setStartTime(request.getStartTime());
         flashSale.setEndTime(request.getEndTime());
+        flashSale.setStatus(resolveStatus(request.getStartTime(), request.getEndTime()));
         flashSale.getItems().clear();
         flashSaleRepository.flush();
         
@@ -114,7 +117,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     public FlashSaleResponse updateFlashSaleStatus(UUID id, FlashSaleStatus status) {
         FlashSale flashSale = flashSaleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Flash sale", id));
-        flashSale.setStatus(status);
+        flashSale.setStatus(resolveStatus(flashSale.getStartTime(), flashSale.getEndTime()));
         flashSale = flashSaleRepository.save(flashSale);
         adminNotificationService.createShared(AdminNotificationTemplates.flashSaleStatusChanged(flashSale), true);
         return toResponse(flashSale);
@@ -129,6 +132,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Override
     @Transactional(readOnly = true)
     public FlashSaleResponse getFlashSaleById(UUID id) {
+        promotionStatusSyncService.syncFlashSaleStatuses();
         FlashSale flashSale = flashSaleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Flash sale", id));
         return toResponse(flashSale);
@@ -137,6 +141,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<FlashSaleResponse> getAllFlashSales(int page, int size) {
+        promotionStatusSyncService.syncFlashSaleStatuses();
         Page<FlashSale> pageResult = flashSaleRepository.findAllByOrderByCreatedAtDesc(
                 PaginationConstant.of(page, size));
         Page<FlashSaleResponse> mapped = pageResult.map(this::toResponse);
@@ -146,7 +151,9 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Override
     @Transactional(readOnly = true)
     public FlashSaleResponse getActiveFlashSale() {
-        return getActiveFlashSales().stream()
+        promotionStatusSyncService.syncFlashSaleStatuses();
+        return flashSaleRepository.findActiveFlashSales().stream()
+                .map(this::toResponse)
                 .findFirst()
                 .orElse(null);
     }
@@ -154,6 +161,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Override
     @Transactional(readOnly = true)
     public List<FlashSaleResponse> getActiveFlashSales() {
+        promotionStatusSyncService.syncFlashSaleStatuses();
         return flashSaleRepository.findActiveFlashSales().stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -162,6 +170,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Override
     @Transactional(readOnly = true)
     public BigDecimal getActiveFlashSalePrice(UUID variantId, int quantity) {
+        promotionStatusSyncService.syncFlashSaleStatuses();
         if (variantId == null || quantity <= 0) {
             return null;
         }
@@ -175,6 +184,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Override
     @Transactional
     public BigDecimal applyFlashSaleAndReduceStock(UUID variantId, int quantity) {
+        promotionStatusSyncService.syncFlashSaleStatuses();
         return flashSaleItemRepository.findActiveFlashSaleItemByVariantIdForUpdate(variantId)
                 .map(item -> {
                     if (item.getFlashStock() - item.getSoldCount() >= quantity) {
@@ -286,5 +296,16 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                         row -> (UUID) row[0],
                         row -> ((Number) row[1]).longValue(),
                         Long::sum));
+    }
+
+    private FlashSaleStatus resolveStatus(LocalDateTime startTime, LocalDateTime endTime) {
+        LocalDateTime now = promotionStatusSyncService.now();
+        if (endTime.isBefore(now)) {
+            return FlashSaleStatus.ENDED;
+        }
+        if (!startTime.isAfter(now)) {
+            return FlashSaleStatus.ACTIVE;
+        }
+        return FlashSaleStatus.SCHEDULED;
     }
 }

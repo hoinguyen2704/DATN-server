@@ -23,6 +23,7 @@ import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.repositories.UserSavedCouponRepository;
 import com.hoz.hozitech.application.services.notification.AdminNotificationService;
 import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
+import com.hoz.hozitech.application.services.promotion.PromotionStatusSyncService;
 import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.domain.dtos.request.CouponRequest;
@@ -49,6 +50,7 @@ public class CouponServiceImpl implements CouponService {
     private final UserSavedCouponRepository userSavedCouponRepository;
     private final UserRepository userRepository;
     private final AdminNotificationService adminNotificationService;
+    private final PromotionStatusSyncService promotionStatusSyncService;
 
     @Value("${app.timezone}")
     private String appTimezone;
@@ -60,6 +62,7 @@ public class CouponServiceImpl implements CouponService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<CouponResponse> getAllCoupons(String keyword, int page, int size) {
+        promotionStatusSyncService.syncCouponStatuses();
         Pageable pageable = PaginationConstant.of(page, size);
         Page<Coupon> coupons = couponRepository.findAll(pageable);
         return PageResponse.of(coupons.map(this::mapToResponse));
@@ -68,6 +71,7 @@ public class CouponServiceImpl implements CouponService {
     @Override
     @Transactional(readOnly = true)
     public CouponResponse getCouponById(UUID id) {
+        promotionStatusSyncService.syncCouponStatuses();
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
         return mapToResponse(coupon);
@@ -76,6 +80,7 @@ public class CouponServiceImpl implements CouponService {
     @Override
     @Transactional(readOnly = true)
     public CouponResponse getCouponByCode(String code) {
+        promotionStatusSyncService.syncCouponStatuses();
         Coupon coupon = couponRepository.findByCode(code.toUpperCase())
                 .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
         return mapToResponse(coupon);
@@ -97,7 +102,7 @@ public class CouponServiceImpl implements CouponService {
                 .usageLimit(request.getUsageLimit())
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
-                .status(CouponStatus.ACTIVE)
+                .status(resolveCouponStatus(CouponStatus.ACTIVE, request.getEndDate()))
                 .isPublic(request.getIsPublic() != null ? request.getIsPublic() : false)
                 .applyType(
                         request.getApplyType() != null ? CouponApplyType.valueOf(request.getApplyType().toUpperCase())
@@ -141,6 +146,7 @@ public class CouponServiceImpl implements CouponService {
         coupon.setCouponCategory(
                 request.getCouponCategory() != null ? CouponCategory.valueOf(request.getCouponCategory().toUpperCase())
                         : coupon.getCouponCategory());
+        coupon.setStatus(resolveCouponStatus(coupon.getStatus(), coupon.getEndDate()));
 
         // Re-link applicable products
         applyProductScope(coupon, request);
@@ -153,8 +159,13 @@ public class CouponServiceImpl implements CouponService {
     @Override
     @Transactional
     public CouponResponse toggleStatus(UUID id) {
+        promotionStatusSyncService.syncCouponStatuses();
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+
+        if (coupon.getStatus() == CouponStatus.EXPIRED) {
+            return mapToResponse(coupon);
+        }
 
         if (CouponStatus.ACTIVE == coupon.getStatus()) {
             coupon.setStatus(CouponStatus.INACTIVE);
@@ -167,6 +178,18 @@ public class CouponServiceImpl implements CouponService {
         return mapToResponse(saved);
     }
 
+    @Override
+    @Transactional
+    public void deleteCoupon(UUID id) {
+        Coupon coupon = couponRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+
+        coupon.getApplicableProducts().clear();
+        couponRepository.saveAndFlush(coupon);
+        userSavedCouponRepository.deleteByCouponId(id);
+        couponRepository.delete(coupon);
+    }
+
     //
     // USER - PUBLIC VOUCHERS
     //
@@ -174,6 +197,7 @@ public class CouponServiceImpl implements CouponService {
     @Override
     @Transactional(readOnly = true)
     public List<CouponResponse> getPublicCoupons(UUID userId) {
+        promotionStatusSyncService.syncCouponStatuses();
         LocalDateTime now = LocalDateTime.now(ZoneId.of(appTimezone));
 
         // Fetch public + active vouchers (with or without end date)
@@ -235,6 +259,7 @@ public class CouponServiceImpl implements CouponService {
     @Override
     @Transactional(readOnly = true)
     public List<CouponResponse> getMySavedCoupons(UUID userId) {
+        promotionStatusSyncService.syncCouponStatuses();
         return userSavedCouponRepository.findByUserId(userId).stream()
                 .map(usc -> {
                     CouponResponse resp = mapToResponse(usc.getCoupon());
@@ -250,6 +275,7 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     public CouponResponse validateCoupon(String code, BigDecimal orderAmount) {
+        promotionStatusSyncService.syncCouponStatuses();
         Coupon coupon = couponRepository.findByCode(code.toUpperCase())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid coupon code"));
 
@@ -287,6 +313,13 @@ public class CouponServiceImpl implements CouponService {
         if (!Boolean.TRUE.equals(coupon.getIsPublic())) {
             throw new InvalidParamException("Coupon is not public and cannot be saved");
         }
+    }
+
+    private CouponStatus resolveCouponStatus(CouponStatus currentStatus, LocalDateTime endDate) {
+        if (endDate != null && endDate.isBefore(LocalDateTime.now(ZoneId.of(appTimezone)))) {
+            return CouponStatus.EXPIRED;
+        }
+        return currentStatus == CouponStatus.EXPIRED ? CouponStatus.ACTIVE : currentStatus;
     }
 
     private void applyProductScope(Coupon coupon, CouponRequest request) {

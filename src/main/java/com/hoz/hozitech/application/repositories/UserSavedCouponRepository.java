@@ -19,5 +19,7 @@ public interface UserSavedCouponRepository extends JpaRepository<UserSavedCoupon
 
     void deleteByUserIdAndCouponId(UUID userId, UUID couponId);
 
+    void deleteByCouponId(UUID couponId);
+
     List<UserSavedCoupon> findByUserIdAndCouponIdIn(UUID userId, List<UUID> couponIds);
 }

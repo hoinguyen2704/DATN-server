@@ -16,6 +16,7 @@ public interface CouponService {
     CouponResponse createCoupon(CouponRequest request);
     CouponResponse updateCoupon(UUID id, CouponRequest request);
     CouponResponse toggleStatus(UUID id);
+    void deleteCoupon(UUID id);
 
     // User - public vouchers
     List<CouponResponse> getPublicCoupons(UUID userId);
