@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.CouponRepository;
+import com.hoz.hozitech.application.repositories.OrderRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.repositories.UserSavedCouponRepository;
@@ -46,6 +47,7 @@ import lombok.RequiredArgsConstructor;
 public class CouponServiceImpl implements CouponService {
 
     private final CouponRepository couponRepository;
+    private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final UserSavedCouponRepository userSavedCouponRepository;
     private final UserRepository userRepository;
@@ -127,6 +129,12 @@ public class CouponServiceImpl implements CouponService {
                 .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
 
         if (!coupon.getCode().equalsIgnoreCase(request.getCode())
+                && orderRepository.existsByCouponCodeInAnyOrder(coupon.getCode())) {
+            throw new ConflictException(
+                    "Mã voucher này đã phát sinh đơn hàng, không thể thay đổi. Vui lòng tạo voucher mới nếu cần dùng mã khác!");
+        }
+
+        if (!coupon.getCode().equalsIgnoreCase(request.getCode())
                 && couponRepository.existsByCode(request.getCode().toUpperCase())) {
             throw new ConflictException("Coupon code already exists");
         }
@@ -183,6 +191,11 @@ public class CouponServiceImpl implements CouponService {
     public void deleteCoupon(UUID id) {
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+
+        if (orderRepository.existsByCouponCodeInAnyOrder(coupon.getCode())) {
+            throw new ConflictException(
+                    "Voucher này đã phát sinh đơn hàng, không thể xoá cứng. Vui lòng chuyển trạng thái sang Inactive!");
+        }
 
         coupon.getApplicableProducts().clear();
         couponRepository.saveAndFlush(coupon);

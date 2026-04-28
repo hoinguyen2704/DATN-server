@@ -43,6 +43,13 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
             ")")
     boolean existsCouponUsedByUser(@Param("userId") UUID userId, @Param("couponCode") String couponCode);
 
+    @Query("SELECT COUNT(o) > 0 FROM Order o " +
+            "WHERE (" +
+            "  (o.couponCode IS NOT NULL AND UPPER(o.couponCode) = UPPER(:couponCode)) " +
+            "  OR (o.shippingCouponCode IS NOT NULL AND UPPER(o.shippingCouponCode) = UPPER(:couponCode))" +
+            ")")
+    boolean existsByCouponCodeInAnyOrder(@Param("couponCode") String couponCode);
+
     List<Order> findByUserIdAndOrderStatusOrderByCreatedAtDesc(UUID userId, OrderStatus orderStatus);
 
     List<Order> findByUserIdOrderByCreatedAtDesc(UUID userId);
