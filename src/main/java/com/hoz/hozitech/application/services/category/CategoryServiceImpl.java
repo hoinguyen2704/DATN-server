@@ -22,6 +22,7 @@ import org.springframework.data.jpa.domain.JpaSort;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.CategoryRepository;
+import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.SpecAttributeRepository;
 import com.hoz.hozitech.application.repositories.VariantAttributeRepository;
 import com.hoz.hozitech.application.repositories.VariantAttributeOptionRepository;
@@ -47,6 +48,7 @@ import lombok.RequiredArgsConstructor;
 public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final ProductRepository productRepository;
     private final SpecAttributeRepository specAttributeRepository;
     private final VariantAttributeRepository variantAttributeRepository;
     private final VariantAttributeOptionRepository variantAttributeOptionRepository;
@@ -308,6 +310,13 @@ public class CategoryServiceImpl implements CategoryService {
     public void deleteCategory(UUID id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+
+        if (productRepository.existsByCategoryId(id)) {
+            throw new ConflictException(
+                    "Không thể xóa danh mục vì vẫn còn sản phẩm thuộc danh mục này",
+                    "Cannot delete category because products still reference it");
+        }
+
         categoryRepository.delete(category);
     }
 
@@ -632,7 +641,9 @@ public class CategoryServiceImpl implements CategoryService {
     private String toSlug(String input) {
         if (input == null) return "";
         String noWhitespace = WHITE_SPACE.matcher(input).replaceAll("-");
-        String normalized = Normalizer.normalize(noWhitespace, Normalizer.Form.NFD);
+        String normalized = Normalizer.normalize(noWhitespace, Normalizer.Form.NFD)
+                .replace("\u0111", "d")
+                .replace("\u0110", "D");
         String slug = NONLATIN.matcher(normalized).replaceAll("");
         return slug.toLowerCase(Locale.ENGLISH).replaceAll("-{2,}", "-").replaceAll("^-|-$", "");
     }

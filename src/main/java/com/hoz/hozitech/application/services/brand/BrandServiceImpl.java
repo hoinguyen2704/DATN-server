@@ -138,7 +138,9 @@ public class BrandServiceImpl implements BrandService {
     private String toSlug(String input) {
         if (input == null) return "";
         String nowhitespace = WHITE_SPACE.matcher(input).replaceAll("-");
-        String normalized = Normalizer.normalize(nowhitespace, Normalizer.Form.NFD);
+        String normalized = Normalizer.normalize(nowhitespace, Normalizer.Form.NFD)
+                .replace("\u0111", "d")
+                .replace("\u0110", "D");
         String slug = NONLATIN.matcher(normalized).replaceAll("");
         return slug.toLowerCase(Locale.ENGLISH).replaceAll("-{2,}", "-").replaceAll("^-|-$", "");
     }

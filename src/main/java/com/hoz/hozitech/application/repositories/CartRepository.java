@@ -2,6 +2,9 @@ package com.hoz.hozitech.application.repositories;
 
 import com.hoz.hozitech.domain.entities.Cart;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -23,4 +26,8 @@ public interface CartRepository extends JpaRepository<Cart, UUID> {
     void deleteByUserIdAndVariantIdIn(UUID userId, Collection<UUID> variantIds);
 
     long countByUserId(UUID userId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM Cart c WHERE c.variant.product.id = :productId")
+    void deleteAllByProductId(@Param("productId") UUID productId);
 }

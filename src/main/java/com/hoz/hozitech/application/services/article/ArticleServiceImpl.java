@@ -116,7 +116,9 @@ public class ArticleServiceImpl implements ArticleService {
     }
 
     private String generateSlug(String title) {
-        String normalized = Normalizer.normalize(title, Normalizer.Form.NFD);
+        String normalized = Normalizer.normalize(title, Normalizer.Form.NFD)
+                .replace("\u0111", "d")
+                .replace("\u0110", "D");
         String slug = normalized.replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
         slug = slug.toLowerCase().replaceAll("[^a-z0-9\\s-]", "").replaceAll("\\s+", "-");
         return slug;

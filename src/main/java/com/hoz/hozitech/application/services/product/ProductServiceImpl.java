@@ -33,6 +33,7 @@ import com.hoz.hozitech.application.repositories.ProductImageRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.application.repositories.ReturnItemRepository;
+import com.hoz.hozitech.application.repositories.WishlistRepository;
 import com.hoz.hozitech.application.services.notification.AdminNotificationService;
 import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
 import com.hoz.hozitech.application.specifications.ProductSpecification;
@@ -64,7 +65,6 @@ import com.hoz.hozitech.domain.entities.VariantAttributeOption;
 import com.hoz.hozitech.domain.enums.ProductStatus;
 import com.hoz.hozitech.web.exceptions.ResourceNotFoundException;
 
-import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.RandomStringUtils;
 
@@ -81,7 +81,7 @@ public class ProductServiceImpl implements ProductService {
     private final FlashSaleItemRepository flashSaleItemRepository;
     private final CategoryRepository categoryRepository;
     private final BrandRepository brandRepository;
-    private final EntityManager entityManager;
+    private final WishlistRepository wishlistRepository;
     private final AdminNotificationService adminNotificationService;
 
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
@@ -721,23 +721,12 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found"));
 
-        Number orderItemCount = (Number) entityManager.createNativeQuery(
-                        "SELECT COUNT(*) FROM order_items WHERE variant_id IN (SELECT id FROM product_variants WHERE product_id = :pid)")
-                .setParameter("pid", id)
-                .getSingleResult();
-
-        if (orderItemCount.longValue() > 0) {
+        if (orderItemRepository.countByProductId(id) > 0) {
             throw new ConflictException("Sản phẩm này đã phát sinh đơn hàng, không thể xoá cứng. Vui lòng chuyển trạng thái thành Bản Nháp hoặc Đã Ẩn!");
         }
 
-        entityManager.createNativeQuery("DELETE FROM carts WHERE variant_id IN (SELECT id FROM product_variants WHERE product_id = :pid)")
-                .setParameter("pid", id)
-                .executeUpdate();
-
-        entityManager.createNativeQuery("DELETE FROM wishlists WHERE product_id = :pid")
-                .setParameter("pid", id)
-                .executeUpdate();
-
+        cartRepository.deleteAllByProductId(id);
+        wishlistRepository.deleteAllByProductId(id);
         productRepository.delete(product);
     }
 
@@ -1114,7 +1103,9 @@ public class ProductServiceImpl implements ProductService {
     private String toSlug(String input) {
         if (input == null) return "";
         String nowhitespace = WHITE_SPACE.matcher(input).replaceAll("-");
-        String normalized = Normalizer.normalize(nowhitespace, Normalizer.Form.NFD);
+        String normalized = Normalizer.normalize(nowhitespace, Normalizer.Form.NFD)
+                .replace("\u0111", "d")
+                .replace("\u0110", "D");
         String slug = NONLATIN.matcher(normalized).replaceAll("");
         return slug.toLowerCase(Locale.ENGLISH).replaceAll("-{2,}", "-").replaceAll("^-|-$", "");
     }
