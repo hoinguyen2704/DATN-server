@@ -20,6 +20,11 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 
     @EntityGraph(attributePaths = { "user", "messages" })
     Optional<Ticket> findDetailById(UUID id);
+
+    @EntityGraph(attributePaths = { "user", "messages" })
+    Optional<Ticket> findDetailByTicketNumber(String ticketNumber);
+
+    Optional<Ticket> findByTicketNumber(String ticketNumber);
     
     boolean existsByTicketNumber(String ticketNumber);
 }

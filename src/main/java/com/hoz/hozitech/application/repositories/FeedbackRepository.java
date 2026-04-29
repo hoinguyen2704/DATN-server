@@ -49,6 +49,20 @@ public interface FeedbackRepository extends JpaRepository<Feedback, UUID>, JpaSp
     
     List<Feedback> findAllByUserIdAndProductIdAndVariantIdAndOrderIdOrderByCreatedAtAsc(UUID userId, UUID productId, UUID variantId, UUID orderId);
 
+    @Query("""
+            SELECT f FROM Feedback f
+            WHERE f.user.id = :userId
+              AND f.product.id = :productId
+              AND (:variantId IS NULL OR (f.variant IS NOT NULL AND f.variant.id = :variantId))
+              AND (:orderId IS NULL OR (f.order IS NOT NULL AND f.order.id = :orderId))
+            ORDER BY f.createdAt ASC
+            """)
+    List<Feedback> findAllByUserIdAndProductIdWithOptionalVariantIdAndOrderIdOrderByCreatedAtAsc(
+            @Param("userId") UUID userId,
+            @Param("productId") UUID productId,
+            @Param("variantId") UUID variantId,
+            @Param("orderId") UUID orderId);
+
     boolean existsByUserIdAndProductId(UUID userId, UUID productId);
 
     // --- Dashboard Statistics ---

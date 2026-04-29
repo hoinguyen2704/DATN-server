@@ -19,6 +19,10 @@ public interface ReturnRequestRepository extends JpaRepository<ReturnRequest, UU
 
     Optional<ReturnRequest> findByReturnNumber(String returnNumber);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT rr FROM ReturnRequest rr WHERE rr.returnNumber = :returnNumber")
+    Optional<ReturnRequest> findByReturnNumberForUpdate(@Param("returnNumber") String returnNumber);
+
     Optional<ReturnRequest> findByUserIdAndIdempotencyKey(UUID userId, String idempotencyKey);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

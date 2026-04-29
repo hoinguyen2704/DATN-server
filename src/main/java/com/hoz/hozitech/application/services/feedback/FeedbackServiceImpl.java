@@ -1,6 +1,5 @@
 package com.hoz.hozitech.application.services.feedback;
 
-import com.hoz.hozitech.domain.enums.FeedbackStatus;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.FeedbackRepository;
 import com.hoz.hozitech.application.repositories.OrderRepository;
@@ -8,6 +7,9 @@ import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.services.notification.AdminNotificationService;
 import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
+import com.hoz.hozitech.application.specifications.FeedbackSpecification;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 import com.hoz.hozitech.domain.dtos.request.FeedbackRequest;
 import com.hoz.hozitech.domain.dtos.response.FeedbackFilterSummaryResponse;
 import com.hoz.hozitech.domain.dtos.response.FeedbackResponse;
@@ -18,7 +20,7 @@ import com.hoz.hozitech.domain.entities.Order;
 import com.hoz.hozitech.domain.entities.Product;
 import com.hoz.hozitech.domain.entities.ProductVariant;
 import com.hoz.hozitech.domain.entities.User;
-import com.hoz.hozitech.application.specifications.FeedbackSpecification;
+import com.hoz.hozitech.domain.enums.FeedbackStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,12 +28,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import com.hoz.hozitech.config.exceptions.InvalidParamException;
-import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 
 @Service
 @RequiredArgsConstructor
@@ -46,10 +47,11 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     @Transactional(readOnly = true)
-    public ProductFeedbackPageResponse getFeedbacksByProduct(UUID productId, Integer rating, Boolean hasComment, int page, int size) {
+    public ProductFeedbackPageResponse getFeedbacksByProduct(String productSlug, Integer rating, Boolean hasComment, int page, int size) {
+        Product product = resolveProductBySlug(productSlug);
         Pageable pageable = PaginationConstant.of(page, size);
         Page<Feedback> feedbacks = feedbackRepository.findPublicByProductWithFilters(
-                productId,
+                product.getId(),
                 FeedbackStatus.APPROVED,
                 rating,
                 hasComment,
@@ -57,7 +59,7 @@ public class FeedbackServiceImpl implements FeedbackService {
 
         return ProductFeedbackPageResponse.of(
                 feedbacks.map(this::mapToResponse),
-                buildFeedbackSummary(productId));
+                buildFeedbackSummary(product.getId()));
     }
 
     @Override
@@ -66,29 +68,24 @@ public class FeedbackServiceImpl implements FeedbackService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        Product product = productRepository.findById(request.getProductId())
-                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
-
-        Order order = null;
-        if (request.getOrderId() != null) {
-            order = orderRepository.findById(request.getOrderId())
-                    .orElse(null);
-            
-            // Check if user actually ordered this
-            if (order != null && !order.getUser().getId().equals(userId)) {
-                throw new UnauthorizedException("Order does not belong to user");
-            }
+        Product product = resolveProductBySlug(request.getProductSlug());
+        ProductVariant variant = resolveVariantBySku(request.getVariantSku());
+        if (variant != null && !variant.getProduct().getId().equals(product.getId())) {
+            throw new IllegalArgumentException("Variant does not belong to product");
         }
 
-        ProductVariant variant = null;
-        if (request.getVariantId() != null) {
-            variant = productVariantRepository.findById(request.getVariantId())
-                    .orElseThrow(() -> new IllegalArgumentException("Variant not found"));
+        Order order = resolveOrderByNumber(request.getOrderNumber());
+        if (order != null && !order.getUser().getId().equals(userId)) {
+            throw new UnauthorizedException("Order does not belong to user");
         }
 
         List<Feedback> existingFeedbacks = null;
-        if (request.getOrderId() != null && request.getVariantId() != null) {
-            existingFeedbacks = feedbackRepository.findAllByUserIdAndProductIdAndVariantIdAndOrderIdOrderByCreatedAtAsc(userId, request.getProductId(), request.getVariantId(), request.getOrderId());
+        if (order != null && variant != null) {
+            existingFeedbacks = feedbackRepository.findAllByUserIdAndProductIdAndVariantIdAndOrderIdOrderByCreatedAtAsc(
+                    userId,
+                    product.getId(),
+                    variant.getId(),
+                    order.getId());
         }
 
         if (existingFeedbacks != null && existingFeedbacks.size() >= 2) {
@@ -99,12 +96,12 @@ public class FeedbackServiceImpl implements FeedbackService {
                 .rating(request.getRating())
                 .content(request.getContent())
                 .imagesJson(request.getImagesJson())
-                .status(FeedbackStatus.APPROVED) // Auto-approve for now, or could default to PENDING
+                .status(FeedbackStatus.APPROVED)
                 .user(user)
                 .product(product)
                 .variant(variant)
                 .order(order)
-                .editCount(0) // Unused now but kept for compatibility
+                .editCount(0)
                 .build();
 
         Feedback saved = feedbackRepository.save(feedback);
@@ -114,8 +111,23 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<FeedbackResponse> getMyFeedbacks(UUID userId, UUID productId, UUID variantId, UUID orderId) {
-        return feedbackRepository.findAllByUserIdAndProductIdAndVariantIdAndOrderIdOrderByCreatedAtAsc(userId, productId, variantId, orderId)
+    public List<FeedbackResponse> getMyFeedbacks(UUID userId, String productSlug, String variantSku, String orderNumber) {
+        Product product = resolveProductBySlug(productSlug);
+        ProductVariant variant = resolveVariantBySku(variantSku);
+        if (variant != null && !variant.getProduct().getId().equals(product.getId())) {
+            throw new IllegalArgumentException("Variant does not belong to product");
+        }
+
+        Order order = resolveOrderByNumber(orderNumber);
+        if (order != null && !order.getUser().getId().equals(userId)) {
+            throw new UnauthorizedException("Order does not belong to user");
+        }
+
+        return feedbackRepository.findAllByUserIdAndProductIdWithOptionalVariantIdAndOrderIdOrderByCreatedAtAsc(
+                        userId,
+                        product.getId(),
+                        variant != null ? variant.getId() : null,
+                        order != null ? order.getId() : null)
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -135,7 +147,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         Feedback feedback = feedbackRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Feedback not found"));
 
-        feedback.setStatus(FeedbackStatus.valueOf(status.toUpperCase())); // APPROVED, HIDDEN, SPAM
+        feedback.setStatus(FeedbackStatus.valueOf(status.toUpperCase(Locale.ROOT)));
         Feedback saved = feedbackRepository.save(feedback);
         adminNotificationService.createShared(AdminNotificationTemplates.feedbackStatusChanged(saved), true);
         return mapToResponse(saved);
@@ -154,8 +166,9 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     @Transactional(readOnly = true)
-    public boolean hasUserReviewedProduct(UUID userId, UUID productId) {
-        return feedbackRepository.existsByUserIdAndProductId(userId, productId);
+    public boolean hasUserReviewedProduct(UUID userId, String productSlug) {
+        Product product = resolveProductBySlug(productSlug);
+        return feedbackRepository.existsByUserIdAndProductId(userId, product.getId());
     }
 
     @Override
@@ -168,6 +181,30 @@ public class FeedbackServiceImpl implements FeedbackService {
         return mapToResponse(feedbackRepository.save(feedback));
     }
 
+    private Product resolveProductBySlug(String productSlug) {
+        String normalizedSlug = trimToNull(productSlug);
+        return productRepository.findBySlug(normalizedSlug)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+    }
+
+    private ProductVariant resolveVariantBySku(String variantSku) {
+        String normalizedSku = normalizeSku(variantSku);
+        if (normalizedSku == null) {
+            return null;
+        }
+        return productVariantRepository.findBySku(normalizedSku)
+                .orElseThrow(() -> new IllegalArgumentException("Variant not found"));
+    }
+
+    private Order resolveOrderByNumber(String orderNumber) {
+        String normalizedOrderNumber = trimToNull(orderNumber);
+        if (normalizedOrderNumber == null) {
+            return null;
+        }
+        return orderRepository.findByOrderNumber(normalizedOrderNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+    }
+
     private FeedbackResponse mapToResponse(Feedback feedback) {
         return FeedbackResponse.builder()
                 .id(feedback.getId())
@@ -177,13 +214,16 @@ public class FeedbackServiceImpl implements FeedbackService {
                 .status(feedback.getStatus())
                 .createdAt(feedback.getCreatedAt())
                 .productId(feedback.getProduct().getId())
+                .productSlug(feedback.getProduct().getSlug())
                 .productName(feedback.getProduct().getName())
                 .variantId(feedback.getVariant() != null ? feedback.getVariant().getId() : null)
+                .variantSku(feedback.getVariant() != null ? feedback.getVariant().getSku() : null)
                 .variantName(feedback.getVariant() != null ? feedback.getVariant().getVariantName() : null)
                 .userId(feedback.getUser().getId())
                 .userName(feedback.getUser().getFullName() != null ? feedback.getUser().getFullName() : feedback.getUser().getUserName())
                 .userAvatar(feedback.getUser().getAvatarUrl())
                 .orderId(feedback.getOrder() != null ? feedback.getOrder().getId() : null)
+                .orderNumber(feedback.getOrder() != null ? feedback.getOrder().getOrderNumber() : null)
                 .adminReply(feedback.getAdminReply())
                 .repliedAt(feedback.getRepliedAt())
                 .editCount(feedback.getEditCount())
@@ -207,5 +247,18 @@ public class FeedbackServiceImpl implements FeedbackService {
                 .withContent(feedbackRepository.countWithContentByProductIdAndStatus(productId, FeedbackStatus.APPROVED))
                 .ratingCounts(ratingCounts)
                 .build();
+    }
+
+    private String normalizeSku(String sku) {
+        String normalized = trimToNull(sku);
+        return normalized == null ? null : normalized.toUpperCase(Locale.ROOT);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

@@ -15,6 +15,7 @@ import java.util.UUID;
 public class CartResponse {
     private UUID id;
     private UUID variantId;
+    private String variantSku;
     private String productName;
     private String variantName;
     private String imageUrl;

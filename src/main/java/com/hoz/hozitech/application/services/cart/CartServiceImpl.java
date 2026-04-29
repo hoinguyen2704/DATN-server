@@ -4,7 +4,6 @@ import com.hoz.hozitech.application.repositories.CartRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.services.flashsale.FlashSaleService;
-
 import com.hoz.hozitech.domain.dtos.request.CartRequest;
 import com.hoz.hozitech.domain.dtos.response.CartResponse;
 import com.hoz.hozitech.domain.entities.Cart;
@@ -20,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -46,7 +46,8 @@ public class CartServiceImpl implements CartService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(BusinessErrorCode.USER_NOT_FOUND, "User not found"));
 
-        ProductVariant variant = variantRepository.findById(request.getVariantId())
+        String normalizedSku = normalizeVariantSku(request.getVariantSku());
+        ProductVariant variant = variantRepository.findBySku(normalizedSku)
                 .orElseThrow(() -> new BusinessException(BusinessErrorCode.VARIANT_NOT_FOUND, "Product variant not found"));
 
         validateVariantPurchasable(variant);
@@ -55,8 +56,7 @@ public class CartServiceImpl implements CartService {
             throw new BusinessException(BusinessErrorCode.INSUFFICIENT_STOCK, "Not enough stock available");
         }
 
-        // Check if item already in cart -> update quantity
-        var existingCart = cartRepository.findByUserIdAndVariantId(userId, request.getVariantId());
+        var existingCart = cartRepository.findByUserIdAndVariantSku(userId, normalizedSku);
         if (existingCart.isPresent()) {
             Cart cart = existingCart.get();
             int newQty = cart.getQuantity() + request.getQuantity();
@@ -78,15 +78,15 @@ public class CartServiceImpl implements CartService {
 
     @Override
     @Transactional
-    public CartResponse updateCartItem(UUID userId, UUID cartItemId, Integer quantity) {
-        Cart cart = cartRepository.findById(cartItemId)
+    public CartResponse updateCartItem(UUID userId, String variantSku, Integer quantity) {
+        Cart cart = cartRepository.findByUserIdAndVariantSku(userId, normalizeVariantSku(variantSku))
                 .orElseThrow(() -> new BusinessException(BusinessErrorCode.CART_ITEM_NOT_FOUND, "Cart item not found"));
 
         if (!cart.getUser().getId().equals(userId)) {
             throw new BusinessException(BusinessErrorCode.CART_ITEM_UNAUTHORIZED, "Unauthorized access to cart item");
         }
 
-        if (quantity <= 0) {
+        if (quantity == null || quantity <= 0) {
             cartRepository.delete(cart);
             return null;
         }
@@ -102,8 +102,8 @@ public class CartServiceImpl implements CartService {
 
     @Override
     @Transactional
-    public void removeCartItem(UUID userId, UUID cartItemId) {
-        Cart cart = cartRepository.findById(cartItemId)
+    public void removeCartItem(UUID userId, String variantSku) {
+        Cart cart = cartRepository.findByUserIdAndVariantSku(userId, normalizeVariantSku(variantSku))
                 .orElseThrow(() -> new BusinessException(BusinessErrorCode.CART_ITEM_NOT_FOUND, "Cart item not found"));
 
         if (!cart.getUser().getId().equals(userId)) {
@@ -159,6 +159,7 @@ public class CartServiceImpl implements CartService {
         return CartResponse.builder()
                 .id(cart.getId())
                 .variantId(variant.getId())
+                .variantSku(variant.getSku())
                 .productName(variant.getProduct().getName())
                 .productSlug(variant.getProduct().getSlug())
                 .variantName(variant.getVariantName())
@@ -190,5 +191,12 @@ public class CartServiceImpl implements CartService {
         if (variant.getPrice() == null || variant.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException(BusinessErrorCode.PRODUCT_NOT_AVAILABLE, "Product price is invalid or requires contact");
         }
+    }
+
+    private String normalizeVariantSku(String variantSku) {
+        if (variantSku == null) {
+            return null;
+        }
+        return variantSku.trim().toUpperCase(Locale.ROOT);
     }
 }

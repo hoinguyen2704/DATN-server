@@ -10,15 +10,15 @@ import java.util.UUID;
 
 public interface FeedbackService {
     // Public/Client
-    ProductFeedbackPageResponse getFeedbacksByProduct(UUID productId, Integer rating, Boolean hasComment, int page, int size);
+    ProductFeedbackPageResponse getFeedbacksByProduct(String productSlug, Integer rating, Boolean hasComment, int page, int size);
     
     FeedbackResponse submitFeedback(UUID userId, FeedbackRequest request);
 
     void deleteFeedback(UUID userId, UUID feedbackId);
 
-    boolean hasUserReviewedProduct(UUID userId, UUID productId);
+    boolean hasUserReviewedProduct(UUID userId, String productSlug);
 
-    List<FeedbackResponse> getMyFeedbacks(UUID userId, UUID productId, UUID variantId, UUID orderId);
+    List<FeedbackResponse> getMyFeedbacks(UUID userId, String productSlug, String variantSku, String orderNumber);
     
     // Admin
     PageResponse<FeedbackResponse> getAllFeedbacks(String status, UUID productId, int page, int size);

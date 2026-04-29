@@ -16,8 +16,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
-
 @RestAPI("${api.prefix-client}/tickets")
 @Authenticated
 @RequiredArgsConstructor
@@ -42,20 +40,20 @@ public class TicketController {
                 ticketService.createTicket(userDetails.getUser().getId(), request)));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{ticketNumber}")
     public ResponseEntity<ApiResponse<TicketResponse>> getTicketDetail(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable UUID id) {
+            @PathVariable String ticketNumber) {
         return ResponseEntity.ok(ApiResponse.success("Fetch ticket successfully", 
-                ticketService.getTicketDetail(userDetails.getUser().getId(), id)));
+                ticketService.getTicketDetail(userDetails.getUser().getId(), ticketNumber)));
     }
 
-    @PostMapping("/{id}/reply")
+    @PostMapping("/{ticketNumber}/reply")
     public ResponseEntity<ApiResponse<TicketResponse>> replyToTicket(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable UUID id,
+            @PathVariable String ticketNumber,
             @Valid @RequestBody TicketMessageRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Replied to ticket successfully", 
-                ticketService.userReplyToTicket(userDetails.getUser().getId(), id, request)));
+                ticketService.userReplyToTicket(userDetails.getUser().getId(), ticketNumber, request)));
     }
 }

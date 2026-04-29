@@ -23,7 +23,7 @@ public interface ReturnService {
 
     ReturnRequestResponse getReturnByNumberForUser(UUID userId, String returnNumber);
 
-    ReturnRequestResponse cancelReturnRequest(UUID userId, UUID returnRequestId);
+    ReturnRequestResponse cancelReturnRequest(UUID userId, String returnNumber);
 
     PageResponse<ReturnRequestResponse> getAllReturnRequests(String status, String keyword, int page, int size);
 

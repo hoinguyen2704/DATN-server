@@ -55,6 +55,7 @@ public class OrderResponse {
         private UUID id;
         private UUID variantId;
         private UUID productId;
+        private String productSlug;
         private String productName;
         private String variantName;
         private String imageUrl;

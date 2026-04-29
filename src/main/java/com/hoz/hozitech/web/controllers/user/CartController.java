@@ -14,7 +14,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @RestAPI("${api.prefix-client}/cart")
 @Authenticated
@@ -38,20 +37,20 @@ public class CartController {
                 cartService.addToCart(userDetails.getUser().getId(), request)));
     }
 
-    @PutMapping("/{cartItemId}")
+    @PutMapping("/items/{variantSku}")
     public ResponseEntity<ApiResponse<CartResponse>> updateCartItem(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable UUID cartItemId,
+            @PathVariable String variantSku,
             @RequestBody Map<String, Integer> body) {
         return ResponseEntity.ok(ApiResponse.success("Cart item updated",
-                cartService.updateCartItem(userDetails.getUser().getId(), cartItemId, body.get("quantity"))));
+                cartService.updateCartItem(userDetails.getUser().getId(), variantSku, body.get("quantity"))));
     }
 
-    @DeleteMapping("/{cartItemId}")
+    @DeleteMapping("/items/{variantSku}")
     public ResponseEntity<ApiResponse<Void>> removeCartItem(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable UUID cartItemId) {
-        cartService.removeCartItem(userDetails.getUser().getId(), cartItemId);
+            @PathVariable String variantSku) {
+        cartService.removeCartItem(userDetails.getUser().getId(), variantSku);
         return ResponseEntity.ok(ApiResponse.success("Cart item removed"));
     }
 

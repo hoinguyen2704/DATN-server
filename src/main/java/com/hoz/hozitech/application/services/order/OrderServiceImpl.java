@@ -233,8 +233,8 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderResponse cancelOrder(UUID userId, UUID orderId) {
-        Order order = orderRepository.findById(orderId)
+    public OrderResponse cancelOrder(UUID userId, String orderNumber) {
+        Order order = orderRepository.findByOrderNumber(orderNumber == null ? null : orderNumber.trim())
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
         if (!order.getUser().getId().equals(userId)) {
             throw new UnauthorizedException("Order does not belong to user");

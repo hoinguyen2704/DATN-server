@@ -29,29 +29,28 @@ public class WishlistServiceImpl implements WishlistService {
 
     @Override
     @Transactional
-    public void addProductToWishlist(UUID userId, UUID productId) {
-        if (wishlistRepository.existsByUserIdAndProductId(userId, productId)) {
-            // Already in wishlist, silently return or throw exception
-            return; 
+    public void addProductToWishlist(UUID userId, String productSlug) {
+        Product product = resolveProductBySlug(productSlug);
+        if (wishlistRepository.existsByUserIdAndProductId(userId, product.getId())) {
+            return;
         }
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
 
         Wishlist wishlist = Wishlist.builder()
                 .user(user)
                 .product(product)
                 .build();
-        
+
         wishlistRepository.save(wishlist);
     }
 
     @Override
     @Transactional
-    public void removeProductFromWishlist(UUID userId, UUID productId) {
-        Wishlist wishlist = wishlistRepository.findByUserIdAndProductId(userId, productId)
+    public void removeProductFromWishlist(UUID userId, String productSlug) {
+        Product product = resolveProductBySlug(productSlug);
+        Wishlist wishlist = wishlistRepository.findByUserIdAndProductId(userId, product.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Product not found in user wishlist"));
         wishlistRepository.delete(wishlist);
     }
@@ -71,9 +70,28 @@ public class WishlistServiceImpl implements WishlistService {
                 .build();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isProductInWishlist(UUID userId, String productSlug) {
+        Product product = resolveProductBySlug(productSlug);
+        return wishlistRepository.existsByUserIdAndProductId(userId, product.getId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long getWishlistCount(UUID userId) {
+        return wishlistRepository.countByUserId(userId);
+    }
+
+    private Product resolveProductBySlug(String productSlug) {
+        String normalizedSlug = productSlug == null ? null : productSlug.trim();
+        return productRepository.findBySlug(normalizedSlug)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+    }
+
     private WishlistResponse mapToResponse(Wishlist wishlist) {
         Product product = wishlist.getProduct();
-        
+
         String thumbnailUrl = null;
         if (product.getImages() != null && !product.getImages().isEmpty()) {
             thumbnailUrl = product.getImages().stream()
@@ -85,7 +103,7 @@ public class WishlistServiceImpl implements WishlistService {
 
         BigDecimal price = product.getOriginPrice();
         BigDecimal comparePrice = product.getOriginPrice();
-        
+
         if (product.getVariants() != null && !product.getVariants().isEmpty()) {
             price = product.getVariants().get(0).getPrice();
             comparePrice = product.getVariants().get(0).getCompareAtPrice();
@@ -101,17 +119,5 @@ public class WishlistServiceImpl implements WishlistService {
                 .productThumbnailUrl(thumbnailUrl)
                 .addedAt(wishlist.getCreatedAt())
                 .build();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public boolean isProductInWishlist(UUID userId, UUID productId) {
-        return wishlistRepository.existsByUserIdAndProductId(userId, productId);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public long getWishlistCount(UUID userId) {
-        return wishlistRepository.countByUserId(userId);
     }
 }

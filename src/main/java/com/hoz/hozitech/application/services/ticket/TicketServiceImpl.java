@@ -1,20 +1,5 @@
 package com.hoz.hozitech.application.services.ticket;
 
-import com.hoz.hozitech.config.exceptions.UnauthorizedException;
-import java.util.LinkedHashMap;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
-
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.constant.RealtimeEventType;
 import com.hoz.hozitech.application.repositories.TicketMessageRepository;
@@ -25,6 +10,7 @@ import com.hoz.hozitech.application.services.notification.AdminNotificationTempl
 import com.hoz.hozitech.application.services.notification.NotificationService;
 import com.hoz.hozitech.application.services.notification.UserNotificationTemplates;
 import com.hoz.hozitech.application.services.realtime.RealtimeEventPushService;
+import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 import com.hoz.hozitech.domain.dtos.request.ContactRequest;
 import com.hoz.hozitech.domain.dtos.request.TicketMessageRequest;
 import com.hoz.hozitech.domain.dtos.request.TicketRequest;
@@ -35,8 +21,21 @@ import com.hoz.hozitech.domain.entities.Ticket;
 import com.hoz.hozitech.domain.entities.TicketMessage;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.enums.TicketStatus;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 public class TicketServiceImpl implements TicketService {
@@ -79,8 +78,6 @@ public class TicketServiceImpl implements TicketService {
                 .build();
 
         initialMessage = ticketMessageRepository.saveAndFlush(initialMessage);
-        
-        // Reload ticket to include messages list if necessary, or just rely on mappings next fetch.
         ticket.getMessages().add(initialMessage);
         publishToUserAndAdmins(RealtimeEventType.SUPPORT_TICKET_CREATED, ticket, initialMessage);
         adminNotificationService.createShared(AdminNotificationTemplates.supportTicketCreated(ticket), false);
@@ -118,26 +115,21 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     @Transactional(readOnly = true)
-    public TicketResponse getTicketDetail(UUID userId, UUID ticketId) {
-        Ticket ticket = ticketRepository.findDetailById(ticketId)
+    public TicketResponse getTicketDetail(UUID userId, String ticketNumber) {
+        Ticket ticket = ticketRepository.findDetailByTicketNumber(normalizeTicketNumber(ticketNumber))
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
 
-        if (!ticket.getUser().getId().equals(userId)) {
-            throw new UnauthorizedException("Ticket does not belong to you");
-        }
-
+        ensureUserOwnsTicket(ticket, userId);
         return mapToResponse(ticket);
     }
 
     @Override
     @Transactional
-    public TicketResponse userReplyToTicket(UUID userId, UUID ticketId, TicketMessageRequest request) {
-        Ticket ticket = ticketRepository.findById(ticketId)
+    public TicketResponse userReplyToTicket(UUID userId, String ticketNumber, TicketMessageRequest request) {
+        Ticket ticket = ticketRepository.findByTicketNumber(normalizeTicketNumber(ticketNumber))
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
 
-        if (!ticket.getUser().getId().equals(userId)) {
-            throw new UnauthorizedException("Ticket does not belong to you");
-        }
+        ensureUserOwnsTicket(ticket, userId);
 
         TicketMessage reply = TicketMessage.builder()
                 .senderType("USER")
@@ -147,8 +139,7 @@ public class TicketServiceImpl implements TicketService {
                 .build();
 
         reply = ticketMessageRepository.saveAndFlush(reply);
-        
-        // Optionally update ticket status
+
         ticket.setStatus(TicketStatus.OPEN);
         ticketRepository.saveAndFlush(ticket);
         ticket.getMessages().add(reply);
@@ -228,6 +219,16 @@ public class TicketServiceImpl implements TicketService {
         return "TKT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
+    private void ensureUserOwnsTicket(Ticket ticket, UUID userId) {
+        if (ticket.getUser() == null || !ticket.getUser().getId().equals(userId)) {
+            throw new UnauthorizedException("Ticket does not belong to you");
+        }
+    }
+
+    private String normalizeTicketNumber(String ticketNumber) {
+        return ticketNumber == null ? null : ticketNumber.trim();
+    }
+
     private void publishToUserAndAdmins(String eventType, Ticket ticket, TicketMessage message) {
         publishToAdmins(eventType, ticket, message);
         publishToUser(eventType, ticket, message);
@@ -286,9 +287,9 @@ public class TicketServiceImpl implements TicketService {
     }
 
     private TicketResponse mapToResponse(Ticket ticket) {
-        String uName = ticket.getUser() != null ? 
-            (ticket.getUser().getFullName() != null ? ticket.getUser().getFullName() : ticket.getUser().getUserName()) 
-            : ticket.getGuestName() != null ? ticket.getGuestName() : "Khách";
+        String userName = ticket.getUser() != null
+                ? (ticket.getUser().getFullName() != null ? ticket.getUser().getFullName() : ticket.getUser().getUserName())
+                : ticket.getGuestName() != null ? ticket.getGuestName() : "Khách";
         List<TicketMessageResponse> messages = ticket.getMessages() == null
                 ? List.of()
                 : ticket.getMessages().stream()
@@ -297,7 +298,7 @@ public class TicketServiceImpl implements TicketService {
                                 .thenComparing(TicketMessage::getId, Comparator.nullsLast(Comparator.naturalOrder())))
                         .map(this::mapMessageToResponse)
                         .collect(Collectors.toList());
-            
+
         return TicketResponse.builder()
                 .id(ticket.getId())
                 .ticketNumber(ticket.getTicketNumber())
@@ -305,7 +306,7 @@ public class TicketServiceImpl implements TicketService {
                 .status(ticket.getStatus())
                 .createdAt(ticket.getCreatedAt())
                 .userId(ticket.getUser() != null ? ticket.getUser().getId() : null)
-                .userName(uName)
+                .userName(userName)
                 .userEmail(ticket.getUser() != null ? ticket.getUser().getEmail() : ticket.getGuestEmail())
                 .messages(messages)
                 .build();

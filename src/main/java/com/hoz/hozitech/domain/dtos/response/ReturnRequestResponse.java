@@ -53,6 +53,8 @@ public class ReturnRequestResponse {
     public static class ReturnItemData {
         private UUID id;
         private UUID orderItemId;
+        private String productSlug;
+        private String sku;
         private String productName;
         private String variantName;
         private BigDecimal unitPrice;

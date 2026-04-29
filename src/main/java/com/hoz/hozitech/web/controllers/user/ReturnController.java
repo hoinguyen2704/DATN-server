@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestAPI("${api.prefix-client}/returns")
 @Authenticated
@@ -73,11 +72,11 @@ public class ReturnController {
                 returnService.getReturnByNumberForUser(userDetails.getUser().getId(), returnNumber)));
     }
 
-    @PatchMapping("/{returnRequestId}/cancel")
+    @PatchMapping("/{returnNumber}/cancel")
     public ResponseEntity<ApiResponse<ReturnRequestResponse>> cancelReturnRequest(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable UUID returnRequestId) {
+            @PathVariable String returnNumber) {
         return ResponseEntity.ok(ApiResponse.success("Return request cancelled",
-                returnService.cancelReturnRequest(userDetails.getUser().getId(), returnRequestId)));
+                returnService.cancelReturnRequest(userDetails.getUser().getId(), returnNumber)));
     }
 }

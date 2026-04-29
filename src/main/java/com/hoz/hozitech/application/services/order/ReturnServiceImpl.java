@@ -49,6 +49,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -117,7 +119,8 @@ public class ReturnServiceImpl implements ReturnService {
             return mapToResponse(existing);
         }
 
-        Order order = orderRepository.findById(request.getOrderId())
+        String normalizedOrderNumber = trimToNull(request.getOrderNumber());
+        Order order = orderRepository.findByOrderNumber(normalizedOrderNumber)
                 .orElseThrow(() -> new BusinessException(BusinessErrorCode.ORDER_NOT_FOUND, "Order not found"));
 
         if (!order.getUser().getId().equals(userId)) {
@@ -130,31 +133,48 @@ public class ReturnServiceImpl implements ReturnService {
                     "Order is not eligible for return. Only shipped & paid orders can be returned");
         }
 
-        Map<UUID, OrderItem> orderItemsById = order.getOrderItems().stream()
-                .collect(Collectors.toMap(OrderItem::getId, item -> item));
+        Map<String, List<OrderItem>> orderItemsBySku = order.getOrderItems().stream()
+                .filter(item -> item.getVariant() != null)
+                .filter(item -> trimToNull(item.getVariant().getSku()) != null)
+                .collect(Collectors.groupingBy(
+                        item -> normalizeSku(item.getVariant().getSku()),
+                        LinkedHashMap::new,
+                        Collectors.toList()));
         List<MultipartFile> normalizedEvidenceFiles = normalizeEvidenceFiles(evidenceFiles);
         validateEvidenceFiles(normalizedEvidenceFiles);
 
         List<ReturnItem> returnItems = new ArrayList<>();
         BigDecimal requestedAmount = ZERO;
+        Set<String> requestedSkus = new HashSet<>();
 
         for (CreateReturnRequest.ReturnItemRequest reqItem : request.getItems()) {
-            OrderItem orderItem = orderItemsById.get(reqItem.getOrderItemId());
-            if (orderItem == null) {
+            String normalizedSku = normalizeSku(reqItem.getSku());
+            if (!requestedSkus.add(normalizedSku)) {
                 throw new BusinessException(
                         BusinessErrorCode.RETURN_ITEM_NOT_BELONG_TO_ORDER,
-                        "Order item does not belong to order: " + reqItem.getOrderItemId())
-                        .withMessageKey("error.order_item_not_belong_to_order", reqItem.getOrderItemId());
+                        "Duplicate SKU in return request: " + reqItem.getSku());
             }
+
+            List<OrderItem> matchedItems = orderItemsBySku.getOrDefault(normalizedSku, List.of());
+            if (matchedItems.isEmpty()) {
+                throw new BusinessException(
+                        BusinessErrorCode.RETURN_ITEM_NOT_BELONG_TO_ORDER,
+                        "Order item does not belong to order for SKU: " + reqItem.getSku());
+            }
+            if (matchedItems.size() > 1) {
+                throw new BusinessException(
+                        BusinessErrorCode.RETURN_ITEM_NOT_BELONG_TO_ORDER,
+                        "Multiple order items found for SKU: " + reqItem.getSku());
+            }
+            OrderItem orderItem = matchedItems.get(0);
 
             if (reqItem.getQuantity() <= 0 || reqItem.getQuantity() > orderItem.getQuantity()) {
                 throw new BusinessException(
                         BusinessErrorCode.RETURN_QUANTITY_INVALID,
-                        "Invalid return quantity for order item: " + reqItem.getOrderItemId())
-                        .withMessageKey("error.invalid_return_quantity", reqItem.getOrderItemId());
+                        "Invalid return quantity for SKU: " + reqItem.getSku());
             }
 
-            if (returnItemRepository.existsInNonRejectedRequest(reqItem.getOrderItemId())) {
+            if (returnItemRepository.existsInNonRejectedRequest(orderItem.getId())) {
                 throw new BusinessException(
                         BusinessErrorCode.RETURN_ITEM_ALREADY_REQUESTED,
                         "This order item already has a return request");
@@ -249,8 +269,8 @@ public class ReturnServiceImpl implements ReturnService {
 
     @Override
     @Transactional
-    public ReturnRequestResponse cancelReturnRequest(UUID userId, UUID returnRequestId) {
-        ReturnRequest rr = returnRequestRepository.findByIdForUpdate(returnRequestId)
+    public ReturnRequestResponse cancelReturnRequest(UUID userId, String returnNumber) {
+        ReturnRequest rr = returnRequestRepository.findByReturnNumberForUpdate(returnNumber == null ? null : returnNumber.trim())
                 .orElseThrow(() -> new BusinessException(BusinessErrorCode.RETURN_NOT_FOUND, "Return request not found"));
 
         if (!rr.getUser().getId().equals(userId)) {
@@ -527,6 +547,14 @@ public class ReturnServiceImpl implements ReturnService {
                 .map(item -> ReturnRequestResponse.ReturnItemData.builder()
                         .id(item.getId())
                         .orderItemId(item.getOrderItem() != null ? item.getOrderItem().getId() : null)
+                        .productSlug(item.getOrderItem() != null
+                                && item.getOrderItem().getVariant() != null
+                                && item.getOrderItem().getVariant().getProduct() != null
+                                ? item.getOrderItem().getVariant().getProduct().getSlug()
+                                : null)
+                        .sku(item.getOrderItem() != null && item.getOrderItem().getVariant() != null
+                                ? item.getOrderItem().getVariant().getSku()
+                                : null)
                         .productName(item.getProductName())
                         .variantName(item.getVariantName())
                         .unitPrice(item.getUnitPrice())
@@ -741,6 +769,11 @@ public class ReturnServiceImpl implements ReturnService {
             return null;
         }
         return normalized.toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizeSku(String sku) {
+        String normalized = trimToNull(sku);
+        return normalized == null ? null : normalized.toUpperCase(Locale.ROOT);
     }
 
     private String normalizeIdempotencyKey(String raw) {

@@ -16,9 +16,9 @@ public interface TicketService {
     
     TicketResponse createGuestTicket(ContactRequest request);
     
-    TicketResponse getTicketDetail(UUID userId, UUID ticketId);
+    TicketResponse getTicketDetail(UUID userId, String ticketNumber);
     
-    TicketResponse userReplyToTicket(UUID userId, UUID ticketId, TicketMessageRequest request);
+    TicketResponse userReplyToTicket(UUID userId, String ticketNumber, TicketMessageRequest request);
     
     // Admin endpoints
     PageResponse<TicketResponse> getAllTickets(String status, int page, int size);

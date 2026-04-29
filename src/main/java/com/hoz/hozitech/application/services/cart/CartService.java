@@ -12,9 +12,9 @@ public interface CartService {
 
     CartResponse addToCart(UUID userId, CartRequest request);
 
-    CartResponse updateCartItem(UUID userId, UUID cartItemId, Integer quantity);
+    CartResponse updateCartItem(UUID userId, String variantSku, Integer quantity);
 
-    void removeCartItem(UUID userId, UUID cartItemId);
+    void removeCartItem(UUID userId, String variantSku);
 
     void clearCart(UUID userId);
 

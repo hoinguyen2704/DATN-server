@@ -246,14 +246,15 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     @Transactional
-    public void saveCoupon(UUID userId, UUID couponId) {
-        if (userSavedCouponRepository.existsByUserIdAndCouponId(userId, couponId)) {
-            return; // Already saved
-        }
+    public void saveCoupon(UUID userId, String code) {
+        String normalizedCode = code == null ? null : code.trim().toUpperCase();
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        Coupon coupon = couponRepository.findById(couponId)
+        Coupon coupon = couponRepository.findByCode(normalizedCode)
                 .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+        if (userSavedCouponRepository.existsByUserIdAndCouponId(userId, coupon.getId())) {
+            return;
+        }
         validateCouponSavable(coupon);
 
         UserSavedCoupon saved = UserSavedCoupon.builder()
@@ -265,8 +266,11 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     @Transactional
-    public void unsaveCoupon(UUID userId, UUID couponId) {
-        userSavedCouponRepository.deleteByUserIdAndCouponId(userId, couponId);
+    public void unsaveCoupon(UUID userId, String code) {
+        String normalizedCode = code == null ? null : code.trim().toUpperCase();
+        Coupon coupon = couponRepository.findByCode(normalizedCode)
+                .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+        userSavedCouponRepository.deleteByUserIdAndCouponId(userId, coupon.getId());
     }
 
     @Override

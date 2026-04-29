@@ -13,8 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
-
 @RestAPI("${api.prefix-client}/wishlists")
 @Authenticated
 @RequiredArgsConstructor
@@ -31,28 +29,28 @@ public class WishlistController {
                 wishlistService.getUserWishlist(userDetails.getUser().getId(), page, size)));
     }
 
-    @PostMapping("/{productId}")
+    @PostMapping("/{productSlug}")
     public ResponseEntity<ApiResponse<Void>> addProductToWishlist(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable UUID productId) {
-        wishlistService.addProductToWishlist(userDetails.getUser().getId(), productId);
+            @PathVariable String productSlug) {
+        wishlistService.addProductToWishlist(userDetails.getUser().getId(), productSlug);
         return ResponseEntity.ok(ApiResponse.success("Product added to wishlist successfully"));
     }
 
-    @DeleteMapping("/{productId}")
+    @DeleteMapping("/{productSlug}")
     public ResponseEntity<ApiResponse<Void>> removeProductFromWishlist(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable UUID productId) {
-        wishlistService.removeProductFromWishlist(userDetails.getUser().getId(), productId);
+            @PathVariable String productSlug) {
+        wishlistService.removeProductFromWishlist(userDetails.getUser().getId(), productSlug);
         return ResponseEntity.ok(ApiResponse.success("Product removed from wishlist successfully"));
     }
 
-    @GetMapping("/check/{productId}")
+    @GetMapping("/check/{productSlug}")
     public ResponseEntity<ApiResponse<Boolean>> isProductInWishlist(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable UUID productId) {
+            @PathVariable String productSlug) {
         return ResponseEntity.ok(ApiResponse.success("Check wishlist success",
-                wishlistService.isProductInWishlist(userDetails.getUser().getId(), productId)));
+                wishlistService.isProductInWishlist(userDetails.getUser().getId(), productSlug)));
     }
 
     @GetMapping("/count")

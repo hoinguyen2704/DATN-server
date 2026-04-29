@@ -22,14 +22,17 @@ public class FeedbackResponse {
     private LocalDateTime createdAt;
     
     private UUID productId;
+    private String productSlug;
     private String productName;
     private UUID variantId;
+    private String variantSku;
     private String variantName;
     private UUID userId;
     private String userName;
     private String userAvatar;
     
     private UUID orderId;
+    private String orderNumber;
 
     private String adminReply;
     private LocalDateTime repliedAt;

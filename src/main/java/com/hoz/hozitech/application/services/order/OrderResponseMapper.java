@@ -2,13 +2,8 @@ package com.hoz.hozitech.application.services.order;
 
 import static com.hoz.hozitech.application.services.order.OrderUtils.nz;
 
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.stereotype.Component;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hoz.hozitech.application.services.payment.VnpayPaymentService;
 import com.hoz.hozitech.domain.dtos.response.OrderResponse;
 import com.hoz.hozitech.domain.dtos.response.OrderStatusHistoryResponse;
 import com.hoz.hozitech.domain.entities.Order;
@@ -16,15 +11,13 @@ import com.hoz.hozitech.domain.entities.ProductImage;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.enums.PaymentMethod;
 import com.hoz.hozitech.domain.enums.TaxMode;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
 
-import com.hoz.hozitech.application.services.payment.VnpayPaymentService;
-
-//  Maps Order entity to OrderResponse DTO.
-//  Centralizes all response-building and formatting logic for orders.
- 
 @Component
 @RequiredArgsConstructor
 class OrderResponseMapper {
@@ -37,9 +30,12 @@ class OrderResponseMapper {
                 .map(item -> {
                     String imageUrl = null;
                     String sku = null;
+                    String productSlug = null;
                     if (item.getVariant() != null) {
                         sku = item.getVariant().getSku();
-                        // Try variant-specific image first, then product primary image
+                        if (item.getVariant().getProduct() != null) {
+                            productSlug = item.getVariant().getProduct().getSlug();
+                        }
                         if (item.getVariant().getImages() != null && !item.getVariant().getImages().isEmpty()) {
                             imageUrl = item.getVariant().getImages().stream()
                                     .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
@@ -62,6 +58,7 @@ class OrderResponseMapper {
                             .productId(item.getVariant() != null && item.getVariant().getProduct() != null
                                     ? item.getVariant().getProduct().getId()
                                     : null)
+                            .productSlug(productSlug)
                             .productName(item.getProductName())
                             .variantName(item.getVariantName())
                             .imageUrl(imageUrl)
@@ -73,13 +70,11 @@ class OrderResponseMapper {
                 })
                 .collect(Collectors.toList());
 
-        // Extract customer info from user
         User user = order.getUser();
         String customerName = user != null ? user.getFullName() : null;
         String customerEmail = user != null ? user.getEmail() : null;
         String customerPhone = user != null ? user.getPhoneNumber() : null;
 
-        // Map status histories
         List<OrderStatusHistoryResponse> historyResponses = order.getStatusHistories().stream()
                 .map(history -> OrderStatusHistoryResponse.builder()
                         .id(history.getId())
@@ -89,7 +84,6 @@ class OrderResponseMapper {
                         .build())
                 .collect(Collectors.toList());
 
-        // Format shipping address from JSON to readable string
         String formattedAddress = formatShippingAddress(order.getShippingAddressJson());
 
         return OrderResponse.builder()
@@ -130,7 +124,6 @@ class OrderResponseMapper {
             if (url != null) {
                 response.setPaymentUrl(url);
             } else {
-                // Fallback for development if config is missing
                 response.setPaymentUrl("https://payment.hozitech.com/pay/vnpay/" + order.getOrderNumber());
             }
         } else if (order.getPaymentMethod() != PaymentMethod.COD) {
@@ -150,7 +143,9 @@ class OrderResponseMapper {
 
     @SuppressWarnings("unchecked")
     private String formatShippingAddress(String addressJson) {
-        if (addressJson == null || addressJson.isBlank()) return "";
+        if (addressJson == null || addressJson.isBlank()) {
+            return "";
+        }
         try {
             var map = objectMapper.readValue(addressJson, java.util.Map.class);
             String fullName = (String) map.getOrDefault("fullName", "");
@@ -161,15 +156,27 @@ class OrderResponseMapper {
             String province = (String) map.getOrDefault("province", "");
 
             StringBuilder sb = new StringBuilder();
-            if (!fullName.isEmpty()) sb.append(fullName);
-            if (!phone.isEmpty()) sb.append(" - ").append(phone);
-            if (!detail.isEmpty()) sb.append(", ").append(detail);
-            if (!ward.isEmpty()) sb.append(", ").append(ward);
-            if (!district.isEmpty()) sb.append(", ").append(district);
-            if (!province.isEmpty()) sb.append(", ").append(province);
+            if (!fullName.isEmpty()) {
+                sb.append(fullName);
+            }
+            if (!phone.isEmpty()) {
+                sb.append(" - ").append(phone);
+            }
+            if (!detail.isEmpty()) {
+                sb.append(", ").append(detail);
+            }
+            if (!ward.isEmpty()) {
+                sb.append(", ").append(ward);
+            }
+            if (!district.isEmpty()) {
+                sb.append(", ").append(district);
+            }
+            if (!province.isEmpty()) {
+                sb.append(", ").append(province);
+            }
             return sb.toString();
         } catch (Exception e) {
-            return addressJson; // Fallback to raw JSON
+            return addressJson;
         }
     }
 }

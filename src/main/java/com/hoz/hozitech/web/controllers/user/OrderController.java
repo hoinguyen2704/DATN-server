@@ -16,8 +16,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 
-import java.util.UUID;
-
 @RestAPI("${api.prefix-client}/orders")
 @Authenticated
 @RequiredArgsConstructor
@@ -55,12 +53,12 @@ public class OrderController {
                 orderService.getMyOrders(userDetails.getUser().getId(), status, keyword, page, size)));
     }
 
-    @PatchMapping("/{orderId}/cancel")
+    @PatchMapping("/{orderNumber}/cancel")
     public ResponseEntity<ApiResponse<OrderResponse>> cancelOrder(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable UUID orderId) {
+            @PathVariable String orderNumber) {
         return ResponseEntity.ok(ApiResponse.success("Order cancelled",
-                orderService.cancelOrder(userDetails.getUser().getId(), orderId)));
+                orderService.cancelOrder(userDetails.getUser().getId(), orderNumber)));
     }
 
     private String getClientIp(HttpServletRequest request) {

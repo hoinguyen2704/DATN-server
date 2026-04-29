@@ -12,7 +12,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestAPI("${api.prefix-client}/my-coupons")
 @Authenticated
@@ -44,22 +43,22 @@ public class UserCouponController {
     /**
      * Lưu voucher vào ví.
      */
-    @PostMapping("/{couponId}")
+    @PostMapping("/{code}")
     public ResponseEntity<ApiResponse<Void>> saveCoupon(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable UUID couponId) {
-        couponService.saveCoupon(userDetails.getUser().getId(), couponId);
+            @PathVariable String code) {
+        couponService.saveCoupon(userDetails.getUser().getId(), code);
         return ResponseEntity.ok(ApiResponse.success("Voucher saved successfully"));
     }
 
     /**
      * Bỏ lưu voucher.
      */
-    @DeleteMapping("/{couponId}")
+    @DeleteMapping("/{code}")
     public ResponseEntity<ApiResponse<Void>> unsaveCoupon(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable UUID couponId) {
-        couponService.unsaveCoupon(userDetails.getUser().getId(), couponId);
+            @PathVariable String code) {
+        couponService.unsaveCoupon(userDetails.getUser().getId(), code);
         return ResponseEntity.ok(ApiResponse.success("Voucher removed from saved"));
     }
 }

@@ -22,8 +22,8 @@ public interface CouponService {
     List<CouponResponse> getPublicCoupons(UUID userId);
 
     // User - save/unsave voucher
-    void saveCoupon(UUID userId, UUID couponId);
-    void unsaveCoupon(UUID userId, UUID couponId);
+    void saveCoupon(UUID userId, String code);
+    void unsaveCoupon(UUID userId, String code);
     List<CouponResponse> getMySavedCoupons(UUID userId);
 
     // User - validate

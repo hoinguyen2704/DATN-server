@@ -8,7 +8,6 @@ import com.hoz.hozitech.security.CustomUserDetails;
 import com.hoz.hozitech.domain.dtos.request.FeedbackRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.FeedbackResponse;
-import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.ProductFeedbackPageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,15 +25,15 @@ public class FeedbackController {
 
     private final FeedbackService feedbackService;
 
-    @GetMapping("/product/{productId}")
+    @GetMapping("/product/{productSlug}")
     public ResponseEntity<ApiResponse<ProductFeedbackPageResponse>> getProductFeedbacks(
-            @PathVariable UUID productId,
+            @PathVariable String productSlug,
             @RequestParam(required = false) Integer rating,
             @RequestParam(required = false) Boolean hasComment,
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
         return ResponseEntity.ok(ApiResponse.success("Fetch product feedbacks successfully",
-                feedbackService.getFeedbacksByProduct(productId, rating, hasComment, page, size)));
+                feedbackService.getFeedbacksByProduct(productSlug, rating, hasComment, page, size)));
     }
 
     @PostMapping
@@ -53,22 +52,21 @@ public class FeedbackController {
         return ResponseEntity.ok(ApiResponse.success("Feedback deleted successfully"));
     }
 
-    @GetMapping("/check/{productId}")
+    @GetMapping("/check/{productSlug}")
     public ResponseEntity<ApiResponse<Boolean>> hasUserReviewedProduct(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable UUID productId) {
+            @PathVariable String productSlug) {
         return ResponseEntity.ok(ApiResponse.success("Check review status success",
-                feedbackService.hasUserReviewedProduct(userDetails.getUser().getId(), productId)));
+                feedbackService.hasUserReviewedProduct(userDetails.getUser().getId(), productSlug)));
     }
 
     @GetMapping("/my-feedback")
     public ResponseEntity<ApiResponse<List<FeedbackResponse>>> getMyFeedbacks(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestParam UUID productId,
-            @RequestParam(required = false) UUID variantId,
-            @RequestParam UUID orderId) {
-        
+            @RequestParam String productSlug,
+            @RequestParam(required = false) String variantSku,
+            @RequestParam(required = false) String orderNumber) {
         return ResponseEntity.ok(ApiResponse.success("Fetch my feedback success",
-                feedbackService.getMyFeedbacks(userDetails.getUser().getId(), productId, variantId, orderId)));
+                feedbackService.getMyFeedbacks(userDetails.getUser().getId(), productSlug, variantSku, orderNumber)));
     }
 }

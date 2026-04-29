@@ -19,6 +19,9 @@ public interface CartRepository extends JpaRepository<Cart, UUID> {
 
     Optional<Cart> findByUserIdAndVariantId(UUID userId, UUID variantId);
 
+    @Query("SELECT c FROM Cart c WHERE c.user.id = :userId AND UPPER(c.variant.sku) = UPPER(:variantSku)")
+    Optional<Cart> findByUserIdAndVariantSku(@Param("userId") UUID userId, @Param("variantSku") String variantSku);
+
     void deleteAllByUserId(UUID userId);
 
     void deleteByVariantIdIn(Collection<UUID> variantIds);
