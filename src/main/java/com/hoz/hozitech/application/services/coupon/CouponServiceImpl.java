@@ -295,7 +295,8 @@ public class CouponServiceImpl implements CouponService {
         validateCouponAvailability(coupon);
         if (coupon.getMinOrderValue() != null && orderAmount.compareTo(coupon.getMinOrderValue()) < 0) {
             throw new InvalidParamException(
-                    "Order does not meet minimum value for coupon. Minimum is: " + coupon.getMinOrderValue());
+                    "Order does not meet minimum value for coupon. Minimum is: " + coupon.getMinOrderValue())
+                    .withMessageKey("error.coupon_min_order_not_met_with_minimum", coupon.getMinOrderValue());
         }
 
         return mapToResponse(coupon);

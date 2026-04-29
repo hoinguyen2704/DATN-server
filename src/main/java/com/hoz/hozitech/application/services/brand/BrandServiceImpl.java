@@ -52,7 +52,8 @@ public class BrandServiceImpl implements BrandService {
     @Override
     public BrandResponse getBrandById(UUID id) {
         Brand brand = brandRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Brand not found with id: " + id));
+                .orElseThrow(() -> new InvalidParamException("Brand not found with id: " + id)
+                        .withMessageKey("error.brand_not_found_with_id", id));
         return mapToResponse(brand);
     }
 

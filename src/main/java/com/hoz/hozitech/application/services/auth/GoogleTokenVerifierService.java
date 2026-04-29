@@ -60,7 +60,8 @@ public class GoogleTokenVerifierService {
         } catch (UnauthorizedException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new UnauthorizedException("Google login failed (" + ex.getMessage() + ")");
+            throw new UnauthorizedException("Google login failed (" + ex.getMessage() + ")")
+                    .withMessageKey("error.google_login_failed_detail", ex.getMessage());
         }
     }
 

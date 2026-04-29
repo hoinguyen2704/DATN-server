@@ -13,10 +13,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class BrandRequest {
 
-    @NotBlank(message = "Brand name is required")
-    @Size(max = 100, message = "Brand name must be less than 100 characters")
+    @NotBlank(message = "{validation.brand_name_is_required}")
+    @Size(max = 100, message = "{validation.brand_name_must_be_less_than_100_characters}")
     private String name;
 
-    @Size(max = 500, message = "Logo URL must be less than 500 characters")
+    @Size(max = 500, message = "{validation.logo_url_must_be_less_than_500_characters}")
     private String logoUrl;
 }

@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 public class BannerRequest {
     private String title;
     
-    @NotBlank(message = "Image URL is required")
+    @NotBlank(message = "{validation.image_url_is_required}")
     private String imageUrl;
     
     private String targetUrl;

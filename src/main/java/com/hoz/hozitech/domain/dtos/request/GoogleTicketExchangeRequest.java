@@ -12,6 +12,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class GoogleTicketExchangeRequest {
 
-    @NotBlank(message = "Ticket is required")
+    @NotBlank(message = "{validation.ticket_is_required}")
     private String ticket;
 }

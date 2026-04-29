@@ -20,10 +20,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class CheckoutRequest {
 
-    @NotNull(message = "Address ID is required")
+    @NotNull(message = "{validation.address_id_is_required}")
     private UUID addressId;
 
-    @NotBlank(message = "Payment method is required")
+    @NotBlank(message = "{validation.payment_method_is_required}")
     private String paymentMethod; // COD, VNPAY, MOMO, BANK_TRANSFER
 
     private String couponCode;
@@ -32,7 +32,7 @@ public class CheckoutRequest {
 
     private String note;
 
-    @NotEmpty(message = "Items must not be empty")
+    @NotEmpty(message = "{validation.items_must_not_be_empty}")
     private List<@Valid CheckoutItem> items;
 
     @Data
@@ -41,11 +41,11 @@ public class CheckoutRequest {
     @NoArgsConstructor
     public static class CheckoutItem {
 
-        @NotNull(message = "Variant ID is required")
+        @NotNull(message = "{validation.variant_id_is_required}")
         private UUID variantId;
 
-        @NotNull(message = "Quantity is required")
-        @Min(value = 1, message = "Quantity must be at least 1")
+        @NotNull(message = "{validation.quantity_is_required}")
+        @Min(value = 1, message = "{validation.quantity_must_be_at_least_1}")
         private Integer quantity;
 
         private BigDecimal expectedUnitPrice;

@@ -15,10 +15,10 @@ import java.util.UUID;
 @NoArgsConstructor
 public class CartRequest {
 
-    @NotNull(message = "Variant ID is required")
+    @NotNull(message = "{validation.variant_id_is_required}")
     private UUID variantId;
 
-    @NotNull(message = "Quantity is required")
-    @Min(value = 1, message = "Quantity must be at least 1")
+    @NotNull(message = "{validation.quantity_is_required}")
+    @Min(value = 1, message = "{validation.quantity_must_be_at_least_1}")
     private Integer quantity;
 }

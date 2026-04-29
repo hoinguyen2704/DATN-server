@@ -12,10 +12,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class TicketRequest {
     
-    @NotBlank(message = "Subject is required")
+    @NotBlank(message = "{validation.subject_is_required}")
     private String subject;
     
-    @NotBlank(message = "Message content is required")
+    @NotBlank(message = "{validation.message_content_is_required}")
     private String content;
 
     private String attachmentsJson;

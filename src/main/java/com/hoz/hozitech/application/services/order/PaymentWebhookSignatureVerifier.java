@@ -56,7 +56,8 @@ public class PaymentWebhookSignatureVerifier {
                 log.warn("Skipping webhook signature verification: no secret configured for provider={}", provider);
                 return;
             }
-            throw new UnauthorizedException("Webhook secret is not configured for provider: " + provider);
+            throw new UnauthorizedException("Webhook secret is not configured for provider: " + provider)
+                    .withMessageKey("error.webhook_secret_not_configured", provider);
         }
 
         if (!hasSignature || !hasTimestamp) {

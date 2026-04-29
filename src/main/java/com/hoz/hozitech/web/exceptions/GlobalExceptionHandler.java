@@ -16,24 +16,28 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
-
+import com.hoz.hozitech.config.exceptions.LocalizedRuntimeException;
+import com.hoz.hozitech.config.exceptions.NotFoundException;
 import com.hoz.hozitech.config.exceptions.UnauthorizedException;
+import com.hoz.hozitech.config.utils.LocalizationUtils;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
 
-
+    private final LocalizationUtils localizationUtils;
 
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ApiResponse<Void>> handleConflictException(ConflictException ex) {
         log.warn("ConflictException: {}", ex.getDevMessage());
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error(ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage()));
+                .body(ApiResponse.error(resolveMessage(ex, ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage())));
     }
 
     @ExceptionHandler(InvalidParamException.class)
@@ -41,7 +45,7 @@ public class GlobalExceptionHandler {
         log.warn("InvalidParamException: {}", ex.getDevMessage());
         return ResponseEntity
                 .badRequest()
-                .body(ApiResponse.error(ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage()));
+                .body(ApiResponse.error(resolveMessage(ex, ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage())));
     }
 
     @ExceptionHandler(UnauthorizedException.class)
@@ -49,7 +53,15 @@ public class GlobalExceptionHandler {
         log.warn("UnauthorizedException: {}", ex.getDevMessage());
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error(ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage()));
+                .body(ApiResponse.error(resolveMessage(ex, ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage())));
+    }
+
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNotFoundException(NotFoundException ex) {
+        log.warn("NotFoundException: {}", ex.getDevMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error(resolveMessage(ex, ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage())));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -57,7 +69,7 @@ public class GlobalExceptionHandler {
         log.warn("Business error: ", ex);
         return ResponseEntity
                 .badRequest()
-                .body(ApiResponse.error(ex.getMessage()));
+                .body(ApiResponse.error(localizationUtils.localizeErrorMessage(ex.getMessage())));
     }
 
     @ExceptionHandler(BusinessException.class)
@@ -65,7 +77,7 @@ public class GlobalExceptionHandler {
         log.warn("BusinessException code={} message={}", ex.getErrorCode(), ex.getMessage());
         return ResponseEntity
                 .status(ex.getStatus())
-                .body(ApiResponse.error(ex.getErrorCode().name(), ex.getMessage()));
+                .body(ApiResponse.error(ex.getErrorCode().name(), resolveMessage(ex, ex.getMessage())));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -73,38 +85,37 @@ public class GlobalExceptionHandler {
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
+            String errorMessage = localizationUtils.localizeValidationMessage(error.getDefaultMessage());
             errors.put(fieldName, errorMessage);
         });
         log.warn("Validation error: {}", errors);
         return ResponseEntity
                 .badRequest()
-                .body(ApiResponse.error("Validation failed", errors));
+                .body(ApiResponse.error(localizationUtils.getLocalizedMessage("error.validation_failed"), errors));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiResponse<Void>> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException ex) {
-        String message = String.format(
-                "Giá trị không hợp lệ cho tham số '%s': %s",
-                ex.getName(),
-                ex.getValue());
         log.warn("MethodArgumentTypeMismatch parameter={} value={}", ex.getName(), ex.getValue());
         return ResponseEntity
                 .badRequest()
-                .body(ApiResponse.error(message));
+                .body(ApiResponse.error(localizationUtils.getLocalizedMessage(
+                        "error.method_argument_type_mismatch",
+                        ex.getName(),
+                        ex.getValue())));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error("Bạn không có quyền truy cập vào chức năng này"));
+                .body(ApiResponse.error(localizationUtils.getLocalizedMessage("error.access_denied")));
     }
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiResponse<Object>> handleBadCredentialsException(BadCredentialsException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error("Tài khoản hoặc mật khẩu không chính xác"));
+                .body(ApiResponse.error(localizationUtils.getLocalizedMessage("error.bad_credentials")));
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -112,7 +123,7 @@ public class GlobalExceptionHandler {
         log.warn("Resource not found: {}", ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(ex.getMessage()));
+                .body(ApiResponse.error(resolveMessage(ex, ex.getMessage())));
     }
 
     @ExceptionHandler(ExportException.class)
@@ -120,7 +131,7 @@ public class GlobalExceptionHandler {
         log.error("Export failed: ", ex);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(ex.getMessage()));
+                .body(ApiResponse.error(localizationUtils.getLocalizedMessage("error.export_failed")));
     }
 
     @ExceptionHandler(ConfigurationException.class)
@@ -128,7 +139,7 @@ public class GlobalExceptionHandler {
         log.error("Configuration error: {}", ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Lỗi cấu hình hệ thống"));
+                .body(ApiResponse.error(localizationUtils.getLocalizedMessage("error.configuration")));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -138,7 +149,7 @@ public class GlobalExceptionHandler {
                 : ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error("Không thể thực hiện thao tác vì dữ liệu đang được sử dụng ở bản ghi khác"));
+                .body(ApiResponse.error(localizationUtils.getLocalizedMessage("error.data_integrity_violation")));
     }
 
     @ExceptionHandler(Exception.class)
@@ -146,6 +157,15 @@ public class GlobalExceptionHandler {
         log.error("Unexpected error: ", ex);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Đã có lỗi xảy ra: " + ex.getMessage()));
+                .body(ApiResponse.error(localizationUtils.getLocalizedMessage("error.internal_server_error")));
+    }
+
+    private String resolveMessage(LocalizedRuntimeException ex, String fallbackMessage) {
+        String messageKey = ex.getMessageKey() != null ? ex.getMessageKey() : fallbackMessage;
+        String localized = localizationUtils.getLocalizedMessageOrDefault(messageKey, fallbackMessage, ex.getMessageArgs());
+        if (localized == null || localized.equals(fallbackMessage)) {
+            return localizationUtils.localizeErrorMessage(fallbackMessage);
+        }
+        return localized;
     }
 }

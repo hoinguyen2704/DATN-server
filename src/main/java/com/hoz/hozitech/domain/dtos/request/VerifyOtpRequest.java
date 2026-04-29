@@ -12,10 +12,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class VerifyOtpRequest {
-    @NotBlank(message = "Email is required")
-    @Email(message = "Email is not valid")
+    @NotBlank(message = "{validation.email_is_required}")
+    @Email(message = "{validation.email_is_not_valid}")
     private String email;
 
-    @NotBlank(message = "OTP code is required")
+    @NotBlank(message = "{validation.otp_code_is_required}")
     private String otpCode;
 }

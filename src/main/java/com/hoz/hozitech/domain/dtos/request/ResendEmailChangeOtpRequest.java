@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ResendEmailChangeOtpRequest {
 
-    @NotBlank(message = "New email is required")
-    @Email(message = "Email is not valid")
+    @NotBlank(message = "{validation.new_email_is_required}")
+    @Email(message = "{validation.email_is_not_valid}")
     private String newEmail;
 }

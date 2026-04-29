@@ -11,6 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UnlinkSocialAccountRequest {
-    @NotBlank(message = "Current password is required")
+    @NotBlank(message = "{validation.current_password_is_required}")
     private String currentPassword;
 }

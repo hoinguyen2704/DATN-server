@@ -14,9 +14,9 @@ import lombok.NoArgsConstructor;
 public class LoginRequest {
 
     @JsonAlias("email")
-    @NotBlank(message = "Login identifier is required")
+    @NotBlank(message = "{validation.login_identifier_is_required}")
     private String identifier;
 
-    @NotBlank(message = "Password is required")
+    @NotBlank(message = "{validation.password_is_required}")
     private String password;
 }

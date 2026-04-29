@@ -16,7 +16,7 @@ import java.util.UUID;
 @NoArgsConstructor
 public class FeedbackRequest {
 
-    @NotNull(message = "Product ID is required")
+    @NotNull(message = "{validation.product_id_is_required}")
     private UUID productId;
 
     private UUID variantId;
@@ -24,9 +24,9 @@ public class FeedbackRequest {
     // Optional: linking feedback directly to the order item purchased
     private UUID orderId;
 
-    @NotNull(message = "Rating is required")
-    @Min(value = 1, message = "Rating must be at least 1")
-    @Max(value = 5, message = "Rating must not exceed 5")
+    @NotNull(message = "{validation.rating_is_required}")
+    @Min(value = 1, message = "{validation.rating_must_be_at_least_1}")
+    @Max(value = 5, message = "{validation.rating_must_not_exceed_5}")
     private Integer rating;
 
     private String content;

@@ -20,17 +20,17 @@ import java.util.UUID;
 @AllArgsConstructor
 public class CreateReturnRequest {
 
-    @NotNull(message = "orderId is required")
+    @NotNull(message = "{validation.orderid_is_required}")
     private UUID orderId;
 
-    @NotBlank(message = "reason is required")
-    @Size(max = 500, message = "reason must be at most 500 characters")
+    @NotBlank(message = "{validation.reason_is_required}")
+    @Size(max = 500, message = "{validation.reason_must_be_at_most_500_characters}")
     private String reason;
 
-    @Size(max = 1000, message = "evidenceNote must be at most 1000 characters")
+    @Size(max = 1000, message = "{validation.evidencenote_must_be_at_most_1000_characters}")
     private String evidenceNote;
 
-    @NotEmpty(message = "items must not be empty")
+    @NotEmpty(message = "{validation.items_must_not_be_empty}")
     private List<@Valid ReturnItemRequest> items;
 
     @Data
@@ -39,11 +39,11 @@ public class CreateReturnRequest {
     @AllArgsConstructor
     public static class ReturnItemRequest {
 
-        @NotNull(message = "orderItemId is required")
+        @NotNull(message = "{validation.orderitemid_is_required}")
         private UUID orderItemId;
 
-        @NotNull(message = "quantity is required")
-        @Min(value = 1, message = "quantity must be greater than 0")
+        @NotNull(message = "{validation.quantity_is_required}")
+        @Min(value = 1, message = "{validation.quantity_must_be_greater_than_0}")
         private Integer quantity;
     }
 }

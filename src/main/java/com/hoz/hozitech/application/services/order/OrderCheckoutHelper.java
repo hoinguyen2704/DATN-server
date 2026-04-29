@@ -58,13 +58,15 @@ public class OrderCheckoutHelper {
             ProductVariant variant = variantRepository.findByIdForUpdate(item.getVariantId())
                     .orElseThrow(() -> new BusinessException(
                             BusinessErrorCode.VARIANT_NOT_FOUND,
-                            "Product variant not found: " + item.getVariantId()));
+                            "Product variant not found: " + item.getVariantId())
+                            .withMessageKey("error.variant_not_found", item.getVariantId()));
             validateVariantPurchasable(variant);
 
             if (variant.getStock() < item.getQuantity()) {
                 throw new BusinessException(
                         BusinessErrorCode.INSUFFICIENT_STOCK,
-                        "Not enough stock for: " + variant.getVariantName());
+                        "Not enough stock for: " + variant.getVariantName())
+                        .withMessageKey("error.insufficient_stock_for_variant", variant.getVariantName());
             }
 
             // Check Flash Sale first
@@ -73,7 +75,8 @@ public class OrderCheckoutHelper {
             if (item.getExpectedUnitPrice() != null && item.getExpectedUnitPrice().compareTo(unitPrice) != 0) {
                 throw new BusinessException(
                         BusinessErrorCode.PRICE_CHANGED,
-                        "Price has changed for: " + variant.getVariantName() + ". Latest price: " + unitPrice);
+                        "Price has changed for: " + variant.getVariantName() + ". Latest price: " + unitPrice)
+                        .withMessageKey("error.price_changed_for_variant", variant.getVariantName(), unitPrice);
             }
 
             BigDecimal itemSubtotal = unitPrice.multiply(BigDecimal.valueOf(item.getQuantity()));
@@ -151,7 +154,8 @@ public class OrderCheckoutHelper {
         try {
             return PaymentMethod.valueOf(paymentMethodRaw.toUpperCase(Locale.ROOT));
         } catch (Exception ex) {
-            throw new BusinessException(BusinessErrorCode.INVALID_PAYMENT_METHOD, "Invalid payment method: " + paymentMethodRaw);
+            throw new BusinessException(BusinessErrorCode.INVALID_PAYMENT_METHOD, "Invalid payment method: " + paymentMethodRaw)
+                    .withMessageKey("error.invalid_payment_method", paymentMethodRaw);
         }
     }
 

@@ -3,6 +3,7 @@ package com.hoz.hozitech.application.services.setting;
 import com.hoz.hozitech.application.repositories.SettingRepository;
 import com.hoz.hozitech.application.services.notification.AdminNotificationService;
 import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.domain.dtos.request.SettingRequest;
 import com.hoz.hozitech.domain.dtos.response.SettingResponse;
 import com.hoz.hozitech.domain.entities.Setting;
@@ -73,8 +74,8 @@ public class SettingServiceImpl implements SettingService {
     public void batchUpdate(List<SettingRequest> requests) {
         for (SettingRequest req : requests) {
             Setting setting = settingRepository.findBySettingKey(req.getSettingKey())
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "Setting not found: " + req.getSettingKey()));
+                    .orElseThrow(() -> new InvalidParamException("Setting not found: " + req.getSettingKey())
+                            .withMessageKey("error.setting_not_found", req.getSettingKey()));
             setting.setSettingValue(req.getSettingValue());
             settingRepository.save(setting);
         }

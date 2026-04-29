@@ -14,16 +14,16 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UpdateUserRequest {
-    @NotBlank(message = "Full name is required")
-    @Size(min = 3, max = 100, message = "Full name must be between 3 and 100 characters")
+    @NotBlank(message = "{validation.full_name_is_required}")
+    @Size(min = 3, max = 100, message = "{validation.full_name_must_be_between_3_and_100_characters}")
     private String fullName;
 
     private LocalDate dateOfBirth;
 
-    @Size(max = 10, message = "Gender max length is 10")
+    @Size(max = 10, message = "{validation.gender_max_length_is_10}")
     private String gender;
 
-    @Size(max = 20, message = "Phone number must be at most 20 characters")
+    @Size(max = 20, message = "{validation.phone_number_must_be_at_most_20_characters}")
     private String phoneNumber;
 
     // Note: Email still uses a separate OTP verification flow.

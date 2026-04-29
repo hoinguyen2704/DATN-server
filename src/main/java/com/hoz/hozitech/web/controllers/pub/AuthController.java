@@ -4,6 +4,7 @@ import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.application.services.auth.AuthService;
 import com.hoz.hozitech.application.services.auth.GoogleLinkIntentTicketService;
 import com.hoz.hozitech.application.services.user.UserService;
+import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 import com.hoz.hozitech.domain.dtos.request.LoginRequest;
 import com.hoz.hozitech.domain.dtos.request.GoogleTicketExchangeRequest;
@@ -61,7 +62,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(@RequestBody Map<String, String> request) {
         String refreshToken = request.get("refreshToken");
         if (refreshToken == null || refreshToken.isBlank()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Refresh token is required"));
+            throw new InvalidParamException("Refresh token is required");
         }
 
         AuthResponse response = authService.refreshToken(refreshToken);

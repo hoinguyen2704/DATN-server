@@ -189,7 +189,7 @@ public class AdminProductController {
                                 .orElseThrow(() -> new ResourceNotFoundException("Variant", variantId));
 
                 if (variant.getProduct() == null || !variant.getProduct().getId().equals(productId)) {
-                        throw new ResourceNotFoundException("Variant does not belong to product", variantId);
+                        throw new ResourceNotFoundException("Variant does not belong to product");
                 }
 
                 int currentMaxOrder = productImageRepository.findByVariantIdOrderBySortOrder(variantId)
@@ -238,7 +238,7 @@ public class AdminProductController {
                                 || !image.getProduct().getId().equals(productId);
 
                 if (invalidTarget) {
-                        throw new ResourceNotFoundException("Image does not belong to variant", imageId);
+                        throw new ResourceNotFoundException("Image does not belong to variant");
                 }
 
                 fileStorageService.deleteFile(image.getImageUrl());

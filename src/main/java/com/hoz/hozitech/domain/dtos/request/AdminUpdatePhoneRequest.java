@@ -14,11 +14,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AdminUpdatePhoneRequest {
 
-    @NotBlank(message = "Phone number is required")
-    @Pattern(regexp = "^(0|\\+84)[3|5|7|8|9][0-9]{8}$", message = "Invalid Vietnamese phone number format")
+    @NotBlank(message = "{validation.phone_number_is_required}")
+    @Pattern(regexp = "^(0|\\+84)[3|5|7|8|9][0-9]{8}$", message = "{validation.invalid_vietnamese_phone_number_format}")
     private String phoneNumber;
 
-    @NotBlank(message = "Reason is required")
-    @Size(max = 255, message = "Reason must be at most 255 characters")
+    @NotBlank(message = "{validation.reason_is_required}")
+    @Size(max = 255, message = "{validation.reason_must_be_at_most_255_characters}")
     private String reason;
 }

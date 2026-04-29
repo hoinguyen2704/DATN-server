@@ -13,18 +13,18 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ContactRequest {
     
-    @NotBlank(message = "Name is required")
+    @NotBlank(message = "{validation.name_is_required}")
     private String name;
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
+    @NotBlank(message = "{validation.email_is_required}")
+    @Email(message = "{validation.invalid_email_format}")
     private String email;
 
     private String phone;
 
-    @NotBlank(message = "Subject is required")
+    @NotBlank(message = "{validation.subject_is_required}")
     private String subject;
 
-    @NotBlank(message = "Message is required")
+    @NotBlank(message = "{validation.message_is_required}")
     private String message;
 }

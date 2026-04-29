@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ProductImageRequest {
-    @NotBlank(message = "Image URL is required")
+    @NotBlank(message = "{validation.image_url_is_required}")
     private String imageUrl;
 
     private Boolean isPrimary;

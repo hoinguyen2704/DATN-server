@@ -9,9 +9,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateVariantAttributeRequest {
-    @NotBlank(message = "Variant attribute name is required")
+    @NotBlank(message = "{validation.variant_attribute_name_is_required}")
     private String name;
 
-    @NotBlank(message = "Variant attribute option labels are required")
+    @NotBlank(message = "{validation.variant_attribute_option_labels_are_required}")
     private String optionLabelsText;
 }

@@ -143,13 +143,15 @@ public class ReturnServiceImpl implements ReturnService {
             if (orderItem == null) {
                 throw new BusinessException(
                         BusinessErrorCode.RETURN_ITEM_NOT_BELONG_TO_ORDER,
-                        "Order item does not belong to order: " + reqItem.getOrderItemId());
+                        "Order item does not belong to order: " + reqItem.getOrderItemId())
+                        .withMessageKey("error.order_item_not_belong_to_order", reqItem.getOrderItemId());
             }
 
             if (reqItem.getQuantity() <= 0 || reqItem.getQuantity() > orderItem.getQuantity()) {
                 throw new BusinessException(
                         BusinessErrorCode.RETURN_QUANTITY_INVALID,
-                        "Invalid return quantity for order item: " + reqItem.getOrderItemId());
+                        "Invalid return quantity for order item: " + reqItem.getOrderItemId())
+                        .withMessageKey("error.invalid_return_quantity", reqItem.getOrderItemId());
             }
 
             if (returnItemRepository.existsInNonRejectedRequest(reqItem.getOrderItemId())) {
@@ -604,7 +606,8 @@ public class ReturnServiceImpl implements ReturnService {
         if (evidenceFiles.size() > MAX_EVIDENCE_IMAGES) {
             throw new BusinessException(
                     BusinessErrorCode.RETURN_EVIDENCE_IMAGE_LIMIT_EXCEEDED,
-                    "A maximum of " + MAX_EVIDENCE_IMAGES + " evidence images is allowed");
+                    "A maximum of " + MAX_EVIDENCE_IMAGES + " evidence images is allowed")
+                    .withMessageKey("error.return_evidence_image_limit_exceeded", MAX_EVIDENCE_IMAGES);
         }
 
         for (MultipartFile file : evidenceFiles) {
@@ -691,7 +694,8 @@ public class ReturnServiceImpl implements ReturnService {
         } catch (IllegalArgumentException ex) {
             throw new BusinessException(
                     BusinessErrorCode.RETURN_INVALID_STATUS,
-                    "Unsupported return status: " + rawStatus);
+                    "Unsupported return status: " + rawStatus)
+                    .withMessageKey("error.unsupported_return_status", rawStatus);
         }
     }
 
@@ -702,7 +706,8 @@ public class ReturnServiceImpl implements ReturnService {
         if (!allowedStatuses.contains(nextStatus)) {
             throw new BusinessException(
                     BusinessErrorCode.RETURN_STATUS_TRANSITION_NOT_ALLOWED,
-                    "Cannot transition return status from " + currentStatus.name() + " to " + nextStatus.name());
+                    "Cannot transition return status from " + currentStatus.name() + " to " + nextStatus.name())
+                    .withMessageKey("error.return_status_transition_not_allowed", currentStatus.name(), nextStatus.name());
         }
     }
 

@@ -11,9 +11,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class SocialLoginRequest {
-    @NotBlank(message = "Provider is required (GOOGLE)")
+    @NotBlank(message = "{validation.provider_is_required_google}")
     private String provider;
 
-    @NotBlank(message = "Token is required")
+    @NotBlank(message = "{validation.token_is_required}")
     private String token;
 }

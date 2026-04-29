@@ -22,14 +22,14 @@ public class ProductVariantRequest {
 
     private String sku;
 
-    @NotNull(message = "Price is required")
-    @DecimalMin(value = "0.0", inclusive = true, message = "Price must be greater than or equal to 0")
+    @NotNull(message = "{validation.price_is_required}")
+    @DecimalMin(value = "0.0", inclusive = true, message = "{validation.price_must_be_greater_than_or_equal_to_0}")
     private BigDecimal price;
 
-    @DecimalMin(value = "0.0", inclusive = true, message = "Compare at price must be greater than or equal to 0")
+    @DecimalMin(value = "0.0", inclusive = true, message = "{validation.compare_at_price_must_be_greater_than_or_equal_to_0}")
     private BigDecimal compareAtPrice;
 
-    @Min(value = 0, message = "Stock cannot be negative")
+    @Min(value = 0, message = "{validation.stock_cannot_be_negative}")
     private Integer stock;
 
     private Boolean active;
@@ -43,9 +43,9 @@ public class ProductVariantRequest {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class VariantSelectionRequest {
-        @NotNull(message = "Variant attribute id is required")
+        @NotNull(message = "{validation.variant_attribute_id_is_required}")
         private UUID variantAttributeId;
-        @NotNull(message = "Option id is required")
+        @NotNull(message = "{validation.option_id_is_required}")
         private UUID optionId;
     }
 }

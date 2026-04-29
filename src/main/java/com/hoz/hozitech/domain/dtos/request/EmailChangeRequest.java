@@ -13,10 +13,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class EmailChangeRequest {
 
-    @NotBlank(message = "New email is required")
-    @Email(message = "Email is not valid")
+    @NotBlank(message = "{validation.new_email_is_required}")
+    @Email(message = "{validation.email_is_not_valid}")
     private String newEmail;
 
-    @NotBlank(message = "Current password is required")
+    @NotBlank(message = "{validation.current_password_is_required}")
     private String currentPassword;
 }

@@ -16,6 +16,6 @@ import java.util.List;
 public class ProductVariantsUpdateRequest {
 
     @Valid
-    @NotEmpty(message = "At least one variant is required")
+    @NotEmpty(message = "{validation.at_least_one_variant_is_required}")
     private List<ProductVariantRequest> variants;
 }

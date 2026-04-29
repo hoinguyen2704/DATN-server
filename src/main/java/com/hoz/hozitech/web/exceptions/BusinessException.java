@@ -1,11 +1,12 @@
 package com.hoz.hozitech.web.exceptions;
 
+import com.hoz.hozitech.config.exceptions.LocalizedRuntimeException;
 import com.hoz.hozitech.domain.enums.BusinessErrorCode;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
 @Getter
-public class BusinessException extends RuntimeException {
+public class BusinessException extends LocalizedRuntimeException {
     private final BusinessErrorCode errorCode;
     private final HttpStatus status;
 

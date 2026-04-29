@@ -15,14 +15,14 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class PaymentWebhookRequest {
 
-    @NotBlank(message = "Provider is required")
+    @NotBlank(message = "{validation.provider_is_required}")
     private String provider;
 
-    @NotBlank(message = "Order number is required")
+    @NotBlank(message = "{validation.order_number_is_required}")
     private String orderNumber;
 
     // COMPLETED | FAILED | REFUNDED | PENDING (also supports SUCCESS/PAID aliases)
-    @NotBlank(message = "Payment status is required")
+    @NotBlank(message = "{validation.payment_status_is_required}")
     private String paymentStatus;
 
     private String eventId;
@@ -31,7 +31,7 @@ public class PaymentWebhookRequest {
 
     private String responseCode;
 
-    @DecimalMin(value = "0.00", inclusive = true, message = "Amount must be greater than or equal to 0")
+    @DecimalMin(value = "0.00", inclusive = true, message = "{validation.amount_must_be_greater_than_or_equal_to_0}")
     private BigDecimal amount;
 
     private String currency;

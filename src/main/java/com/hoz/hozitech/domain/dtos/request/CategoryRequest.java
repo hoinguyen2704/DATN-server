@@ -14,7 +14,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CategoryRequest {
-    @NotBlank(message = "Category name is required")
+    @NotBlank(message = "{validation.category_name_is_required}")
     private String name;
 
     private Boolean active;

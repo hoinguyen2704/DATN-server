@@ -13,24 +13,24 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class AddressRequest {
-    @NotBlank(message = "Full name is required")
-    @Size(min = 2, max = 100, message = "Full name must be between 2 and 100 characters")
+    @NotBlank(message = "{validation.full_name_is_required}")
+    @Size(min = 2, max = 100, message = "{validation.full_name_must_be_between_2_and_100_characters}")
     private String fullName;
 
-    @NotBlank(message = "Phone number is required")
-    @Pattern(regexp = "^(0|\\+84)[3|5|7|8|9][0-9]{8}$", message = "Invalid Vietnamese phone number format")
+    @NotBlank(message = "{validation.phone_number_is_required}")
+    @Pattern(regexp = "^(0|\\+84)[3|5|7|8|9][0-9]{8}$", message = "{validation.invalid_vietnamese_phone_number_format}")
     private String phoneNumber;
 
-    @NotBlank(message = "Province is required")
+    @NotBlank(message = "{validation.province_is_required}")
     private String province;
 
-    @NotBlank(message = "District is required")
+    @NotBlank(message = "{validation.district_is_required}")
     private String district;
 
-    @NotBlank(message = "Ward is required")
+    @NotBlank(message = "{validation.ward_is_required}")
     private String ward;
 
-    @NotBlank(message = "Detail address is required")
+    @NotBlank(message = "{validation.detail_address_is_required}")
     private String detailAddress;
 
     private Boolean isDefault;

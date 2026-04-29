@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class TicketMessageRequest {
     
-    @NotBlank(message = "Message content is required")
+    @NotBlank(message = "{validation.message_content_is_required}")
     private String content;
     
     private String attachmentsJson;

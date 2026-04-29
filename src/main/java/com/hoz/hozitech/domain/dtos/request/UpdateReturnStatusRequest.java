@@ -13,9 +13,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UpdateReturnStatusRequest {
 
-    @NotBlank(message = "status is required")
+    @NotBlank(message = "{validation.status_is_required}")
     private String status;
 
-    @Size(max = 1000, message = "note must be at most 1000 characters")
+    @Size(max = 1000, message = "{validation.note_must_be_at_most_1000_characters}")
     private String note;
 }

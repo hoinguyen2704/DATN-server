@@ -20,21 +20,21 @@ import com.hoz.hozitech.domain.enums.ProductStatus;
 @NoArgsConstructor
 public class ProductRequest {
 
-    @NotBlank(message = "Product name is required")
+    @NotBlank(message = "{validation.product_name_is_required}")
     private String name;
 
     private String description;
 
-    @NotNull(message = "Brand ID is required")
+    @NotNull(message = "{validation.brand_id_is_required}")
     private UUID brandId;
 
-    @NotNull(message = "Origin price is required")
-    @DecimalMin(value = "0.0", inclusive = true, message = "Origin price must be greater than or equal to 0")
+    @NotNull(message = "{validation.origin_price_is_required}")
+    @DecimalMin(value = "0.0", inclusive = true, message = "{validation.origin_price_must_be_greater_than_or_equal_to_0}")
     private BigDecimal originPrice;
 
     private String productCode;
 
-    @NotNull(message = "Category ID is required")
+    @NotNull(message = "{validation.category_id_is_required}")
     private UUID categoryId;
 
     private ProductStatus status;
@@ -55,9 +55,9 @@ public class ProductRequest {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class ProductSpecRequest {
-        @NotNull(message = "Spec attribute id is required")
+        @NotNull(message = "{validation.spec_attribute_id_is_required}")
         private UUID specAttributeId;
-        @NotBlank(message = "Spec value is required")
+        @NotBlank(message = "{validation.spec_value_is_required}")
         private String value;
     }
 }

@@ -11,9 +11,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class LinkSocialAccountRequest {
-    @NotBlank(message = "Provider is required")
+    @NotBlank(message = "{validation.provider_is_required}")
     private String provider;
 
-    @NotBlank(message = "Token is required")
+    @NotBlank(message = "{validation.token_is_required}")
     private String token;
 }

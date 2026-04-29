@@ -185,7 +185,8 @@ class PaymentWebhookHandler {
             case "PENDING", "PROCESSING" -> PaymentStatus.PENDING;
             default -> throw new BusinessException(
                     BusinessErrorCode.INVALID_PAYMENT_STATUS,
-                    "Unsupported payment status: " + rawStatus);
+                    "Unsupported payment status: " + rawStatus)
+                    .withMessageKey("error.unsupported_payment_status", rawStatus);
         };
     }
 
@@ -197,13 +198,15 @@ class PaymentWebhookHandler {
         if (request.getAmount() == null) {
             throw new BusinessException(
                     BusinessErrorCode.WEBHOOK_PAYMENT_DATA_REQUIRED,
-                    "Webhook amount is required for payment status: " + incomingStatus.name());
+                    "Webhook amount is required for payment status: " + incomingStatus.name())
+                    .withMessageKey("error.webhook_amount_required_for_status", incomingStatus.name());
         }
         String currency = normalizeCurrency(request.getCurrency());
         if (currency == null) {
             throw new BusinessException(
                     BusinessErrorCode.WEBHOOK_PAYMENT_DATA_REQUIRED,
-                    "Webhook currency is required for payment status: " + incomingStatus.name());
+                    "Webhook currency is required for payment status: " + incomingStatus.name())
+                    .withMessageKey("error.webhook_currency_required_for_status", incomingStatus.name());
         }
 
         BigDecimal expectedAmount = nz(order.getTotalAmount()).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
@@ -212,7 +215,8 @@ class PaymentWebhookHandler {
             throw new BusinessException(
                     BusinessErrorCode.WEBHOOK_AMOUNT_MISMATCH,
                     "Webhook amount mismatch for order " + order.getOrderNumber()
-                            + ". expected=" + expectedAmount + ", received=" + receivedAmount);
+                            + ". expected=" + expectedAmount + ", received=" + receivedAmount)
+                    .withMessageKey("error.webhook_amount_mismatch", order.getOrderNumber(), expectedAmount, receivedAmount);
         }
 
         String expectedCurrency = normalizeCurrency(textSettingWithFallback("CURRENCY", "VND"));
@@ -220,7 +224,8 @@ class PaymentWebhookHandler {
             throw new BusinessException(
                     BusinessErrorCode.WEBHOOK_CURRENCY_MISMATCH,
                     "Webhook currency mismatch for order " + order.getOrderNumber()
-                            + ". expected=" + expectedCurrency + ", received=" + currency);
+                            + ". expected=" + expectedCurrency + ", received=" + currency)
+                    .withMessageKey("error.webhook_currency_mismatch", order.getOrderNumber(), expectedCurrency, currency);
         }
     }
 

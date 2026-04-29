@@ -17,15 +17,15 @@ import java.util.UUID;
 @Builder
 public class FlashSaleRequest {
 
-    @NotBlank(message = "Tên sự kiện không được để trống")
+    @NotBlank(message = "{validation.ten_su_kien_khong_uoc_e_trong}")
     private String name;
 
     private String description;
 
-    @NotNull(message = "Thời gian bắt đầu không được để trống")
+    @NotNull(message = "{validation.thoi_gian_bat_au_khong_uoc_e_trong}")
     private LocalDateTime startTime;
 
-    @NotNull(message = "Thời gian kết thúc không được để trống")
+    @NotNull(message = "{validation.thoi_gian_ket_thuc_khong_uoc_e_trong}")
     private LocalDateTime endTime;
 
     @Valid

@@ -143,7 +143,8 @@ public class OrderServiceImpl implements OrderService {
         String enabledKey = paymentMethod.name() + "_ENABLED";
         if (!settingService.getSettingBoolean(enabledKey)) {
             throw new BusinessException(BusinessErrorCode.PAYMENT_METHOD_UNAVAILABLE,
-                    "Phương thức thanh toán " + paymentMethod.name() + " hiện không khả dụng");
+                    "Phương thức thanh toán " + paymentMethod.name() + " hiện không khả dụng")
+                    .withMessageKey("error.payment_method_unavailable", paymentMethod.name());
         }
 
         // Build and save order
@@ -363,7 +364,8 @@ public class OrderServiceImpl implements OrderService {
         try {
             return OrderStatus.valueOf(normalized.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
-            throw new BusinessException(BusinessErrorCode.INVALID_ORDER_STATUS, "Unsupported order status: " + rawStatus);
+            throw new BusinessException(BusinessErrorCode.INVALID_ORDER_STATUS, "Unsupported order status: " + rawStatus)
+                    .withMessageKey("error.unsupported_order_status", rawStatus);
         }
     }
 
@@ -372,7 +374,8 @@ public class OrderServiceImpl implements OrderService {
                 currentStatus, EnumSet.noneOf(OrderStatus.class));
         if (!allowedStatuses.contains(nextStatus)) {
             throw new BusinessException(BusinessErrorCode.ORDER_STATUS_TRANSITION_NOT_ALLOWED,
-                    "Cannot transition order status from " + currentStatus.name() + " to " + nextStatus.name());
+                    "Cannot transition order status from " + currentStatus.name() + " to " + nextStatus.name())
+                    .withMessageKey("error.order_status_transition_not_allowed", currentStatus.name(), nextStatus.name());
         }
     }
 

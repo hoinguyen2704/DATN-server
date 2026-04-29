@@ -358,7 +358,8 @@ public class ProductServiceImpl implements ProductService {
         for (ProductRequest.ProductSpecRequest request : specRequests) {
             CategorySpecAttribute mapping = schemaBySpecId.get(request.getSpecAttributeId());
             if (mapping == null) {
-                throw new IllegalArgumentException("Spec attribute not allowed in selected category: " + request.getSpecAttributeId());
+                throw new InvalidParamException("Spec attribute not allowed in selected category: " + request.getSpecAttributeId())
+                        .withMessageKey("error.spec_attribute_not_allowed_in_category", request.getSpecAttributeId());
             }
 
             ProductSpecValue existing = existingBySpecId.get(request.getSpecAttributeId());
@@ -472,7 +473,8 @@ public class ProductServiceImpl implements ProductService {
                     })
                     .collect(Collectors.joining(", "));
             throw new ConflictException(
-                    "Không thể xóa phân loại đã phát sinh đơn hàng: " + lockedVariantPreview);
+                    "Không thể xóa phân loại đã phát sinh đơn hàng: " + lockedVariantPreview)
+                    .withMessageKey("error.variant_used_in_orders_delete_blocked", lockedVariantPreview);
         }
 
         List<UUID> variantIdsToDelete = variantsToDelete.stream()
@@ -564,7 +566,8 @@ public class ProductServiceImpl implements ProductService {
                 .collect(Collectors.toSet());
         for (UUID selectedAttributeId : selectedOptionByAttribute.keySet()) {
             if (!schemaAttributeIds.contains(selectedAttributeId)) {
-                throw new IllegalArgumentException("Selection contains attribute not in category schema: " + selectedAttributeId);
+                throw new InvalidParamException("Selection contains attribute not in category schema: " + selectedAttributeId)
+                        .withMessageKey("error.selection_attribute_not_in_schema", selectedAttributeId);
             }
         }
         if (selectedOptionByAttribute.size() != schemaAttributeIds.size()) {
@@ -580,15 +583,18 @@ public class ProductServiceImpl implements ProductService {
             UUID attributeId = mapping.getVariantAttribute().getId();
             UUID optionId = selectedOptionByAttribute.get(attributeId);
             if (optionId == null) {
-                throw new IllegalArgumentException("Missing option for attribute " + mapping.getVariantAttribute().getName());
+                throw new InvalidParamException("Missing option for attribute " + mapping.getVariantAttribute().getName())
+                        .withMessageKey("error.missing_option_for_attribute", mapping.getVariantAttribute().getName());
             }
 
             VariantAttributeOption option = mapping.getVariantAttribute().getOptions().stream()
                     .filter(opt -> opt.getId().equals(optionId))
                     .findFirst()
-                    .orElseThrow(() -> new IllegalArgumentException("Option does not belong to attribute: " + optionId));
+                    .orElseThrow(() -> new InvalidParamException("Option does not belong to attribute: " + optionId)
+                            .withMessageKey("error.option_not_belong_to_attribute", optionId));
             if (!Boolean.TRUE.equals(option.getActive())) {
-                throw new InvalidParamException("Option is inactive and cannot be used: " + optionId);
+                throw new InvalidParamException("Option is inactive and cannot be used: " + optionId)
+                        .withMessageKey("error.option_inactive", optionId);
             }
 
             displayTokens.add(option.getLabel());

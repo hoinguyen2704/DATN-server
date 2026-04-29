@@ -15,22 +15,22 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class AdminUpdateUserProfileRequest {
 
-    @NotBlank(message = "Full name is required")
-    @Size(min = 3, max = 100, message = "Full name must be between 3 and 100 characters")
+    @NotBlank(message = "{validation.full_name_is_required}")
+    @Size(min = 3, max = 100, message = "{validation.full_name_must_be_between_3_and_100_characters}")
     private String fullName;
 
-    @Size(max = 20, message = "Phone number must be at most 20 characters")
+    @Size(max = 20, message = "{validation.phone_number_must_be_at_most_20_characters}")
     private String phoneNumber;
 
     private LocalDate dateOfBirth;
 
-    @Size(max = 10, message = "Gender max length is 10")
+    @Size(max = 10, message = "{validation.gender_max_length_is_10}")
     private String gender;
 
-    @Size(max = 500, message = "Avatar URL must be at most 500 characters")
+    @Size(max = 500, message = "{validation.avatar_url_must_be_at_most_500_characters}")
     private String avatarUrl;
 
-    @NotBlank(message = "Reason is required")
-    @Size(max = 255, message = "Reason must be at most 255 characters")
+    @NotBlank(message = "{validation.reason_is_required}")
+    @Size(max = 255, message = "{validation.reason_must_be_at_most_255_characters}")
     private String reason;
 }

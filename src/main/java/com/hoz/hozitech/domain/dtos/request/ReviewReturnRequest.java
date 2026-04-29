@@ -16,12 +16,12 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class ReviewReturnRequest {
 
-    @NotNull(message = "approved flag is required")
+    @NotNull(message = "{validation.approved_flag_is_required}")
     private Boolean approved;
 
-    @DecimalMin(value = "0.01", message = "approvedAmount must be greater than 0")
+    @DecimalMin(value = "0.01", message = "{validation.approvedamount_must_be_greater_than_0}")
     private BigDecimal approvedAmount;
 
-    @Size(max = 1000, message = "note must be at most 1000 characters")
+    @Size(max = 1000, message = "{validation.note_must_be_at_most_1000_characters}")
     private String note;
 }

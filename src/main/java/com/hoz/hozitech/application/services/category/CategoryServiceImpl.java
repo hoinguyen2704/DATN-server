@@ -60,7 +60,8 @@ public class CategoryServiceImpl implements CategoryService {
     @Transactional(readOnly = true)
     public CategoryResponse getCategoryBySlug(String slug) {
         Category category = categoryRepository.findBySlug(slug)
-                .orElseThrow(() -> new IllegalArgumentException("Category not found with slug: " + slug));
+                .orElseThrow(() -> new InvalidParamException("Category not found with slug: " + slug)
+                        .withMessageKey("error.category_not_found_with_slug", slug));
         return mapToResponse(category);
     }
 
@@ -68,7 +69,8 @@ public class CategoryServiceImpl implements CategoryService {
     @Transactional(readOnly = true)
     public CategoryResponse getCategoryById(UUID id) {
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Category not found with id: " + id));
+                .orElseThrow(() -> new InvalidParamException("Category not found with id: " + id)
+                        .withMessageKey("error.category_not_found_with_id", id));
         return mapToResponse(category);
     }
 
@@ -76,7 +78,8 @@ public class CategoryServiceImpl implements CategoryService {
     @Transactional(readOnly = true)
     public CategoryResponse getCategorySchema(UUID id) {
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Category not found with id: " + id));
+                .orElseThrow(() -> new InvalidParamException("Category not found with id: " + id)
+                        .withMessageKey("error.category_not_found_with_id", id));
         return mapToResponse(category);
     }
 
@@ -199,7 +202,7 @@ public class CategoryServiceImpl implements CategoryService {
             String name,
             String optionLabelsText) {
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + categoryId));
+                .orElseThrow(() -> new ResourceNotFoundException("Category", categoryId));
 
         String trimmedName = name == null ? "" : name.trim();
         if (trimmedName.isBlank()) {
@@ -258,7 +261,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Transactional
     public CategoryResponse.VariantOptionResponse upsertVariantOption(UUID categoryId, UUID attributeId, String label) {
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + categoryId));
+                .orElseThrow(() -> new ResourceNotFoundException("Category", categoryId));
         String trimmedLabel = label == null ? "" : label.trim();
         if (trimmedLabel.isBlank()) {
             throw new InvalidParamException("Variant option label is required");
@@ -448,7 +451,8 @@ public class CategoryServiceImpl implements CategoryService {
                 throw new InvalidParamException("Variant attribute code is invalid");
             }
             if (!seenCodes.add(normalizedCode)) {
-                throw new ConflictException("Duplicate variant attribute code in category schema: " + normalizedCode);
+                throw new ConflictException("Duplicate variant attribute code in category schema: " + normalizedCode)
+                        .withMessageKey("error.duplicate_variant_attribute_code", normalizedCode);
             }
 
             VariantAttribute attribute = resolveVariantAttribute(item, normalizedCode);
@@ -474,7 +478,7 @@ public class CategoryServiceImpl implements CategoryService {
         VariantAttribute attribute;
         if (item.getAttributeId() != null) {
             attribute = variantAttributeRepository.findById(item.getAttributeId())
-                    .orElseThrow(() -> new IllegalArgumentException("Variant attribute not found: " + item.getAttributeId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Variant attribute", item.getAttributeId()));
         } else if (!normalizedCode.isBlank()) {
             attribute = variantAttributeRepository.findByCodeIgnoreCase(normalizedCode)
                     .orElseGet(() -> VariantAttribute.builder().build());
@@ -496,7 +500,8 @@ public class CategoryServiceImpl implements CategoryService {
     ) {
         List<VariantAttributeOption> entities = attribute.getOptions();
         if (options == null) {
-            throw new InvalidParamException("Variant attribute " + attributeCode + " must have at least one option");
+            throw new InvalidParamException("Variant attribute " + attributeCode + " must have at least one option")
+                    .withMessageKey("error.variant_attribute_requires_options", attributeCode);
         }
 
         Map<String, VariantAttributeOption> existingByCode = entities.stream()
@@ -516,10 +521,12 @@ public class CategoryServiceImpl implements CategoryService {
             String normalizedCode = normalizeCode(
                     option.getCode() != null && !option.getCode().isBlank() ? option.getCode() : option.getLabel());
             if (normalizedCode.isBlank()) {
-                throw new InvalidParamException("Variant option code is invalid for attribute " + attributeCode);
+                throw new InvalidParamException("Variant option code is invalid for attribute " + attributeCode)
+                        .withMessageKey("error.variant_option_code_invalid_for_attribute", attributeCode);
             }
             if (!optionCodes.add(normalizedCode)) {
-                throw new ConflictException("Duplicate option code in attribute " + attributeCode + ": " + normalizedCode);
+                throw new ConflictException("Duplicate option code in attribute " + attributeCode + ": " + normalizedCode)
+                        .withMessageKey("error.duplicate_option_code_in_attribute", attributeCode, normalizedCode);
             }
 
             boolean isActive = option.getActive() != null ? option.getActive() : Boolean.TRUE;
@@ -543,10 +550,12 @@ public class CategoryServiceImpl implements CategoryService {
         existingByCode.values().forEach(staleOption -> staleOption.setActive(Boolean.FALSE));
 
         if (appended == 0) {
-            throw new InvalidParamException("Variant attribute " + attributeCode + " must have at least one option");
+            throw new InvalidParamException("Variant attribute " + attributeCode + " must have at least one option")
+                    .withMessageKey("error.variant_attribute_requires_options", attributeCode);
         }
         if (!hasActiveOption) {
-            throw new InvalidParamException("Variant attribute " + attributeCode + " must have at least one active option");
+            throw new InvalidParamException("Variant attribute " + attributeCode + " must have at least one active option")
+                    .withMessageKey("error.variant_attribute_requires_active_option", attributeCode);
         }
     }
 
@@ -575,7 +584,8 @@ public class CategoryServiceImpl implements CategoryService {
                 throw new InvalidParamException("Spec attribute code is invalid");
             }
             if (!seenCodes.add(normalizedCode)) {
-                throw new ConflictException("Duplicate spec attribute code in category schema: " + normalizedCode);
+                throw new ConflictException("Duplicate spec attribute code in category schema: " + normalizedCode)
+                        .withMessageKey("error.duplicate_spec_attribute_code", normalizedCode);
             }
 
             SpecAttribute attribute = resolveSpecAttribute(item, normalizedCode);
@@ -617,7 +627,7 @@ public class CategoryServiceImpl implements CategoryService {
     private SpecAttribute resolveSpecAttribute(CategoryRequest.SpecAttributeItem item, String normalizedCode) {
         if (item.getAttributeId() != null) {
             return specAttributeRepository.findById(item.getAttributeId())
-                    .orElseThrow(() -> new IllegalArgumentException("Spec attribute not found: " + item.getAttributeId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Spec attribute", item.getAttributeId()));
         }
 
         String trimmedName = item.getName() == null ? "" : item.getName().trim();
@@ -678,11 +688,13 @@ public class CategoryServiceImpl implements CategoryService {
                     throw new InvalidParamException("Variant attribute code is invalid");
                 }
                 if (!seenAttributeCodes.add(attributeCode)) {
-                    throw new ConflictException("Duplicate variant attribute code in category schema: " + attributeCode);
+                    throw new ConflictException("Duplicate variant attribute code in category schema: " + attributeCode)
+                            .withMessageKey("error.duplicate_variant_attribute_code", attributeCode);
                 }
 
                 if (item.getOptions() == null || item.getOptions().isEmpty()) {
-                    throw new InvalidParamException("Variant attribute " + attributeCode + " must have at least one option");
+                    throw new InvalidParamException("Variant attribute " + attributeCode + " must have at least one option")
+                            .withMessageKey("error.variant_attribute_requires_options", attributeCode);
                 }
 
                 Set<String> seenOptionCodes = new HashSet<>();
@@ -694,10 +706,12 @@ public class CategoryServiceImpl implements CategoryService {
                     String optionCode = normalizeCode(
                             option.getCode() != null && !option.getCode().isBlank() ? option.getCode() : option.getLabel());
                     if (optionCode.isBlank()) {
-                        throw new InvalidParamException("Variant option code is invalid for attribute " + attributeCode);
+                        throw new InvalidParamException("Variant option code is invalid for attribute " + attributeCode)
+                                .withMessageKey("error.variant_option_code_invalid_for_attribute", attributeCode);
                     }
                     if (!seenOptionCodes.add(optionCode)) {
-                        throw new ConflictException("Duplicate option code in attribute " + attributeCode + ": " + optionCode);
+                        throw new ConflictException("Duplicate option code in attribute " + attributeCode + ": " + optionCode)
+                                .withMessageKey("error.duplicate_option_code_in_attribute", attributeCode, optionCode);
                     }
                     if (option.getActive() == null || option.getActive()) {
                         hasActiveOption = true;
@@ -706,7 +720,8 @@ public class CategoryServiceImpl implements CategoryService {
 
                 if (!hasActiveOption) {
                     throw new InvalidParamException(
-                            "Variant attribute " + attributeCode + " must have at least one active option");
+                            "Variant attribute " + attributeCode + " must have at least one active option")
+                            .withMessageKey("error.variant_attribute_requires_active_option", attributeCode);
                 }
             }
         }
@@ -723,7 +738,8 @@ public class CategoryServiceImpl implements CategoryService {
                     throw new InvalidParamException("Spec attribute code is invalid");
                 }
                 if (!seenSpecCodes.add(specCode)) {
-                    throw new ConflictException("Duplicate spec attribute code in category schema: " + specCode);
+                    throw new ConflictException("Duplicate spec attribute code in category schema: " + specCode)
+                            .withMessageKey("error.duplicate_spec_attribute_code", specCode);
                 }
             }
         }

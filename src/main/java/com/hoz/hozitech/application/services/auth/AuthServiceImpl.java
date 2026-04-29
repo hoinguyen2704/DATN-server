@@ -558,7 +558,8 @@ public class AuthServiceImpl implements AuthService {
             Thread.currentThread().interrupt();
             throw new UnauthorizedException("Google token exchange interrupted");
         } catch (Exception ex) {
-            throw new UnauthorizedException("Google token exchange failed (" + ex.getMessage() + ")");
+            throw new UnauthorizedException("Google token exchange failed (" + ex.getMessage() + ")")
+                    .withMessageKey("error.google_token_exchange_failed_detail", ex.getMessage());
         }
     }
 

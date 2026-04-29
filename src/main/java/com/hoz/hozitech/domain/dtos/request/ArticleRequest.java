@@ -11,10 +11,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ArticleRequest {
-    @NotBlank(message = "Title is required")
+    @NotBlank(message = "{validation.title_is_required}")
     private String title;
 
-    @NotBlank(message = "Content is required")
+    @NotBlank(message = "{validation.content_is_required}")
     private String content;
 
     private String thumbnailUrl;

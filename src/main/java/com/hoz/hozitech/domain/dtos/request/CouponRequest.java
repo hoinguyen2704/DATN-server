@@ -19,15 +19,15 @@ import java.util.UUID;
 @NoArgsConstructor
 public class CouponRequest {
 
-    @NotBlank(message = "Coupon code is required")
+    @NotBlank(message = "{validation.coupon_code_is_required}")
     private String code;
 
-    @NotBlank(message = "Discount type is required")
+    @NotBlank(message = "{validation.discount_type_is_required}")
     private String discountType; // PERCENTAGE, FIXED_AMOUNT
 
     private String couponCategory; // PRODUCT, SHIPPING
 
-    @NotNull(message = "Discount value is required")
+    @NotNull(message = "{validation.discount_value_is_required}")
     @Min(0)
     private BigDecimal discountValue;
 

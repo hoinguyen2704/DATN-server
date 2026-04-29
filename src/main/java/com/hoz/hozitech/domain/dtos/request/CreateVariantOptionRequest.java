@@ -9,6 +9,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateVariantOptionRequest {
-    @NotBlank(message = "Variant option label is required")
+    @NotBlank(message = "{validation.variant_option_label_is_required}")
     private String label;
 }
