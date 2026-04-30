@@ -121,18 +121,18 @@ public final class UserNotificationTemplates {
         return base(NotificationTypes.SUPPORT, "SUPPORT_ADMIN_REPLIED",
                 "Bạn có phản hồi hỗ trợ mới",
                 "Yêu cầu " + ticket.getTicketNumber() + " đã được admin phản hồi.",
-                "/user/support?ticketId=" + ticket.getId(),
+                "/user/support?ticketNumber=" + ticket.getTicketNumber(),
                 "TICKET",
-                ticket.getId().toString());
+                ticket.getTicketNumber());
     }
 
     public static NotificationPayload supportStatusChanged(Ticket ticket) {
         return base(NotificationTypes.SUPPORT, "SUPPORT_STATUS_CHANGED",
                 "Cập nhật trạng thái hỗ trợ",
                 "Yêu cầu " + ticket.getTicketNumber() + " đã chuyển sang trạng thái " + ticket.getStatus().getDescription() + ".",
-                "/user/support?ticketId=" + ticket.getId(),
+                "/user/support?ticketNumber=" + ticket.getTicketNumber(),
                 "TICKET",
-                ticket.getId().toString());
+                ticket.getTicketNumber());
     }
 
     private static NotificationPayload base(String type,

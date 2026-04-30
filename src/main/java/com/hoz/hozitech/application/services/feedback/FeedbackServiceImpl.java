@@ -1,5 +1,8 @@
 package com.hoz.hozitech.application.services.feedback;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.FeedbackRepository;
 import com.hoz.hozitech.application.repositories.OrderRepository;
@@ -7,6 +10,7 @@ import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.services.notification.AdminNotificationService;
 import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
+import com.hoz.hozitech.application.services.storage.FileStorageService;
 import com.hoz.hozitech.application.specifications.FeedbackSpecification;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.config.exceptions.UnauthorizedException;
@@ -22,21 +26,29 @@ import com.hoz.hozitech.domain.entities.ProductVariant;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.enums.FeedbackStatus;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class FeedbackServiceImpl implements FeedbackService {
+
+    private static final int MAX_FEEDBACK_IMAGES = 5;
+    private static final String FEEDBACK_IMAGE_FOLDER = "feedbacks";
 
     private final FeedbackRepository feedbackRepository;
     private final ProductRepository productRepository;
@@ -44,6 +56,8 @@ public class FeedbackServiceImpl implements FeedbackService {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final AdminNotificationService adminNotificationService;
+    private final FileStorageService fileStorageService;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional(readOnly = true)
@@ -64,7 +78,7 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     @Transactional
-    public FeedbackResponse submitFeedback(UUID userId, FeedbackRequest request) {
+    public FeedbackResponse submitFeedback(UUID userId, FeedbackRequest request, List<MultipartFile> files) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
@@ -92,21 +106,30 @@ public class FeedbackServiceImpl implements FeedbackService {
             throw new InvalidParamException("Bạn đã đạt giới hạn 2 lần đánh giá cho phân loại này");
         }
 
-        Feedback feedback = Feedback.builder()
-                .rating(request.getRating())
-                .content(request.getContent())
-                .imagesJson(request.getImagesJson())
-                .status(FeedbackStatus.APPROVED)
-                .user(user)
-                .product(product)
-                .variant(variant)
-                .order(order)
-                .editCount(0)
-                .build();
+        List<MultipartFile> normalizedFiles = normalizeFeedbackFiles(files);
+        validateFeedbackImages(normalizedFiles);
+        List<String> uploadedImageUrls = uploadFeedbackImages(normalizedFiles);
 
-        Feedback saved = feedbackRepository.save(feedback);
-        adminNotificationService.createShared(AdminNotificationTemplates.feedbackCreated(saved), false);
-        return mapToResponse(saved);
+        try {
+            Feedback feedback = Feedback.builder()
+                    .rating(request.getRating())
+                    .content(request.getContent())
+                    .imagesJson(resolveImagesJson(request.getImagesJson(), uploadedImageUrls))
+                    .status(FeedbackStatus.APPROVED)
+                    .user(user)
+                    .product(product)
+                    .variant(variant)
+                    .order(order)
+                    .editCount(0)
+                    .build();
+
+            Feedback saved = feedbackRepository.save(feedback);
+            adminNotificationService.createShared(AdminNotificationTemplates.feedbackCreated(saved), false);
+            return mapToResponse(saved);
+        } catch (RuntimeException ex) {
+            cleanupFeedbackImages(uploadedImageUrls);
+            throw ex;
+        }
     }
 
     @Override
@@ -161,7 +184,9 @@ public class FeedbackServiceImpl implements FeedbackService {
         if (!feedback.getUser().getId().equals(userId)) {
             throw new UnauthorizedException("You can only delete your own feedback");
         }
+        List<String> feedbackImageUrls = parseImageUrls(feedback.getImagesJson());
         feedbackRepository.delete(feedback);
+        cleanupFeedbackImages(feedbackImageUrls);
     }
 
     @Override
@@ -252,6 +277,94 @@ public class FeedbackServiceImpl implements FeedbackService {
     private String normalizeSku(String sku) {
         String normalized = trimToNull(sku);
         return normalized == null ? null : normalized.toUpperCase(Locale.ROOT);
+    }
+
+    private List<MultipartFile> normalizeFeedbackFiles(List<MultipartFile> files) {
+        if (files == null || files.isEmpty()) {
+            return List.of();
+        }
+
+        return files.stream()
+                .filter(Objects::nonNull)
+                .filter(file -> !file.isEmpty())
+                .collect(Collectors.toList());
+    }
+
+    private void validateFeedbackImages(List<MultipartFile> files) {
+        if (files.size() > MAX_FEEDBACK_IMAGES) {
+            throw new InvalidParamException("Bạn chỉ có thể tải tối đa " + MAX_FEEDBACK_IMAGES + " ảnh đánh giá");
+        }
+
+        for (MultipartFile file : files) {
+            String contentType = trimToNull(file.getContentType());
+            if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
+                throw new InvalidParamException("Chỉ hỗ trợ tải lên tệp hình ảnh cho đánh giá");
+            }
+        }
+    }
+
+    private List<String> uploadFeedbackImages(List<MultipartFile> files) {
+        if (files.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> uploadedUrls = new ArrayList<>(files.size());
+        try {
+            for (MultipartFile file : files) {
+                uploadedUrls.add(fileStorageService.uploadFile(file, FEEDBACK_IMAGE_FOLDER));
+            }
+            return uploadedUrls;
+        } catch (RuntimeException ex) {
+            cleanupFeedbackImages(uploadedUrls);
+            throw ex;
+        }
+    }
+
+    private void cleanupFeedbackImages(List<String> imageUrls) {
+        if (imageUrls == null || imageUrls.isEmpty()) {
+            return;
+        }
+
+        for (String imageUrl : imageUrls) {
+            try {
+                fileStorageService.deleteFile(imageUrl);
+            } catch (RuntimeException cleanupEx) {
+                log.warn("feedback_image_cleanup_failed imageUrl={}", imageUrl, cleanupEx);
+            }
+        }
+    }
+
+    private String resolveImagesJson(String requestImagesJson, List<String> uploadedImageUrls) {
+        if (uploadedImageUrls != null && !uploadedImageUrls.isEmpty()) {
+            try {
+                return objectMapper.writeValueAsString(uploadedImageUrls);
+            } catch (JsonProcessingException ex) {
+                throw new InvalidParamException("Không thể xử lý danh sách ảnh đánh giá");
+            }
+        }
+
+        return trimToNull(requestImagesJson);
+    }
+
+    private List<String> parseImageUrls(String imagesJson) {
+        String normalizedImagesJson = trimToNull(imagesJson);
+        if (normalizedImagesJson == null) {
+            return List.of();
+        }
+
+        try {
+            List<String> parsedUrls = objectMapper.readValue(normalizedImagesJson, new TypeReference<List<String>>() {});
+            if (parsedUrls == null || parsedUrls.isEmpty()) {
+                return List.of();
+            }
+            return parsedUrls.stream()
+                    .map(this::trimToNull)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+        } catch (JsonProcessingException ex) {
+            log.warn("feedback_image_json_parse_failed imagesJson={}", normalizedImagesJson, ex);
+            return List.of();
+        }
     }
 
     private String trimToNull(String value) {

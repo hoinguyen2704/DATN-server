@@ -11,9 +11,11 @@ import com.hoz.hozitech.domain.dtos.response.FeedbackResponse;
 import com.hoz.hozitech.domain.dtos.response.ProductFeedbackPageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -36,12 +38,21 @@ public class FeedbackController {
                 feedbackService.getFeedbacksByProduct(productSlug, rating, hasComment, page, size)));
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<FeedbackResponse>> submitFeedback(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody FeedbackRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Feedback submitted successfully",
-                feedbackService.submitFeedback(userDetails.getUser().getId(), request)));
+                feedbackService.submitFeedback(userDetails.getUser().getId(), request, List.of())));
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<FeedbackResponse>> submitFeedbackMultipart(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestPart("payload") FeedbackRequest request,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
+        return ResponseEntity.ok(ApiResponse.success("Feedback submitted successfully",
+                feedbackService.submitFeedback(userDetails.getUser().getId(), request, files)));
     }
 
     @DeleteMapping("/{feedbackId}")

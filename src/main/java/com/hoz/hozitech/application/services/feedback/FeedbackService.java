@@ -4,6 +4,7 @@ import com.hoz.hozitech.domain.dtos.request.FeedbackRequest;
 import com.hoz.hozitech.domain.dtos.response.FeedbackResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.dtos.response.ProductFeedbackPageResponse;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -12,7 +13,7 @@ public interface FeedbackService {
     // Public/Client
     ProductFeedbackPageResponse getFeedbacksByProduct(String productSlug, Integer rating, Boolean hasComment, int page, int size);
     
-    FeedbackResponse submitFeedback(UUID userId, FeedbackRequest request);
+    FeedbackResponse submitFeedback(UUID userId, FeedbackRequest request, List<MultipartFile> files);
 
     void deleteFeedback(UUID userId, UUID feedbackId);
 
