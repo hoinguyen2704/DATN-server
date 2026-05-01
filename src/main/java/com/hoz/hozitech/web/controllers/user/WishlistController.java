@@ -2,6 +2,7 @@ package com.hoz.hozitech.web.controllers.user;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.wishlist.WishlistService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.Authenticated;
 import com.hoz.hozitech.security.CustomUserDetails;
@@ -19,13 +20,15 @@ import org.springframework.web.bind.annotation.*;
 public class WishlistController {
 
     private final WishlistService wishlistService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<WishlistResponse>>> getUserWishlist(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
-        return ResponseEntity.ok(ApiResponse.success("Wishlist retrieved successfully", 
+        return ResponseEntity.ok(responseFactory.success(
+                "response.wishlist.fetched",
                 wishlistService.getUserWishlist(userDetails.getUser().getId(), page, size)));
     }
 
@@ -34,7 +37,7 @@ public class WishlistController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String productSlug) {
         wishlistService.addProductToWishlist(userDetails.getUser().getId(), productSlug);
-        return ResponseEntity.ok(ApiResponse.success("Product added to wishlist successfully"));
+        return ResponseEntity.ok(responseFactory.success("response.wishlist.added"));
     }
 
     @DeleteMapping("/{productSlug}")
@@ -42,21 +45,23 @@ public class WishlistController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String productSlug) {
         wishlistService.removeProductFromWishlist(userDetails.getUser().getId(), productSlug);
-        return ResponseEntity.ok(ApiResponse.success("Product removed from wishlist successfully"));
+        return ResponseEntity.ok(responseFactory.success("response.wishlist.removed"));
     }
 
     @GetMapping("/check/{productSlug}")
     public ResponseEntity<ApiResponse<Boolean>> isProductInWishlist(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String productSlug) {
-        return ResponseEntity.ok(ApiResponse.success("Check wishlist success",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.wishlist.status_checked",
                 wishlistService.isProductInWishlist(userDetails.getUser().getId(), productSlug)));
     }
 
     @GetMapping("/count")
     public ResponseEntity<ApiResponse<Long>> getWishlistCount(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        return ResponseEntity.ok(ApiResponse.success("Wishlist count retrieved",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.wishlist.count_fetched",
                 wishlistService.getWishlistCount(userDetails.getUser().getId())));
     }
 }

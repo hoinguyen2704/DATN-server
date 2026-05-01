@@ -2,6 +2,7 @@ package com.hoz.hozitech.web.controllers.admin;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.storage.FileStorageService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
 import com.hoz.hozitech.application.services.article.ArticleService;
@@ -32,36 +33,41 @@ public class AdminCmsController {
     private final BannerService bannerService;
     private final ArticleService articleService;
     private final FileStorageService fileStorageService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     // --- BANNERS ---
 
     @GetMapping("/banners")
     public ResponseEntity<ApiResponse<List<BannerResponse>>> getAllBanners() {
-        return ResponseEntity.ok(ApiResponse.success("All Banners retrieved successfully", bannerService.getAllAdminBanners()));
+        return ResponseEntity.ok(responseFactory.success("response.admin_cms.banners_fetched",
+                bannerService.getAllAdminBanners()));
     }
 
     @PostMapping("/banners")
     public ResponseEntity<ApiResponse<BannerResponse>> createBanner(@Valid @RequestBody BannerRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Banner created", bannerService.createBanner(request)));
+        return ResponseEntity.ok(responseFactory.success("response.admin_cms.banner_created",
+                bannerService.createBanner(request)));
     }
 
     @PutMapping("/banners/{id}")
     public ResponseEntity<ApiResponse<BannerResponse>> updateBanner(
             @PathVariable UUID id, 
             @Valid @RequestBody BannerRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Banner updated", bannerService.updateBanner(id, request)));
+        return ResponseEntity.ok(responseFactory.success("response.admin_cms.banner_updated",
+                bannerService.updateBanner(id, request)));
     }
 
     @DeleteMapping("/banners/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteBanner(@PathVariable UUID id) {
         bannerService.deleteBanner(id);
-        return ResponseEntity.ok(ApiResponse.success("Banner deleted successfully"));
+        return ResponseEntity.ok(responseFactory.success("response.admin_cms.banner_deleted"));
     }
 
     @PostMapping("/banners/upload-image")
     public ResponseEntity<ApiResponse<Map<String, String>>> uploadBannerImage(@RequestParam("file") MultipartFile file) {
         String imageUrl = fileStorageService.uploadFile(file, "banners");
-        return ResponseEntity.ok(ApiResponse.success("Banner image uploaded successfully", Map.of("imageUrl", imageUrl)));
+        return ResponseEntity.ok(responseFactory.success("response.admin_cms.banner_image_uploaded",
+                Map.of("imageUrl", imageUrl)));
     }
 
     // --- ARTICLES ---
@@ -70,32 +76,36 @@ public class AdminCmsController {
     public ResponseEntity<ApiResponse<PageResponse<ArticleResponse>>> getAllArticles(
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
-        return ResponseEntity.ok(ApiResponse.success("All Articles retrieved successfully", articleService.getAdminArticles(page, size)));
+        return ResponseEntity.ok(responseFactory.success("response.admin_cms.articles_fetched",
+                articleService.getAdminArticles(page, size)));
     }
 
     @PostMapping("/articles")
     public ResponseEntity<ApiResponse<ArticleResponse>> createArticle(
             @Valid @RequestBody ArticleRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        return ResponseEntity.ok(ApiResponse.success("Article created", articleService.createArticle(request, userDetails.getUser().getId())));
+        return ResponseEntity.ok(responseFactory.success("response.admin_cms.article_created",
+                articleService.createArticle(request, userDetails.getUser().getId())));
     }
 
     @PutMapping("/articles/{id}")
     public ResponseEntity<ApiResponse<ArticleResponse>> updateArticle(
             @PathVariable UUID id, 
             @Valid @RequestBody ArticleRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Article updated", articleService.updateArticle(id, request)));
+        return ResponseEntity.ok(responseFactory.success("response.admin_cms.article_updated",
+                articleService.updateArticle(id, request)));
     }
 
     @DeleteMapping("/articles/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteArticle(@PathVariable UUID id) {
         articleService.deleteArticle(id);
-        return ResponseEntity.ok(ApiResponse.success("Article deleted successfully"));
+        return ResponseEntity.ok(responseFactory.success("response.admin_cms.article_deleted"));
     }
 
     @PostMapping("/articles/upload-thumbnail")
     public ResponseEntity<ApiResponse<Map<String, String>>> uploadArticleThumbnail(@RequestParam("file") MultipartFile file) {
         String imageUrl = fileStorageService.uploadFile(file, "articles");
-        return ResponseEntity.ok(ApiResponse.success("Article thumbnail uploaded successfully", Map.of("imageUrl", imageUrl)));
+        return ResponseEntity.ok(responseFactory.success("response.admin_cms.article_thumbnail_uploaded",
+                Map.of("imageUrl", imageUrl)));
     }
 }

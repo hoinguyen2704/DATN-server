@@ -15,6 +15,7 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -39,8 +40,8 @@ import com.hoz.hozitech.application.services.notification.AdminNotificationTempl
 import com.hoz.hozitech.application.specifications.ProductSpecification;
 import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
-import com.hoz.hozitech.domain.dtos.request.ProductImageRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductBasicRequest;
+import com.hoz.hozitech.domain.dtos.request.ProductImageRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductVariantRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductVariantsUpdateRequest;
@@ -66,7 +67,6 @@ import com.hoz.hozitech.domain.enums.ProductStatus;
 import com.hoz.hozitech.web.exceptions.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.RandomStringUtils;
 
 @Service
 @RequiredArgsConstructor

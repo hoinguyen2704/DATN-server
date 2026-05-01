@@ -1,6 +1,7 @@
 package com.hoz.hozitech.web.controllers.user;
 
 import com.hoz.hozitech.application.services.coupon.CouponService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.CouponResponse;
 import com.hoz.hozitech.security.CustomUserDetails;
@@ -19,6 +20,7 @@ import java.util.List;
 public class UserCouponController {
 
     private final CouponService couponService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     /**
      * Danh sách voucher công khai (có đánh dấu "đã lưu" theo user).
@@ -26,7 +28,7 @@ public class UserCouponController {
     @GetMapping("/public")
     public ResponseEntity<ApiResponse<List<CouponResponse>>> getPublicCoupons(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        return ResponseEntity.ok(ApiResponse.success("Public coupons",
+        return ResponseEntity.ok(responseFactory.success("response.user_coupon.public_list_fetched",
                 couponService.getPublicCoupons(userDetails.getUser().getId())));
     }
 
@@ -36,7 +38,7 @@ public class UserCouponController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<CouponResponse>>> getMySavedCoupons(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        return ResponseEntity.ok(ApiResponse.success("Saved coupons",
+        return ResponseEntity.ok(responseFactory.success("response.user_coupon.saved_list_fetched",
                 couponService.getMySavedCoupons(userDetails.getUser().getId())));
     }
 
@@ -48,7 +50,7 @@ public class UserCouponController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String code) {
         couponService.saveCoupon(userDetails.getUser().getId(), code);
-        return ResponseEntity.ok(ApiResponse.success("Voucher saved successfully"));
+        return ResponseEntity.ok(responseFactory.success("response.user_coupon.saved"));
     }
 
     /**
@@ -59,6 +61,6 @@ public class UserCouponController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String code) {
         couponService.unsaveCoupon(userDetails.getUser().getId(), code);
-        return ResponseEntity.ok(ApiResponse.success("Voucher removed from saved"));
+        return ResponseEntity.ok(responseFactory.success("response.user_coupon.unsaved"));
     }
 }

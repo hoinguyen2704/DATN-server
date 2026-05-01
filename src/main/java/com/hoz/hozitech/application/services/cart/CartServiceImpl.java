@@ -4,6 +4,7 @@ import com.hoz.hozitech.application.repositories.CartRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.services.flashsale.FlashSaleService;
+import com.hoz.hozitech.config.utils.LocalizationUtils;
 import com.hoz.hozitech.domain.dtos.request.CartRequest;
 import com.hoz.hozitech.domain.dtos.response.CartResponse;
 import com.hoz.hozitech.domain.entities.Cart;
@@ -31,6 +32,7 @@ public class CartServiceImpl implements CartService {
     private final ProductVariantRepository variantRepository;
     private final UserRepository userRepository;
     private final FlashSaleService flashSaleService;
+    private final LocalizationUtils localizationUtils;
 
     @Override
     @Transactional(readOnly = true)
@@ -134,19 +136,19 @@ public class CartServiceImpl implements CartService {
 
         if (variant.getProduct().getStatus() != ProductStatus.ACTIVE) {
             issueCode = BusinessErrorCode.PRODUCT_NOT_AVAILABLE.name();
-            issueMessage = "Sản phẩm hiện không còn mở bán";
+            issueMessage = localizationUtils.getLocalizedMessage("cart.issue.product_not_available");
             available = false;
         } else if (!Boolean.TRUE.equals(variant.getActive())) {
             issueCode = BusinessErrorCode.VARIANT_NOT_AVAILABLE.name();
-            issueMessage = "Phiên bản sản phẩm hiện không còn mở bán";
+            issueMessage = localizationUtils.getLocalizedMessage("cart.issue.variant_not_available");
             available = false;
         } else if (variant.getStock() <= 0) {
             issueCode = BusinessErrorCode.INSUFFICIENT_STOCK.name();
-            issueMessage = "Sản phẩm đã hết hàng";
+            issueMessage = localizationUtils.getLocalizedMessage("cart.issue.out_of_stock");
             available = false;
         } else if (cart.getQuantity() > variant.getStock()) {
             issueCode = BusinessErrorCode.INSUFFICIENT_STOCK.name();
-            issueMessage = "Số lượng trong giỏ vượt quá tồn kho hiện tại";
+            issueMessage = localizationUtils.getLocalizedMessage("cart.issue.quantity_exceeds_stock");
             available = false;
         }
 

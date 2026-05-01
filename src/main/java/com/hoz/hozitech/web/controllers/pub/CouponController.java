@@ -2,6 +2,7 @@ package com.hoz.hozitech.web.controllers.pub;
 
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.application.services.coupon.CouponService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.CouponResponse;
 import lombok.RequiredArgsConstructor;
@@ -16,17 +17,19 @@ import java.util.List;
 public class CouponController {
 
     private final CouponService couponService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping("/validate")
     public ResponseEntity<ApiResponse<CouponResponse>> validateCoupon(
             @RequestParam String code,
             @RequestParam(defaultValue = "0") BigDecimal orderAmount) {
-        return ResponseEntity.ok(ApiResponse.success("Coupon is valid", couponService.validateCoupon(code, orderAmount)));
+        return ResponseEntity.ok(responseFactory.success("response.coupon.validated",
+                couponService.validateCoupon(code, orderAmount)));
     }
 
     @GetMapping("/{code}")
     public ResponseEntity<ApiResponse<CouponResponse>> getCouponByCode(@PathVariable String code) {
-        return ResponseEntity.ok(ApiResponse.success("Success", couponService.getCouponByCode(code)));
+        return ResponseEntity.ok(responseFactory.success("response.coupon.fetched", couponService.getCouponByCode(code)));
     }
 
     /**
@@ -36,6 +39,7 @@ public class CouponController {
     @GetMapping("/public")
     public ResponseEntity<ApiResponse<List<CouponResponse>>> getPublicCoupons() {
         // Không cần auth, truyền userId = null
-        return ResponseEntity.ok(ApiResponse.success("Public coupons", couponService.getPublicCoupons(null)));
+        return ResponseEntity.ok(responseFactory.success("response.coupon.public_list_fetched",
+                couponService.getPublicCoupons(null)));
     }
 }

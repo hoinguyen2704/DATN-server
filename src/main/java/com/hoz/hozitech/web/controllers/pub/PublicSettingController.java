@@ -1,6 +1,7 @@
 package com.hoz.hozitech.web.controllers.pub;
 
 import com.hoz.hozitech.application.services.setting.SettingService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.web.base.RestAPI;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ import java.util.Map;
 public class PublicSettingController {
 
     private final SettingService settingService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     /** Thông tin cửa hàng — dùng cho header, footer, trang liên hệ */
     @GetMapping("/shop")
@@ -27,7 +29,7 @@ public class PublicSettingController {
         shop.put("hotline", val("HOTLINE"));
         shop.put("address", val("SHOP_ADDRESS"));
         shop.put("currency", val("CURRENCY"));
-        return ResponseEntity.ok(ApiResponse.success("Shop info", shop));
+        return ResponseEntity.ok(responseFactory.success("response.setting.shop_info_fetched", shop));
     }
 
     /** Danh sách payment methods đang bật — dùng cho Checkout */
@@ -40,7 +42,7 @@ public class PublicSettingController {
         addIfEnabled(methods, "MOMO", "MoMo", "MOMO_ENABLED");
         addIfEnabled(methods, "BANK_TRANSFER", "Chuyển khoản ngân hàng", "BANK_TRANSFER_ENABLED");
 
-        return ResponseEntity.ok(ApiResponse.success("Payment methods", methods));
+        return ResponseEntity.ok(responseFactory.success("response.setting.payment_methods_fetched", methods));
     }
 
     /** Cấu hình vận chuyển — dùng cho Checkout tính phí ship */
@@ -49,7 +51,7 @@ public class PublicSettingController {
         Map<String, Object> config = new LinkedHashMap<>();
         config.put("defaultShippingFee", settingService.getSettingNumber("DEFAULT_SHIPPING_FEE"));
         config.put("freeShippingThreshold", settingService.getSettingNumber("FREE_SHIPPING_THRESHOLD"));
-        return ResponseEntity.ok(ApiResponse.success("Shipping config", config));
+        return ResponseEntity.ok(responseFactory.success("response.setting.shipping_config_fetched", config));
     }
 
     /** Cấu hình thuế — dùng cho Checkout hiển thị breakdown thuế */
@@ -65,7 +67,7 @@ public class PublicSettingController {
         config.put("taxMode", taxMode);
 
         config.put("applyOnShipping", bool("TAX_APPLY_ON_SHIPPING", true));
-        return ResponseEntity.ok(ApiResponse.success("Tax config", config));
+        return ResponseEntity.ok(responseFactory.success("response.setting.tax_config_fetched", config));
     }
 
     // Helpers

@@ -2,6 +2,7 @@ package com.hoz.hozitech.web.controllers.pub;
 
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.application.services.flashsale.FlashSaleService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.FlashSaleResponse;
 import lombok.RequiredArgsConstructor;
@@ -15,19 +16,20 @@ import java.util.List;
 public class PublicFlashSaleController {
 
     private final FlashSaleService flashSaleService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping("/active")
     public ResponseEntity<ApiResponse<FlashSaleResponse>> getActiveFlashSale() {
         FlashSaleResponse response = flashSaleService.getActiveFlashSale();
         if (response == null) {
-            return ResponseEntity.ok(new ApiResponse<>(true, "No active flash sale", null, java.time.LocalDateTime.now()));
+            return ResponseEntity.ok(responseFactory.success("response.flash_sale.no_active", null));
         }
-        return ResponseEntity.ok(ApiResponse.success("Active flash sale fetched", response));
+        return ResponseEntity.ok(responseFactory.success("response.flash_sale.active_fetched", response));
     }
 
     @GetMapping("/active-list")
     public ResponseEntity<ApiResponse<List<FlashSaleResponse>>> getActiveFlashSales() {
         List<FlashSaleResponse> responses = flashSaleService.getActiveFlashSales();
-        return ResponseEntity.ok(ApiResponse.success("Active flash sales fetched", responses));
+        return ResponseEntity.ok(responseFactory.success("response.flash_sale.active_list_fetched", responses));
     }
 }

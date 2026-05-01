@@ -2,6 +2,7 @@ package com.hoz.hozitech.web.controllers.user;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.ticket.TicketService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.Authenticated;
 import com.hoz.hozitech.security.CustomUserDetails;
@@ -22,13 +23,14 @@ import org.springframework.web.bind.annotation.*;
 public class TicketController {
 
     private final TicketService ticketService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<TicketResponse>>> getMyTickets(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
-        return ResponseEntity.ok(ApiResponse.success("Fetch tickets successfully", 
+        return ResponseEntity.ok(responseFactory.success("response.ticket.list_fetched",
                 ticketService.getMyTickets(userDetails.getUser().getId(), page, size)));
     }
 
@@ -36,7 +38,7 @@ public class TicketController {
     public ResponseEntity<ApiResponse<TicketResponse>> createTicket(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody TicketRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Ticket created successfully", 
+        return ResponseEntity.ok(responseFactory.success("response.ticket.created",
                 ticketService.createTicket(userDetails.getUser().getId(), request)));
     }
 
@@ -44,7 +46,7 @@ public class TicketController {
     public ResponseEntity<ApiResponse<TicketResponse>> getTicketDetail(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String ticketNumber) {
-        return ResponseEntity.ok(ApiResponse.success("Fetch ticket successfully", 
+        return ResponseEntity.ok(responseFactory.success("response.ticket.fetched",
                 ticketService.getTicketDetail(userDetails.getUser().getId(), ticketNumber)));
     }
 
@@ -53,7 +55,7 @@ public class TicketController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String ticketNumber,
             @Valid @RequestBody TicketMessageRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Replied to ticket successfully", 
+        return ResponseEntity.ok(responseFactory.success("response.ticket.reply_sent",
                 ticketService.userReplyToTicket(userDetails.getUser().getId(), ticketNumber, request)));
     }
 }

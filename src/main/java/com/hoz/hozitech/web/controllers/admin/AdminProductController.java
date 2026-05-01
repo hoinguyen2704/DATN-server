@@ -8,6 +8,7 @@ import com.hoz.hozitech.application.services.storage.FileStorageService;
 import com.hoz.hozitech.application.repositories.ProductImageRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.request.ProductRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductBasicRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductVariantsUpdateRequest;
@@ -46,6 +47,7 @@ public class AdminProductController {
         private final ProductRepository productRepository;
         private final ProductVariantRepository productVariantRepository;
         private final ExportService exportService;
+        private final LocalizedApiResponseFactory responseFactory;
 
         @GetMapping("/export")
         public ResponseEntity<byte[]> exportProducts(
@@ -75,7 +77,7 @@ public class AdminProductController {
                         @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_LARGE_STR) int size,
                         @RequestParam(defaultValue = "createdAt") String sortBy,
                         @RequestParam(defaultValue = "DESC") String sortDir) {
-                return ResponseEntity.ok(ApiResponse.success("Fetch admin products successfully",
+                return ResponseEntity.ok(responseFactory.success("response.admin_product.list_fetched",
                                 productService.getAdminProducts(keyword, categoryId, status, page, size, sortBy,
                                                 sortDir)));
         }
@@ -89,28 +91,28 @@ public class AdminProductController {
                         @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_LARGE_STR) int size,
                         @RequestParam(defaultValue = "createdAt") String sortBy,
                         @RequestParam(defaultValue = "DESC") String sortDir) {
-                return ResponseEntity.ok(ApiResponse.success("Fetch product picker items successfully",
+                return ResponseEntity.ok(responseFactory.success("response.admin_product.picker_items_fetched",
                                 productService.getAdminProductPickerItems(keyword, categoryId, brandId, page, size, sortBy,
                                                 sortDir)));
         }
 
         @GetMapping("/{id}")
         public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable UUID id) {
-                return ResponseEntity.ok(ApiResponse.success("Fetch product successfully",
+                return ResponseEntity.ok(responseFactory.success("response.admin_product.fetched",
                                 productService.getProductById(id)));
         }
 
         @GetMapping("/{id}/variants/summary")
         public ResponseEntity<ApiResponse<List<AdminProductVariantSummaryResponse>>> getProductVariantSummaries(
                         @PathVariable UUID id) {
-                return ResponseEntity.ok(ApiResponse.success("Fetch product variant summaries successfully",
+                return ResponseEntity.ok(responseFactory.success("response.admin_product.variant_summaries_fetched",
                                 productService.getAdminProductVariantSummaries(id)));
         }
 
         @PostMapping
         public ResponseEntity<ApiResponse<ProductResponse>> createProduct(@Valid @RequestBody ProductRequest request) {
                 return ResponseEntity
-                                .ok(ApiResponse.success("Product created successfully",
+                                .ok(responseFactory.success("response.admin_product.created",
                                                 productService.createProduct(request)));
         }
 
@@ -119,7 +121,7 @@ public class AdminProductController {
                         @PathVariable UUID id,
                         @Valid @RequestBody ProductRequest request) {
                 return ResponseEntity
-                                .ok(ApiResponse.success("Product updated successfully",
+                                .ok(responseFactory.success("response.admin_product.updated",
                                                 productService.updateProduct(id, request)));
         }
 
@@ -128,7 +130,7 @@ public class AdminProductController {
                         @PathVariable UUID id,
                         @Valid @RequestBody ProductBasicRequest request) {
                 return ResponseEntity
-                                .ok(ApiResponse.success("Product basic info updated successfully",
+                                .ok(responseFactory.success("response.admin_product.basic_updated",
                                                 productService.updateProductBasic(id, request)));
         }
 
@@ -137,20 +139,21 @@ public class AdminProductController {
                         @PathVariable UUID id,
                         @Valid @RequestBody ProductVariantsUpdateRequest request) {
                 return ResponseEntity
-                                .ok(ApiResponse.success("Product variants updated successfully",
+                                .ok(responseFactory.success("response.admin_product.variants_updated",
                                                 productService.updateProductVariants(id, request)));
         }
 
         @DeleteMapping("/{id}")
         public ResponseEntity<ApiResponse<Void>> deleteProduct(@PathVariable UUID id) {
                 productService.deleteProduct(id);
-                return ResponseEntity.ok(ApiResponse.success("Product deleted successfully"));
+                return ResponseEntity.ok(responseFactory.success("response.admin_product.deleted"));
         }
 
         @PatchMapping("/{id}/status")
         public ResponseEntity<ApiResponse<ProductResponse>> toggleStatus(@PathVariable UUID id) {
                 return ResponseEntity.ok(
-                                ApiResponse.success("Product status toggled", productService.toggleProductStatus(id)));
+                                responseFactory.success("response.admin_product.status_toggled",
+                                                productService.toggleProductStatus(id)));
         }
 
         // Image Upload
@@ -177,7 +180,7 @@ public class AdminProductController {
                         productImageRepository.save(image);
                         uploaded.add(Map.of("id", image.getId().toString(), "imageUrl", url));
                 }
-                return ResponseEntity.ok(ApiResponse.success("Images uploaded successfully", uploaded));
+                return ResponseEntity.ok(responseFactory.success("response.admin_product.images_uploaded", uploaded));
         }
 
         @PostMapping("/{productId}/variants/{variantId}/images")
@@ -210,7 +213,7 @@ public class AdminProductController {
                         uploaded.add(Map.of("id", image.getId().toString(), "imageUrl", url));
                 }
 
-                return ResponseEntity.ok(ApiResponse.success("Variant images uploaded successfully", uploaded));
+                return ResponseEntity.ok(responseFactory.success("response.admin_product.variant_images_uploaded", uploaded));
         }
 
         @DeleteMapping("/{productId}/images/{imageId}")
@@ -221,7 +224,7 @@ public class AdminProductController {
                                 .orElseThrow(() -> new ResourceNotFoundException("Image", imageId));
                 fileStorageService.deleteFile(image.getImageUrl());
                 productImageRepository.delete(image);
-                return ResponseEntity.ok(ApiResponse.success("Image deleted successfully"));
+                return ResponseEntity.ok(responseFactory.success("response.admin_product.image_deleted"));
         }
 
         @DeleteMapping("/{productId}/variants/{variantId}/images/{imageId}")
@@ -243,6 +246,6 @@ public class AdminProductController {
 
                 fileStorageService.deleteFile(image.getImageUrl());
                 productImageRepository.delete(image);
-                return ResponseEntity.ok(ApiResponse.success("Variant image deleted successfully"));
+                return ResponseEntity.ok(responseFactory.success("response.admin_product.variant_image_deleted"));
         }
 }

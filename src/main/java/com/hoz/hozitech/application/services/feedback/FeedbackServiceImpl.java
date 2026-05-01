@@ -47,6 +47,7 @@ import java.util.stream.IntStream;
 @RequiredArgsConstructor
 public class FeedbackServiceImpl implements FeedbackService {
 
+    private static final int MAX_FEEDBACK_SUBMISSIONS_PER_VARIANT = 2;
     private static final int MAX_FEEDBACK_IMAGES = 5;
     private static final String FEEDBACK_IMAGE_FOLDER = "feedbacks";
 
@@ -102,8 +103,9 @@ public class FeedbackServiceImpl implements FeedbackService {
                     order.getId());
         }
 
-        if (existingFeedbacks != null && existingFeedbacks.size() >= 2) {
-            throw new InvalidParamException("Bạn đã đạt giới hạn 2 lần đánh giá cho phân loại này");
+        if (existingFeedbacks != null && existingFeedbacks.size() >= MAX_FEEDBACK_SUBMISSIONS_PER_VARIANT) {
+            throw new InvalidParamException("Feedback review limit reached")
+                    .withMessageKey("error.feedback_review_limit_reached", MAX_FEEDBACK_SUBMISSIONS_PER_VARIANT);
         }
 
         List<MultipartFile> normalizedFiles = normalizeFeedbackFiles(files);
@@ -182,7 +184,8 @@ public class FeedbackServiceImpl implements FeedbackService {
         Feedback feedback = feedbackRepository.findById(feedbackId)
                 .orElseThrow(() -> new IllegalArgumentException("Feedback not found"));
         if (!feedback.getUser().getId().equals(userId)) {
-            throw new UnauthorizedException("You can only delete your own feedback");
+            throw new UnauthorizedException("You can only delete your own feedback")
+                    .withMessageKey("error.feedback_delete_forbidden");
         }
         List<String> feedbackImageUrls = parseImageUrls(feedback.getImagesJson());
         feedbackRepository.delete(feedback);
@@ -292,13 +295,15 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     private void validateFeedbackImages(List<MultipartFile> files) {
         if (files.size() > MAX_FEEDBACK_IMAGES) {
-            throw new InvalidParamException("Bạn chỉ có thể tải tối đa " + MAX_FEEDBACK_IMAGES + " ảnh đánh giá");
+            throw new InvalidParamException("Feedback image limit exceeded")
+                    .withMessageKey("error.feedback_image_limit_exceeded", MAX_FEEDBACK_IMAGES);
         }
 
         for (MultipartFile file : files) {
             String contentType = trimToNull(file.getContentType());
             if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
-                throw new InvalidParamException("Chỉ hỗ trợ tải lên tệp hình ảnh cho đánh giá");
+                throw new InvalidParamException("Feedback upload only supports image files")
+                        .withMessageKey("error.feedback_image_type_invalid");
             }
         }
     }
@@ -339,7 +344,8 @@ public class FeedbackServiceImpl implements FeedbackService {
             try {
                 return objectMapper.writeValueAsString(uploadedImageUrls);
             } catch (JsonProcessingException ex) {
-                throw new InvalidParamException("Không thể xử lý danh sách ảnh đánh giá");
+                throw new InvalidParamException("Unable to process feedback image list")
+                        .withMessageKey("error.feedback_images_json_processing_failed");
             }
         }
 

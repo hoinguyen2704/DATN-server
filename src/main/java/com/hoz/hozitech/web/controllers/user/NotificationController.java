@@ -2,6 +2,7 @@ package com.hoz.hozitech.web.controllers.user;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.notification.NotificationService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.Authenticated;
 import com.hoz.hozitech.security.CustomUserDetails;
@@ -22,6 +23,7 @@ import java.util.UUID;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<NotificationResponse>>> getMyNotifications(
@@ -29,7 +31,7 @@ public class NotificationController {
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
         
-        return ResponseEntity.ok(ApiResponse.success("Fetch notifications successfully", 
+        return ResponseEntity.ok(responseFactory.success("response.notification.list_fetched",
                 notificationService.getMyNotifications(userDetails.getUser().getId(), page, size)));
     }
 
@@ -38,7 +40,8 @@ public class NotificationController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         
         long count = notificationService.getUnreadCount(userDetails.getUser().getId());
-        return ResponseEntity.ok(ApiResponse.success("Fetch unread count successfully", Map.of("count", count)));
+        return ResponseEntity.ok(responseFactory.success("response.notification.unread_count_fetched",
+                Map.of("count", count)));
     }
 
     @PatchMapping("/{id}/read")
@@ -47,7 +50,7 @@ public class NotificationController {
             @PathVariable UUID id) {
         
         notificationService.markAsRead(userDetails.getUser().getId(), id);
-        return ResponseEntity.ok(ApiResponse.success("Marked as read successfully"));
+        return ResponseEntity.ok(responseFactory.success("response.notification.marked_read"));
     }
 
     @PatchMapping("/read-all")
@@ -55,6 +58,6 @@ public class NotificationController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         
         notificationService.markAllAsRead(userDetails.getUser().getId());
-        return ResponseEntity.ok(ApiResponse.success("All notifications marked as read successfully"));
+        return ResponseEntity.ok(responseFactory.success("response.notification.all_marked_read"));
     }
 }

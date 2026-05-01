@@ -2,6 +2,7 @@ package com.hoz.hozitech.web.controllers.user;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.order.ReturnService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.request.CreateReturnRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -25,6 +26,7 @@ import java.util.List;
 public class ReturnController {
 
     private final ReturnService returnService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<ReturnRequestResponse>> createReturnRequest(
@@ -36,7 +38,7 @@ public class ReturnController {
                 request,
                 List.of(),
                 idempotencyKey);
-        return ResponseEntity.ok(ApiResponse.success("Return request created", response));
+        return ResponseEntity.ok(responseFactory.success("response.return.created", response));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -50,7 +52,7 @@ public class ReturnController {
                 request,
                 files,
                 idempotencyKey);
-        return ResponseEntity.ok(ApiResponse.success("Return request created", response));
+        return ResponseEntity.ok(responseFactory.success("response.return.created", response));
     }
 
     @GetMapping
@@ -60,7 +62,7 @@ public class ReturnController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
-        return ResponseEntity.ok(ApiResponse.success("Return requests fetched",
+        return ResponseEntity.ok(responseFactory.success("response.return.list_fetched",
                 returnService.getMyReturnRequests(userDetails.getUser().getId(), status, keyword, page, size)));
     }
 
@@ -68,7 +70,7 @@ public class ReturnController {
     public ResponseEntity<ApiResponse<ReturnRequestResponse>> getReturnByNumber(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String returnNumber) {
-        return ResponseEntity.ok(ApiResponse.success("Return request fetched",
+        return ResponseEntity.ok(responseFactory.success("response.return.fetched",
                 returnService.getReturnByNumberForUser(userDetails.getUser().getId(), returnNumber)));
     }
 
@@ -76,7 +78,7 @@ public class ReturnController {
     public ResponseEntity<ApiResponse<ReturnRequestResponse>> cancelReturnRequest(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String returnNumber) {
-        return ResponseEntity.ok(ApiResponse.success("Return request cancelled",
+        return ResponseEntity.ok(responseFactory.success("response.return.cancelled",
                 returnService.cancelReturnRequest(userDetails.getUser().getId(), returnNumber)));
     }
 }

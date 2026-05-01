@@ -2,6 +2,7 @@ package com.hoz.hozitech.web.controllers.admin;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.brand.BrandService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.request.BrandRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.BrandResponse;
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class AdminBrandController {
 
     private final BrandService brandService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<BrandResponse>>> getAdminBrands(
@@ -27,25 +29,27 @@ public class AdminBrandController {
             @RequestParam(required = false) UUID categoryId,
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
-        return ResponseEntity.ok(ApiResponse.success("Fetch admin brands successfully",
+        return ResponseEntity.ok(responseFactory.success("response.admin_brand.list_fetched",
                 brandService.getAdminBrands(keyword, categoryId, page, size)));
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<BrandResponse>> createBrand(@Valid @RequestBody BrandRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Brand created successfully", brandService.createBrand(request)));
+        return ResponseEntity.ok(responseFactory.success("response.admin_brand.created",
+                brandService.createBrand(request)));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<BrandResponse>> updateBrand(
             @PathVariable UUID id,
             @Valid @RequestBody BrandRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Brand updated successfully", brandService.updateBrand(id, request)));
+        return ResponseEntity.ok(responseFactory.success("response.admin_brand.updated",
+                brandService.updateBrand(id, request)));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteBrand(@PathVariable UUID id) {
         brandService.deleteBrand(id);
-        return ResponseEntity.ok(ApiResponse.success("Brand deleted successfully"));
+        return ResponseEntity.ok(responseFactory.success("response.admin_brand.deleted"));
     }
 }

@@ -1,6 +1,7 @@
 package com.hoz.hozitech.web.controllers.admin;
 
 import com.hoz.hozitech.application.services.setting.SettingService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.request.SettingRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.SettingResponse;
@@ -20,22 +21,23 @@ import java.util.Map;
 public class AdminSettingController {
 
     private final SettingService settingService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping
     public ResponseEntity<ApiResponse<Map<String, List<SettingResponse>>>> getAllSettings() {
-        return ResponseEntity.ok(ApiResponse.success("Fetch settings successfully",
+        return ResponseEntity.ok(responseFactory.success("response.admin_setting.list_fetched",
                 settingService.getAllSettings()));
     }
 
     @GetMapping("/{group}")
     public ResponseEntity<ApiResponse<List<SettingResponse>>> getByGroup(@PathVariable String group) {
-        return ResponseEntity.ok(ApiResponse.success("Fetch settings successfully",
+        return ResponseEntity.ok(responseFactory.success("response.admin_setting.group_fetched",
                 settingService.getSettingsByGroup(group.toUpperCase())));
     }
 
     @PutMapping
     public ResponseEntity<ApiResponse<Void>> batchUpdate(@Valid @RequestBody List<SettingRequest> requests) {
         settingService.batchUpdate(requests);
-        return ResponseEntity.ok(ApiResponse.success("Settings updated successfully"));
+        return ResponseEntity.ok(responseFactory.success("response.admin_setting.updated"));
     }
 }

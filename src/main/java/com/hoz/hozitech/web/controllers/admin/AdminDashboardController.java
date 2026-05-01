@@ -7,6 +7,7 @@ import com.hoz.hozitech.application.services.export.ExportService;
 import com.hoz.hozitech.application.services.export.ReportDateRange;
 import com.hoz.hozitech.application.services.export.ReportRangeMode;
 import com.hoz.hozitech.application.services.export.ReportRangeResolver;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.DashboardRevenueResponse;
 import com.hoz.hozitech.domain.dtos.response.DashboardReviewStatsResponse;
@@ -28,45 +29,46 @@ public class AdminDashboardController {
 
     private final DashboardService dashboardService;
     private final ExportService exportService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<DashboardStatsResponse>> getDashboardStats(
             @RequestParam(value = "period", defaultValue = "MONTH") String period) {
-        return ResponseEntity.ok(ApiResponse.success("Dashboard stats fetched successfully",
+        return ResponseEntity.ok(responseFactory.success("response.admin_dashboard.stats_fetched",
                 dashboardService.getDashboardStats(period)));
     }
 
     @GetMapping("/summary")
     public ResponseEntity<ApiResponse<DashboardSummaryResponse>> getDashboardSummary(
             @RequestParam(value = "period", defaultValue = "MONTH") String period) {
-        return ResponseEntity.ok(ApiResponse.success("Dashboard summary fetched successfully",
+        return ResponseEntity.ok(responseFactory.success("response.admin_dashboard.summary_fetched",
                 dashboardService.getDashboardSummary(period)));
     }
 
     @GetMapping("/revenue")
     public ResponseEntity<ApiResponse<DashboardRevenueResponse>> getDashboardRevenue(
             @RequestParam(value = "period", defaultValue = "MONTH") String period) {
-        return ResponseEntity.ok(ApiResponse.success("Dashboard revenue fetched successfully",
+        return ResponseEntity.ok(responseFactory.success("response.admin_dashboard.revenue_fetched",
                 dashboardService.getDashboardRevenue(period)));
     }
 
     @GetMapping("/top-lists")
     public ResponseEntity<ApiResponse<DashboardTopListsResponse>> getDashboardTopLists(
             @RequestParam(value = "period", defaultValue = "MONTH") String period) {
-        return ResponseEntity.ok(ApiResponse.success("Dashboard top lists fetched successfully",
+        return ResponseEntity.ok(responseFactory.success("response.admin_dashboard.top_lists_fetched",
                 dashboardService.getDashboardTopLists(period)));
     }
 
     @GetMapping("/recent-orders")
     public ResponseEntity<ApiResponse<List<DashboardStatsResponse.RecentOrderItem>>> getRecentOrders() {
-        return ResponseEntity.ok(ApiResponse.success("Recent orders fetched successfully",
+        return ResponseEntity.ok(responseFactory.success("response.admin_dashboard.recent_orders_fetched",
                 dashboardService.getRecentOrders()));
     }
 
     @GetMapping("/reviews")
     public ResponseEntity<ApiResponse<DashboardReviewStatsResponse>> getDashboardReviews(
             @RequestParam(value = "period", defaultValue = "MONTH") String period) {
-        return ResponseEntity.ok(ApiResponse.success("Dashboard reviews fetched successfully",
+        return ResponseEntity.ok(responseFactory.success("response.admin_dashboard.reviews_fetched",
                 dashboardService.getDashboardReviewStats(period)));
     }
 
@@ -74,8 +76,8 @@ public class AdminDashboardController {
     public ResponseEntity<ApiResponse<List<DashboardStatsResponse.TopVariantItem>>> getTopVariants(
             @RequestParam(value = "period", defaultValue = "MONTH") String period,
             @RequestParam(value = "limit", defaultValue = "50") int limit) {
-        return ResponseEntity.ok(ApiResponse.success(
-                "Top variants fetched successfully",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.admin_dashboard.top_variants_fetched",
                 dashboardService.getTopVariants(period, limit)));
     }
 

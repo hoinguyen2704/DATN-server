@@ -5,6 +5,7 @@ import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
 import com.hoz.hozitech.application.services.export.ExportService;
 import com.hoz.hozitech.application.services.feedback.FeedbackService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.FeedbackResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -24,6 +25,7 @@ public class AdminFeedbackController {
 
     private final FeedbackService feedbackService;
     private final ExportService exportService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<FeedbackResponse>>> getAllFeedbacks(
@@ -31,7 +33,8 @@ public class AdminFeedbackController {
             @RequestParam(required = false) UUID productId,
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
-        return ResponseEntity.ok(ApiResponse.success("Fetch feedbacks successfully",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.feedback.admin_feedbacks_fetched",
                 feedbackService.getAllFeedbacks(status, productId, page, size)));
     }
 
@@ -39,7 +42,8 @@ public class AdminFeedbackController {
     public ResponseEntity<ApiResponse<FeedbackResponse>> updateStatus(
             @PathVariable UUID id,
             @RequestBody Map<String, String> request) {
-        return ResponseEntity.ok(ApiResponse.success("Feedback status updated",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.feedback.status_updated",
                 feedbackService.updateFeedbackStatus(id, request.get("status"))));
     }
 
@@ -47,7 +51,8 @@ public class AdminFeedbackController {
     public ResponseEntity<ApiResponse<FeedbackResponse>> replyToFeedback(
             @PathVariable UUID id,
             @RequestBody Map<String, String> request) {
-        return ResponseEntity.ok(ApiResponse.success("Reply sent successfully",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.feedback.reply_sent",
                 feedbackService.adminReplyFeedback(id, request.get("reply"))));
     }
 

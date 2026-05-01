@@ -35,49 +35,49 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ApiResponse<Void>> handleConflictException(ConflictException ex) {
         log.warn("ConflictException: {}", ex.getDevMessage());
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error(resolveMessage(ex, ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage())));
+        return localizedRuntimeError(
+                HttpStatus.CONFLICT,
+                ex,
+                ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage());
     }
 
     @ExceptionHandler(InvalidParamException.class)
     public ResponseEntity<ApiResponse<Void>> handleInvalidParamException(InvalidParamException ex) {
         log.warn("InvalidParamException: {}", ex.getDevMessage());
-        return ResponseEntity
-                .badRequest()
-                .body(ApiResponse.error(resolveMessage(ex, ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage())));
+        return localizedRuntimeError(
+                HttpStatus.BAD_REQUEST,
+                ex,
+                ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage());
     }
 
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnauthorizedException(UnauthorizedException ex) {
         log.warn("UnauthorizedException: {}", ex.getDevMessage());
-        return ResponseEntity
-                .status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error(resolveMessage(ex, ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage())));
+        return localizedRuntimeError(
+                HttpStatus.UNAUTHORIZED,
+                ex,
+                ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage());
     }
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleNotFoundException(NotFoundException ex) {
         log.warn("NotFoundException: {}", ex.getDevMessage());
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(resolveMessage(ex, ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage())));
+        return localizedRuntimeError(
+                HttpStatus.NOT_FOUND,
+                ex,
+                ex.getUserMessage() != null ? ex.getUserMessage() : ex.getDevMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
         log.warn("Business error: ", ex);
-        return ResponseEntity
-                .badRequest()
-                .body(ApiResponse.error(localizationUtils.localizeErrorMessage(ex.getMessage())));
+        return localizedLiteralError(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
         log.warn("BusinessException code={} message={}", ex.getErrorCode(), ex.getMessage());
-        return ResponseEntity
-                .status(ex.getStatus())
-                .body(ApiResponse.error(ex.getErrorCode().name(), resolveMessage(ex, ex.getMessage())));
+        return localizedRuntimeError(ex.getStatus(), ex.getErrorCode().name(), ex, ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -85,61 +85,49 @@ public class GlobalExceptionHandler {
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
-            String errorMessage = localizationUtils.localizeValidationMessage(error.getDefaultMessage());
+            String errorMessage = resolveValidationMessage(error.getDefaultMessage());
             errors.put(fieldName, errorMessage);
         });
         log.warn("Validation error: {}", errors);
-        return ResponseEntity
-                .badRequest()
-                .body(ApiResponse.error(localizationUtils.getLocalizedMessage("error.validation_failed"), errors));
+        return localizedErrorWithData(HttpStatus.BAD_REQUEST, "error.validation_failed", errors);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiResponse<Void>> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException ex) {
         log.warn("MethodArgumentTypeMismatch parameter={} value={}", ex.getName(), ex.getValue());
-        return ResponseEntity
-                .badRequest()
-                .body(ApiResponse.error(localizationUtils.getLocalizedMessage(
-                        "error.method_argument_type_mismatch",
-                        ex.getName(),
-                        ex.getValue())));
+        return localizedError(
+                HttpStatus.BAD_REQUEST,
+                "error.method_argument_type_mismatch",
+                ex.getName(),
+                ex.getValue());
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
-        return ResponseEntity
-                .status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error(localizationUtils.getLocalizedMessage("error.access_denied")));
+        return localizedError(HttpStatus.FORBIDDEN, "error.access_denied");
     }
 
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ApiResponse<Object>> handleBadCredentialsException(BadCredentialsException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error(localizationUtils.getLocalizedMessage("error.bad_credentials")));
+    public ResponseEntity<ApiResponse<Void>> handleBadCredentialsException(BadCredentialsException ex) {
+        return localizedError(HttpStatus.UNAUTHORIZED, "error.bad_credentials");
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleResourceNotFound(ResourceNotFoundException ex) {
         log.warn("Resource not found: {}", ex.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(resolveMessage(ex, ex.getMessage())));
+        return localizedRuntimeError(HttpStatus.NOT_FOUND, ex, ex.getMessage());
     }
 
     @ExceptionHandler(ExportException.class)
     public ResponseEntity<ApiResponse<Void>> handleExportException(ExportException ex) {
         log.error("Export failed: ", ex);
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(localizationUtils.getLocalizedMessage("error.export_failed")));
+        return localizedRuntimeError(HttpStatus.INTERNAL_SERVER_ERROR, ex, ex.getMessage());
     }
 
     @ExceptionHandler(ConfigurationException.class)
     public ResponseEntity<ApiResponse<Void>> handleConfigurationException(ConfigurationException ex) {
         log.error("Configuration error: {}", ex.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(localizationUtils.getLocalizedMessage("error.configuration")));
+        return localizedRuntimeError(HttpStatus.INTERNAL_SERVER_ERROR, ex, ex.getMessage());
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -147,25 +135,65 @@ public class GlobalExceptionHandler {
         log.warn("Data integrity violation: {}", ex.getMostSpecificCause() != null
                 ? ex.getMostSpecificCause().getMessage()
                 : ex.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error(localizationUtils.getLocalizedMessage("error.data_integrity_violation")));
+        return localizedError(HttpStatus.CONFLICT, "error.data_integrity_violation");
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
         log.error("Unexpected error: ", ex);
+        return localizedError(HttpStatus.INTERNAL_SERVER_ERROR, "error.internal_server_error");
+    }
+
+    private ResponseEntity<ApiResponse<Void>> localizedRuntimeError(
+            HttpStatus status,
+            LocalizedRuntimeException ex,
+            String fallbackMessage) {
         return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(localizationUtils.getLocalizedMessage("error.internal_server_error")));
+                .status(status)
+                .body(ApiResponse.error(resolveMessage(ex, fallbackMessage)));
+    }
+
+    private ResponseEntity<ApiResponse<Void>> localizedRuntimeError(
+            HttpStatus status,
+            String errorCode,
+            LocalizedRuntimeException ex,
+            String fallbackMessage) {
+        return ResponseEntity
+                .status(status)
+                .body(ApiResponse.error(errorCode, resolveMessage(ex, fallbackMessage)));
+    }
+
+    private ResponseEntity<ApiResponse<Void>> localizedLiteralError(HttpStatus status, String rawMessage) {
+        return ResponseEntity
+                .status(status)
+                .body(ApiResponse.error(resolveLiteralErrorMessage(rawMessage)));
+    }
+
+    private ResponseEntity<ApiResponse<Void>> localizedError(HttpStatus status, String messageKey, Object... args) {
+        return ResponseEntity
+                .status(status)
+                .body(ApiResponse.error(resolveMessage(messageKey, args)));
+    }
+
+    private <T> ResponseEntity<ApiResponse<T>> localizedErrorWithData(HttpStatus status, String messageKey, T data, Object... args) {
+        return ResponseEntity
+                .status(status)
+                .body(ApiResponse.error(resolveMessage(messageKey, args), data));
     }
 
     private String resolveMessage(LocalizedRuntimeException ex, String fallbackMessage) {
-        String messageKey = ex.getMessageKey() != null ? ex.getMessageKey() : fallbackMessage;
-        String localized = localizationUtils.getLocalizedMessageOrDefault(messageKey, fallbackMessage, ex.getMessageArgs());
-        if (localized == null || localized.equals(fallbackMessage)) {
-            return localizationUtils.localizeErrorMessage(fallbackMessage);
-        }
-        return localized;
+        return localizationUtils.resolveLocalizedRuntimeMessage(ex, fallbackMessage);
+    }
+
+    private String resolveMessage(String messageKey, Object... args) {
+        return localizationUtils.getLocalizedMessage(messageKey, args);
+    }
+
+    private String resolveLiteralErrorMessage(String rawMessage) {
+        return localizationUtils.localizeErrorMessage(rawMessage);
+    }
+
+    private String resolveValidationMessage(String rawMessage) {
+        return localizationUtils.localizeValidationMessage(rawMessage);
     }
 }

@@ -2,6 +2,7 @@ package com.hoz.hozitech.web.controllers.user;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.order.OrderService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.Authenticated;
 import com.hoz.hozitech.security.CustomUserDetails;
@@ -22,6 +23,7 @@ import jakarta.servlet.http.HttpServletRequest;
 public class OrderController {
 
     private final OrderService orderService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @PostMapping("/checkout")
     public ResponseEntity<ApiResponse<OrderResponse>> checkout(
@@ -31,14 +33,15 @@ public class OrderController {
             HttpServletRequest httpServletRequest) {
         String ipAddress = getClientIp(httpServletRequest);
         OrderResponse response = orderService.checkout(userDetails.getUser().getId(), request, idempotencyKey, ipAddress);
-        return ResponseEntity.ok(ApiResponse.success("Order created successfully", response));
+        return ResponseEntity.ok(responseFactory.success("response.order.created", response));
     }
 
     @GetMapping("/{orderNumber}")
     public ResponseEntity<ApiResponse<OrderResponse>> getOrderByNumber(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String orderNumber) {
-        return ResponseEntity.ok(ApiResponse.success("Order fetched",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.order.fetched",
                 orderService.getOrderByNumber(orderNumber, userDetails.getUser().getId())));
     }
 
@@ -49,7 +52,8 @@ public class OrderController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
-        return ResponseEntity.ok(ApiResponse.success("Orders fetched",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.order.list_fetched",
                 orderService.getMyOrders(userDetails.getUser().getId(), status, keyword, page, size)));
     }
 
@@ -57,7 +61,8 @@ public class OrderController {
     public ResponseEntity<ApiResponse<OrderResponse>> cancelOrder(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String orderNumber) {
-        return ResponseEntity.ok(ApiResponse.success("Order cancelled",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.order.cancelled",
                 orderService.cancelOrder(userDetails.getUser().getId(), orderNumber)));
     }
 

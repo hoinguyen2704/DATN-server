@@ -2,6 +2,7 @@ package com.hoz.hozitech.web.controllers.admin;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.user.UserService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.AuditLogResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class AdminAuditLogController {
 
     private final UserService userService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<AuditLogResponse>>> getAuditLogs(
@@ -30,6 +32,6 @@ public class AdminAuditLogController {
             @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
             @RequestParam(required = false, defaultValue = "DESC") String sortDir) {
         PageResponse<AuditLogResponse> logs = userService.getAuditLogs(targetType, targetId, page, size, sortBy, sortDir);
-        return ResponseEntity.ok(ApiResponse.success("Fetch audit logs successfully", logs));
+        return ResponseEntity.ok(responseFactory.success("response.admin_audit_log.list_fetched", logs));
     }
 }

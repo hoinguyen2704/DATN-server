@@ -18,7 +18,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.JpaSort;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.CategoryRepository;
@@ -100,20 +99,12 @@ public class CategoryServiceImpl implements CategoryService {
             int size,
             String sortBy,
             String sortDir) {
-        Pageable pageable = PaginationConstant.of(page, size, resolveAdminCategorySort(sortBy, sortDir));
-        Page<Category> categories;
-        boolean hasKeyword = keyword != null && !keyword.isBlank();
-        if (brandId != null) {
-            if (hasKeyword) {
-                categories = categoryRepository.findByKeywordAndBrandId(keyword, brandId, pageable);
-            } else {
-                categories = categoryRepository.findByBrandId(brandId, pageable);
-            }
-        } else if (hasKeyword) {
-            categories = categoryRepository.findByNameContainingIgnoreCase(keyword, pageable);
-        } else {
-            categories = categoryRepository.findAll(pageable);
+        if (requiresComputedAdminCategorySort(sortBy)) {
+            return getAdminCategoriesWithComputedSort(keyword, brandId, page, size, sortBy, sortDir);
         }
+
+        Pageable pageable = PaginationConstant.of(page, size, resolveAdminCategorySort(sortBy, sortDir));
+        Page<Category> categories = queryAdminCategories(keyword, brandId, pageable);
 
         List<CategoryResponse> content = categories.getContent().stream()
                 .map(this::mapToResponse)
@@ -137,11 +128,99 @@ public class CategoryServiceImpl implements CategoryService {
             case "name" -> Sort.by(direction, "name");
             case "slug" -> Sort.by(direction, "slug");
             case "status" -> Sort.by(direction, "status");
-            case "specCount" -> JpaSort.unsafe(direction, "size(categorySpecAttributes)");
-            case "productCount" -> JpaSort.unsafe(direction, "size(products)");
             case "createdAt" -> Sort.by(direction, "createdAt");
             default -> Sort.by(Sort.Direction.DESC, "createdAt");
         };
+    }
+
+    private boolean requiresComputedAdminCategorySort(String sortBy) {
+        return "specCount".equalsIgnoreCase(sortBy) || "productCount".equalsIgnoreCase(sortBy);
+    }
+
+    private Page<Category> queryAdminCategories(String keyword, UUID brandId, Pageable pageable) {
+        boolean hasKeyword = keyword != null && !keyword.isBlank();
+        if (brandId != null) {
+            if (hasKeyword) {
+                return categoryRepository.findByKeywordAndBrandId(keyword, brandId, pageable);
+            }
+            return categoryRepository.findByBrandId(brandId, pageable);
+        }
+        if (hasKeyword) {
+            return categoryRepository.findByNameContainingIgnoreCase(keyword, pageable);
+        }
+        return categoryRepository.findAll(pageable);
+    }
+
+    private PageResponse<CategoryResponse> getAdminCategoriesWithComputedSort(
+            String keyword,
+            UUID brandId,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
+        List<Category> categories = loadAllAdminCategories(keyword, brandId);
+        List<Category> sortedCategories = new ArrayList<>(categories);
+        sortedCategories.sort(buildComputedCategoryComparator(sortBy, sortDir));
+
+        int safePage = Math.max(page, 1);
+        int safeSize = PaginationConstant.validateSize(size);
+        int fromIndex = Math.min((safePage - 1) * safeSize, sortedCategories.size());
+        int toIndex = Math.min(fromIndex + safeSize, sortedCategories.size());
+
+        List<CategoryResponse> content = sortedCategories.subList(fromIndex, toIndex).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        long total = sortedCategories.size();
+        int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / safeSize);
+
+        return PageResponse.<CategoryResponse>builder()
+                .data(content)
+                .page(safePage)
+                .perPage(safeSize)
+                .total(total)
+                .lastPage(totalPages)
+                .build();
+    }
+
+    private List<Category> loadAllAdminCategories(String keyword, UUID brandId) {
+        List<Category> categories = new ArrayList<>();
+        int currentPage = 1;
+        Page<Category> batch;
+
+        do {
+            Pageable pageable = PaginationConstant.of(
+                    currentPage,
+                    PaginationConstant.MAX_PAGE_SIZE,
+                    Sort.by(Sort.Direction.DESC, "createdAt"));
+            batch = queryAdminCategories(keyword, brandId, pageable);
+            categories.addAll(batch.getContent());
+            currentPage++;
+        } while (batch.hasNext());
+
+        return categories;
+    }
+
+    private Comparator<Category> buildComputedCategoryComparator(String sortBy, String sortDir) {
+        Comparator<Category> comparator = switch (sortBy == null ? "" : sortBy) {
+            case "specCount" -> Comparator.comparingInt(this::getCategorySpecCount);
+            case "productCount" -> Comparator.comparingLong(this::getCategoryProductCount);
+            default -> Comparator.comparing(Category::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()));
+        };
+
+        if (!"ASC".equalsIgnoreCase(sortDir)) {
+            comparator = comparator.reversed();
+        }
+
+        return comparator.thenComparing(Category::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()));
+    }
+
+    private int getCategorySpecCount(Category category) {
+        return category.getCategorySpecAttributes() != null ? category.getCategorySpecAttributes().size() : 0;
+    }
+
+    private long getCategoryProductCount(Category category) {
+        return category.getProducts() != null ? category.getProducts().size() : 0L;
     }
 
     @Override

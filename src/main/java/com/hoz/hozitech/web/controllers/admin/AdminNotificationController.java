@@ -2,6 +2,7 @@ package com.hoz.hozitech.web.controllers.admin;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.notification.AdminNotificationService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.NotificationResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -25,14 +26,15 @@ import java.util.UUID;
 public class AdminNotificationController {
 
     private final AdminNotificationService adminNotificationService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<NotificationResponse>>> getNotifications(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
-        return ResponseEntity.ok(ApiResponse.success(
-                "Fetch admin notifications successfully",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.admin_notification.list_fetched",
                 adminNotificationService.getNotifications(userDetails.getUser().getId(), page, size)));
     }
 
@@ -40,7 +42,8 @@ public class AdminNotificationController {
     public ResponseEntity<ApiResponse<Map<String, Long>>> getUnreadCount(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         long count = adminNotificationService.getUnreadCount(userDetails.getUser().getId());
-        return ResponseEntity.ok(ApiResponse.success("Fetch admin unread count successfully", Map.of("count", count)));
+        return ResponseEntity.ok(responseFactory.success("response.admin_notification.unread_count_fetched",
+                Map.of("count", count)));
     }
 
     @PatchMapping("/{id}/read")
@@ -48,13 +51,13 @@ public class AdminNotificationController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable UUID id) {
         adminNotificationService.markAsRead(userDetails.getUser().getId(), id);
-        return ResponseEntity.ok(ApiResponse.success("Admin notification marked as read successfully"));
+        return ResponseEntity.ok(responseFactory.success("response.admin_notification.marked_read"));
     }
 
     @PatchMapping("/read-all")
     public ResponseEntity<ApiResponse<Void>> markAllAsRead(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         adminNotificationService.markAllAsRead(userDetails.getUser().getId());
-        return ResponseEntity.ok(ApiResponse.success("All admin notifications marked as read successfully"));
+        return ResponseEntity.ok(responseFactory.success("response.admin_notification.all_marked_read"));
     }
 }

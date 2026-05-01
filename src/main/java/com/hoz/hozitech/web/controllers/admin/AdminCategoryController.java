@@ -2,6 +2,7 @@ package com.hoz.hozitech.web.controllers.admin;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.category.CategoryService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.request.CategoryRequest;
 import com.hoz.hozitech.domain.dtos.request.CreateVariantAttributeRequest;
 import com.hoz.hozitech.domain.dtos.request.CreateVariantOptionRequest;
@@ -23,6 +24,7 @@ import java.util.UUID;
 public class AdminCategoryController {
 
     private final CategoryService categoryService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<CategoryResponse>>> getAdminCategories(
@@ -32,14 +34,14 @@ public class AdminCategoryController {
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size,
             @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
             @RequestParam(required = false, defaultValue = "DESC") String sortDir) {
-        return ResponseEntity.ok(ApiResponse.success("Fetch admin categories successfully",
+        return ResponseEntity.ok(responseFactory.success("response.admin_category.list_fetched",
                 categoryService.getAdminCategories(keyword, brandId, page, size, sortBy, sortDir)));
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<CategoryResponse>> createCategory(@Valid @RequestBody CategoryRequest request) {
         return ResponseEntity
-                .ok(ApiResponse.success("Category created successfully", categoryService.createCategory(request)));
+                .ok(responseFactory.success("response.admin_category.created", categoryService.createCategory(request)));
     }
 
     @PutMapping("/{id}")
@@ -47,13 +49,14 @@ public class AdminCategoryController {
             @PathVariable UUID id,
             @Valid @RequestBody CategoryRequest request) {
         return ResponseEntity
-                .ok(ApiResponse.success("Category updated successfully", categoryService.updateCategory(id, request)));
+                .ok(responseFactory.success("response.admin_category.updated", categoryService.updateCategory(id, request)));
     }
 
     @GetMapping("/{id}/schema")
     public ResponseEntity<ApiResponse<CategoryResponse>> getCategorySchema(@PathVariable UUID id) {
         return ResponseEntity
-                .ok(ApiResponse.success("Fetch category schema successfully", categoryService.getCategorySchema(id)));
+                .ok(responseFactory.success("response.admin_category.schema_fetched",
+                        categoryService.getCategorySchema(id)));
     }
 
     @PostMapping("/{categoryId}/variant-attributes")
@@ -61,8 +64,8 @@ public class AdminCategoryController {
             @PathVariable UUID categoryId,
             @Valid @RequestBody CreateVariantAttributeRequest request) {
         return ResponseEntity.ok(
-                ApiResponse.success(
-                        "Variant attribute upserted successfully",
+                responseFactory.success(
+                        "response.admin_category.variant_attribute_upserted",
                         categoryService.upsertVariantAttribute(
                                 categoryId,
                                 request.getName(),
@@ -75,20 +78,21 @@ public class AdminCategoryController {
             @PathVariable UUID attributeId,
             @Valid @RequestBody CreateVariantOptionRequest request) {
         return ResponseEntity.ok(
-                ApiResponse.success(
-                        "Variant option upserted successfully",
+                responseFactory.success(
+                        "response.admin_category.variant_option_upserted",
                         categoryService.upsertVariantOption(categoryId, attributeId, request.getLabel())));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteCategory(@PathVariable UUID id) {
         categoryService.deleteCategory(id);
-        return ResponseEntity.ok(ApiResponse.success("Category deleted successfully"));
+        return ResponseEntity.ok(responseFactory.success("response.admin_category.deleted"));
     }
 
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<CategoryResponse>> toggleStatus(@PathVariable UUID id) {
         return ResponseEntity
-                .ok(ApiResponse.success("Category status updated", categoryService.toggleActiveStatus(id)));
+                .ok(responseFactory.success("response.admin_category.status_updated",
+                        categoryService.toggleActiveStatus(id)));
     }
 }

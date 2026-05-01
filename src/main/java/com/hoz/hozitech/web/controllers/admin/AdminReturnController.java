@@ -23,6 +23,7 @@ import com.hoz.hozitech.application.services.export.ReportDateRange;
 import com.hoz.hozitech.application.services.export.ReportRangeMode;
 import com.hoz.hozitech.application.services.export.ReportRangeResolver;
 import com.hoz.hozitech.application.services.order.ReturnService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.request.ProcessRefundRequest;
 import com.hoz.hozitech.domain.dtos.request.ReviewReturnRequest;
 import com.hoz.hozitech.domain.dtos.request.UpdateReturnStatusRequest;
@@ -42,6 +43,7 @@ public class AdminReturnController {
 
     private final ReturnService returnService;
     private final ExportService exportService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<ReturnRequestResponse>>> getAllReturnRequests(
@@ -49,13 +51,13 @@ public class AdminReturnController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_LARGE_STR) int size) {
-        return ResponseEntity.ok(ApiResponse.success("Return requests fetched",
+        return ResponseEntity.ok(responseFactory.success("response.admin_return.list_fetched",
                 returnService.getAllReturnRequests(status, keyword, page, size)));
     }
 
     @GetMapping("/{returnNumber}")
     public ResponseEntity<ApiResponse<ReturnRequestResponse>> getReturnByNumber(@PathVariable String returnNumber) {
-        return ResponseEntity.ok(ApiResponse.success("Return request fetched",
+        return ResponseEntity.ok(responseFactory.success("response.admin_return.fetched",
                 returnService.getReturnByNumberForAdmin(returnNumber)));
     }
 
@@ -104,7 +106,7 @@ public class AdminReturnController {
     public ResponseEntity<ApiResponse<ReturnRequestResponse>> reviewReturnRequest(
             @PathVariable UUID returnRequestId,
             @Valid @RequestBody ReviewReturnRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Return request reviewed",
+        return ResponseEntity.ok(responseFactory.success("response.admin_return.reviewed",
                 returnService.reviewReturnRequest(returnRequestId, request)));
     }
 
@@ -112,7 +114,7 @@ public class AdminReturnController {
     public ResponseEntity<ApiResponse<ReturnRequestResponse>> updateReturnStatus(
             @PathVariable UUID returnRequestId,
             @Valid @RequestBody UpdateReturnStatusRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Return status updated",
+        return ResponseEntity.ok(responseFactory.success("response.admin_return.status_updated",
                 returnService.updateReturnStatus(returnRequestId, request)));
     }
 
@@ -121,7 +123,7 @@ public class AdminReturnController {
             @PathVariable UUID returnRequestId,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody ProcessRefundRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Refund processed",
+        return ResponseEntity.ok(responseFactory.success("response.admin_return.refund_processed",
                 returnService.processRefund(returnRequestId, request, idempotencyKey)));
     }
 }

@@ -5,7 +5,10 @@ import com.hoz.hozitech.application.services.auth.AuthService;
 import com.hoz.hozitech.application.services.auth.GoogleLinkIntentTicketService;
 import com.hoz.hozitech.application.services.user.UserService;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.config.exceptions.LocalizedRuntimeException;
 import com.hoz.hozitech.config.exceptions.UnauthorizedException;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
+import com.hoz.hozitech.config.utils.LocalizationUtils;
 import com.hoz.hozitech.domain.dtos.request.LoginRequest;
 import com.hoz.hozitech.domain.dtos.request.GoogleTicketExchangeRequest;
 import com.hoz.hozitech.domain.dtos.request.RegisterRequest;
@@ -42,6 +45,8 @@ public class AuthController {
     private final AuthService authService;
     private final GoogleLinkIntentTicketService googleLinkIntentTicketService;
     private final UserService userService;
+    private final LocalizedApiResponseFactory responseFactory;
+    private final LocalizationUtils localizationUtils;
 
     @Value("${social.google.frontend-base-url}")
     private String frontendBaseUrl;
@@ -49,48 +54,49 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> register(@RequestBody @Valid RegisterRequest request) {
         AuthResponse response = authService.register(request);
-        return ResponseEntity.ok(ApiResponse.success("Registration successful", response));
+        return ResponseEntity.ok(responseFactory.success("response.auth.registered", response));
     }
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody @Valid LoginRequest request) {
         AuthResponse response = authService.login(request);
-        return ResponseEntity.ok(ApiResponse.success("Login successful", response));
+        return ResponseEntity.ok(responseFactory.success("response.auth.login_success", response));
     }
 
     @PostMapping("/refresh-token")
     public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(@RequestBody Map<String, String> request) {
         String refreshToken = request.get("refreshToken");
         if (refreshToken == null || refreshToken.isBlank()) {
-            throw new InvalidParamException("Refresh token is required");
+            throw new InvalidParamException("Refresh token is required")
+                    .withMessageKey("error.refresh_token_required");
         }
 
         AuthResponse response = authService.refreshToken(refreshToken);
-        return ResponseEntity.ok(ApiResponse.success("Token refreshed successfully", response));
+        return ResponseEntity.ok(responseFactory.success("response.auth.token_refreshed", response));
     }
 
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<Void>> forgotPassword(@RequestBody @Valid com.hoz.hozitech.domain.dtos.request.ForgotPasswordRequest request) {
         authService.forgotPassword(request.getEmail());
-        return ResponseEntity.ok(ApiResponse.success("Reset password OTP sent to your email"));
+        return ResponseEntity.ok(responseFactory.success("response.auth.reset_password_otp_sent"));
     }
 
     @PostMapping("/verify-otp")
     public ResponseEntity<ApiResponse<Boolean>> verifyOtp(@RequestBody @Valid com.hoz.hozitech.domain.dtos.request.VerifyOtpRequest request) {
         boolean isValid = authService.verifyOtp(request.getEmail(), request.getOtpCode());
-        return ResponseEntity.ok(ApiResponse.success("OTP verified", isValid));
+        return ResponseEntity.ok(responseFactory.success("response.auth.otp_verified", isValid));
     }
 
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<Void>> resetPassword(@RequestBody @Valid com.hoz.hozitech.domain.dtos.request.ResetPasswordRequest request) {
         authService.resetPassword(request.getEmail(), request.getOtpCode(), request.getNewPassword());
-        return ResponseEntity.ok(ApiResponse.success("Password reset successfully"));
+        return ResponseEntity.ok(responseFactory.success("response.auth.password_reset"));
     }
 
     @PostMapping("/social-login")
     public ResponseEntity<ApiResponse<AuthResponse>> socialLogin(@RequestBody @Valid com.hoz.hozitech.domain.dtos.request.SocialLoginRequest request) {
         AuthResponse response = authService.socialLogin(request);
-        return ResponseEntity.ok(ApiResponse.success("Social login successful", response));
+        return ResponseEntity.ok(responseFactory.success("response.auth.social_login_success", response));
     }
 
     @GetMapping("/google/start")
@@ -127,7 +133,7 @@ public class AuthController {
         if (expectedState == null || state == null || !expectedState.equals(state)) {
             return redirectToLoginWithError(
                     "GOOGLE_AUTH_STATE_INVALID",
-                    "Yeu cau dang nhap Google khong hop le. Vui long thu lai.",
+                    localizationUtils.getLocalizedMessage("error.google_auth_state_invalid"),
                     clearStateCookie,
                     clearFromCookie);
         }
@@ -135,7 +141,7 @@ public class AuthController {
         if (code == null || code.isBlank()) {
             return redirectToLoginWithError(
                     "GOOGLE_AUTH_CODE_MISSING",
-                    "Khong nhan duoc ma dang nhap tu Google.",
+                    localizationUtils.getLocalizedMessage("error.google_auth_code_missing"),
                     clearStateCookie,
                     clearFromCookie);
         }
@@ -152,19 +158,19 @@ public class AuthController {
         } catch (BusinessException ex) {
             return redirectToLoginWithError(
                     ex.getErrorCode().name(),
-                    ex.getMessage(),
+                    resolveLocalizedExceptionMessage(ex),
                     clearStateCookie,
                     clearFromCookie);
         } catch (UnauthorizedException ex) {
             return redirectToLoginWithError(
                     "GOOGLE_LOGIN_FAILED",
-                    ex.getMessage(),
+                    resolveLocalizedExceptionMessage(ex),
                     clearStateCookie,
                     clearFromCookie);
         } catch (Exception ex) {
             return redirectToLoginWithError(
                     "GOOGLE_LOGIN_FAILED",
-                    "Dang nhap Google that bai. Vui long thu lai.",
+                    localizationUtils.getLocalizedMessage("error.google_login_failed"),
                     clearStateCookie,
                     clearFromCookie);
         }
@@ -174,7 +180,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<GoogleLoginExchangeResponse>> exchangeGoogleTicket(
             @RequestBody @Valid GoogleTicketExchangeRequest request) {
         GoogleLoginExchangeResponse response = authService.exchangeGoogleLoginTicket(request.getTicket());
-        return ResponseEntity.ok(ApiResponse.success("Google login successful", response));
+        return ResponseEntity.ok(responseFactory.success("response.auth.google_login_success", response));
     }
 
     @GetMapping("/google/link/start")
@@ -187,7 +193,7 @@ public class AuthController {
                     normalizedFrom,
                     "error",
                     "GOOGLE_LINK_TICKET_MISSING",
-                    "Yeu cau lien ket Google khong hop le. Vui long thu lai.",
+                    localizationUtils.getLocalizedMessage("error.google_link_request_invalid"),
                     clearCookie(GOOGLE_LINK_STATE_COOKIE),
                     clearCookie(GOOGLE_LINK_FROM_COOKIE),
                     clearCookie(GOOGLE_LINK_TICKET_COOKIE));
@@ -235,7 +241,7 @@ public class AuthController {
                     redirectTo,
                     "error",
                     "GOOGLE_AUTH_STATE_INVALID",
-                    "Yeu cau lien ket Google khong hop le. Vui long thu lai.",
+                    localizationUtils.getLocalizedMessage("error.google_link_request_invalid"),
                     clearStateCookie,
                     clearFromCookie,
                     clearTicketCookie);
@@ -246,7 +252,7 @@ public class AuthController {
                     redirectTo,
                     "error",
                     "GOOGLE_LINK_TICKET_MISSING",
-                    "Yeu cau lien ket Google khong hop le. Vui long thu lai.",
+                    localizationUtils.getLocalizedMessage("error.google_link_request_invalid"),
                     clearStateCookie,
                     clearFromCookie,
                     clearTicketCookie);
@@ -257,7 +263,7 @@ public class AuthController {
                     redirectTo,
                     "error",
                     "GOOGLE_AUTH_CODE_MISSING",
-                    "Khong nhan duoc ma lien ket tu Google.",
+                    localizationUtils.getLocalizedMessage("error.google_link_code_missing"),
                     clearStateCookie,
                     clearFromCookie,
                     clearTicketCookie);
@@ -281,7 +287,7 @@ public class AuthController {
                     redirectTo,
                     "error",
                     ex.getErrorCode().name(),
-                    ex.getMessage(),
+                    resolveLocalizedExceptionMessage(ex),
                     clearStateCookie,
                     clearFromCookie,
                     clearTicketCookie);
@@ -290,7 +296,7 @@ public class AuthController {
                     redirectTo,
                     "error",
                     "GOOGLE_LINK_FAILED",
-                    ex.getMessage(),
+                    resolveLocalizedExceptionMessage(ex),
                     clearStateCookie,
                     clearFromCookie,
                     clearTicketCookie);
@@ -299,7 +305,7 @@ public class AuthController {
                     redirectTo,
                     "error",
                     "GOOGLE_LINK_FAILED",
-                    "Lien ket Google that bai. Vui long thu lai.",
+                    localizationUtils.getLocalizedMessage("error.google_link_failed"),
                     clearStateCookie,
                     clearFromCookie,
                     clearTicketCookie);
@@ -312,7 +318,7 @@ public class AuthController {
             @org.springframework.security.core.annotation.AuthenticationPrincipal
             com.hoz.hozitech.security.CustomUserDetails userDetails) {
         authService.logout(userDetails.getUser().getId());
-        return ResponseEntity.ok(ApiResponse.success("Logout successful"));
+        return ResponseEntity.ok(responseFactory.success("response.auth.logout_success"));
     }
 
     private ResponseEntity<Void> redirectToLoginWithError(
@@ -323,7 +329,7 @@ public class AuthController {
         String loginUrl = buildFrontendUrl("/login", Map.of(
                 "google_error_code", code,
                 "google_error_message", message == null || message.isBlank()
-                        ? "Dang nhap Google that bai. Vui long thu lai."
+                        ? localizationUtils.getLocalizedMessage("error.google_login_failed")
                         : message));
 
         return ResponseEntity.status(HttpStatus.FOUND)
@@ -358,6 +364,10 @@ public class AuthController {
                 .header(HttpHeaders.SET_COOKIE, clearFromCookie.toString())
                 .header(HttpHeaders.SET_COOKIE, clearTicketCookie.toString())
                 .build();
+    }
+
+    private String resolveLocalizedExceptionMessage(LocalizedRuntimeException ex) {
+        return localizationUtils.resolveLocalizedRuntimeMessage(ex, ex.getMessage());
     }
 
     private String buildFrontendUrl(String path, Map<String, String> queryParams) {

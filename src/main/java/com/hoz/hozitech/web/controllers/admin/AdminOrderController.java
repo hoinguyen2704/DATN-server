@@ -8,6 +8,7 @@ import com.hoz.hozitech.application.services.export.ReportDateRange;
 import com.hoz.hozitech.application.services.export.ReportRangeMode;
 import com.hoz.hozitech.application.services.export.ReportRangeResolver;
 import com.hoz.hozitech.application.services.order.OrderService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.response.AdminOrderListItemResponse;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.OrderResponse;
@@ -30,6 +31,7 @@ public class AdminOrderController {
 
     private final OrderService orderService;
     private final ExportService exportService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<AdminOrderListItemResponse>>> getAllOrders(
@@ -39,7 +41,7 @@ public class AdminOrderController {
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_LARGE_STR) int size,
             @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
             @RequestParam(required = false, defaultValue = "DESC") String sortDir) {
-        return ResponseEntity.ok(ApiResponse.success("Orders fetched",
+        return ResponseEntity.ok(responseFactory.success("response.admin_order.list_fetched",
                 orderService.getAllOrders(status, keyword, page, size, sortBy, sortDir)));
     }
 
@@ -47,13 +49,13 @@ public class AdminOrderController {
     public ResponseEntity<ApiResponse<OrderResponse>> updateOrderStatus(
             @PathVariable UUID orderId,
             @RequestBody Map<String, String> body) {
-        return ResponseEntity.ok(ApiResponse.success("Order status updated",
+        return ResponseEntity.ok(responseFactory.success("response.admin_order.status_updated",
                 orderService.updateOrderStatus(orderId, body.get("status"))));
     }
 
     @GetMapping("/{orderNumber}")
     public ResponseEntity<ApiResponse<OrderResponse>> getOrderByNumber(@PathVariable String orderNumber) {
-        return ResponseEntity.ok(ApiResponse.success("Order fetched",
+        return ResponseEntity.ok(responseFactory.success("response.admin_order.fetched",
                 orderService.getOrderByNumberForAdmin(orderNumber)));
     }
 

@@ -8,6 +8,7 @@ import com.hoz.hozitech.application.services.export.ExportService;
 import com.hoz.hozitech.application.services.export.ReportDateRange;
 import com.hoz.hozitech.application.services.export.ReportRangeMode;
 import com.hoz.hozitech.application.services.export.ReportRangeResolver;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.request.CouponRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.CouponResponse;
@@ -32,41 +33,47 @@ public class AdminCouponController {
 
     private final CouponService couponService;
     private final ExportService exportService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<CouponResponse>>> getAllCoupons(
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = PaginationConstant.PAGE_DEFAULT_STR) int page,
             @RequestParam(defaultValue = PaginationConstant.PAGE_SIZE_MEDIUM_STR) int size) {
-        return ResponseEntity.ok(ApiResponse.success("Fetch coupons successfully", couponService.getAllCoupons(keyword, page, size)));
+        return ResponseEntity.ok(responseFactory.success("response.admin_coupon.list_fetched",
+                couponService.getAllCoupons(keyword, page, size)));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<CouponResponse>> getCouponById(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.success("Fetch coupon details successfully", couponService.getCouponById(id)));
+        return ResponseEntity.ok(responseFactory.success("response.admin_coupon.fetched",
+                couponService.getCouponById(id)));
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<CouponResponse>> createCoupon(@Valid @RequestBody CouponRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Coupon created successfully", couponService.createCoupon(request)));
+        return ResponseEntity.ok(responseFactory.success("response.admin_coupon.created",
+                couponService.createCoupon(request)));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<CouponResponse>> updateCoupon(
             @PathVariable UUID id,
             @Valid @RequestBody CouponRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Coupon updated successfully", couponService.updateCoupon(id, request)));
+        return ResponseEntity.ok(responseFactory.success("response.admin_coupon.updated",
+                couponService.updateCoupon(id, request)));
     }
 
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<CouponResponse>> toggleStatus(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.success("Coupon status toggled successfully", couponService.toggleStatus(id)));
+        return ResponseEntity.ok(responseFactory.success("response.admin_coupon.status_toggled",
+                couponService.toggleStatus(id)));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteCoupon(@PathVariable UUID id) {
         couponService.deleteCoupon(id);
-        return ResponseEntity.ok(ApiResponse.success("Coupon deleted successfully"));
+        return ResponseEntity.ok(responseFactory.success("response.admin_coupon.deleted"));
     }
 
     @GetMapping("/report-export")

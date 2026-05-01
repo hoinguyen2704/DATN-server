@@ -1,6 +1,7 @@
 package com.hoz.hozitech.web.controllers.user;
 
 import com.hoz.hozitech.application.services.cart.CartService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.security.CustomUserDetails;
 import com.hoz.hozitech.domain.dtos.request.CartRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
@@ -21,11 +22,13 @@ import java.util.Map;
 public class CartController {
 
     private final CartService cartService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<CartResponse>>> getCart(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        return ResponseEntity.ok(ApiResponse.success("Cart fetched",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.cart.fetched",
                 cartService.getCartByUser(userDetails.getUser().getId())));
     }
 
@@ -33,7 +36,8 @@ public class CartController {
     public ResponseEntity<ApiResponse<CartResponse>> addToCart(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody CartRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Item added to cart",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.cart.item_added",
                 cartService.addToCart(userDetails.getUser().getId(), request)));
     }
 
@@ -42,7 +46,8 @@ public class CartController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String variantSku,
             @RequestBody Map<String, Integer> body) {
-        return ResponseEntity.ok(ApiResponse.success("Cart item updated",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.cart.item_updated",
                 cartService.updateCartItem(userDetails.getUser().getId(), variantSku, body.get("quantity"))));
     }
 
@@ -51,20 +56,21 @@ public class CartController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String variantSku) {
         cartService.removeCartItem(userDetails.getUser().getId(), variantSku);
-        return ResponseEntity.ok(ApiResponse.success("Cart item removed"));
+        return ResponseEntity.ok(responseFactory.success("response.cart.item_removed"));
     }
 
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> clearCart(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         cartService.clearCart(userDetails.getUser().getId());
-        return ResponseEntity.ok(ApiResponse.success("Cart cleared"));
+        return ResponseEntity.ok(responseFactory.success("response.cart.cleared"));
     }
 
     @GetMapping("/count")
     public ResponseEntity<ApiResponse<Long>> getCartCount(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        return ResponseEntity.ok(ApiResponse.success("Cart count",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.cart.count_fetched",
                 cartService.getCartCount(userDetails.getUser().getId())));
     }
 }

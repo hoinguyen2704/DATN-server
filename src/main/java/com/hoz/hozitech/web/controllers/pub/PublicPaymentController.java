@@ -2,6 +2,7 @@ package com.hoz.hozitech.web.controllers.pub;
 
 import com.hoz.hozitech.application.services.order.OrderService;
 import com.hoz.hozitech.application.services.order.PaymentWebhookSignatureVerifier;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.request.PaymentWebhookRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.OrderResponse;
@@ -32,6 +33,7 @@ public class PublicPaymentController {
     private final PaymentWebhookSignatureVerifier webhookSignatureVerifier;
     private final VnpayPaymentService vnpayPaymentService;
     private final ObjectMapper objectMapper;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @PostMapping("/webhook")
     public ResponseEntity<ApiResponse<OrderResponse>> handleWebhook(
@@ -41,7 +43,7 @@ public class PublicPaymentController {
             @Valid @RequestBody PaymentWebhookRequest request) {
         webhookSignatureVerifier.verifyOrThrow(request, webhookSignature, webhookTimestamp);
         OrderResponse response = orderService.handlePaymentWebhook(request, webhookId);
-        return ResponseEntity.ok(ApiResponse.success("Webhook processed", response));
+        return ResponseEntity.ok(responseFactory.success("response.payment.webhook_processed", response));
     }
 
     @GetMapping("/vnpay/ipn")

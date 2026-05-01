@@ -2,6 +2,7 @@ package com.hoz.hozitech.web.controllers.admin;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.services.storage.FileStorageService;
+import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.web.base.RoleAdmin;
 import com.hoz.hozitech.application.services.export.ExportService;
@@ -32,6 +33,7 @@ public class AdminUserController {
     private final UserService userService;
     private final ExportService exportService;
     private final FileStorageService fileStorageService;
+    private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getUsers(
@@ -43,14 +45,14 @@ public class AdminUserController {
             @RequestParam(required = false, defaultValue = "DESC") String sortDir
     ) {
         PageResponse<UserResponse> users = userService.getDetailedUsers(keyword, role, page, size, sortBy, sortDir);
-        return ResponseEntity.ok(ApiResponse.success("Fetch users successfully", users));
+        return ResponseEntity.ok(responseFactory.success("response.admin_user.list_fetched", users));
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<UserResponse>> createCustomer(
             @Valid @RequestBody AdminCreateUserRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(
-                "Customer created successfully",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.admin_user.customer_created",
                 userService.adminCreateCustomer(request)));
     }
 
@@ -58,27 +60,30 @@ public class AdminUserController {
     public ResponseEntity<ApiResponse<Map<String, String>>> uploadAvatar(
             @RequestParam("file") MultipartFile file) {
         String avatarUrl = fileStorageService.uploadFile(file, "avatars");
-        return ResponseEntity.ok(ApiResponse.success("Avatar uploaded successfully", Map.of("avatarUrl", avatarUrl)));
+        return ResponseEntity.ok(responseFactory.success("response.admin_user.avatar_uploaded",
+                Map.of("avatarUrl", avatarUrl)));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.success("Fetch user detail success", userService.getUserById(id)));
+        return ResponseEntity.ok(responseFactory.success("response.admin_user.fetched", userService.getUserById(id)));
     }
 
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<UserResponse>> toggleStatus(@PathVariable UUID id) {
         UserResponse response = userService.toggleUserStatus(id);
-        String msg = UserStatus.LOCKED == response.getStatus() ? "User has been locked successfully" : "User has been unlocked successfully";
-        return ResponseEntity.ok(ApiResponse.success(msg, response));
+        String messageKey = UserStatus.LOCKED == response.getStatus()
+                ? "response.admin_user.locked"
+                : "response.admin_user.unlocked";
+        return ResponseEntity.ok(responseFactory.success(messageKey, response));
     }
 
     @PatchMapping("/{id}/profile")
     public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
             @PathVariable UUID id,
             @Valid @RequestBody AdminUpdateUserProfileRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(
-                "User profile updated successfully",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.admin_user.profile_updated",
                 userService.adminUpdateProfile(id, request)));
     }
 
@@ -86,8 +91,8 @@ public class AdminUserController {
     public ResponseEntity<ApiResponse<UserResponse>> updatePhone(
             @PathVariable UUID id,
             @Valid @RequestBody AdminUpdatePhoneRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(
-                "User phone updated successfully",
+        return ResponseEntity.ok(responseFactory.success(
+                "response.admin_user.phone_updated",
                 userService.adminUpdatePhone(id, request)));
     }
 
