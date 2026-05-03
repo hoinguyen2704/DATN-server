@@ -45,3 +45,5 @@ src/test/*
 !src/test/java/**
 !src/test/resources/
 !src/test/resources/**
+.agent/
+.agents/
