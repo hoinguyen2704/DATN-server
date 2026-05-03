@@ -45,6 +45,7 @@ import com.hoz.hozitech.domain.dtos.request.ProductImageRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductVariantRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductVariantsUpdateRequest;
+import com.hoz.hozitech.domain.dtos.response.AdminProductDeleteResultResponse;
 import com.hoz.hozitech.domain.dtos.response.AdminProductListItemResponse;
 import com.hoz.hozitech.domain.dtos.response.AdminProductPickerItemResponse;
 import com.hoz.hozitech.domain.dtos.response.AdminProductVariantSummaryResponse;
@@ -462,28 +463,25 @@ public class ProductServiceImpl implements ProductService {
         List<ProductVariant> lockedVariants = variantsToDelete.stream()
                 .filter(variant -> orderItemRepository.existsByVariantId(variant.getId()))
                 .collect(Collectors.toList());
+        Set<UUID> lockedVariantIds = lockedVariants.stream()
+                .map(ProductVariant::getId)
+                .collect(Collectors.toSet());
+
         if (!lockedVariants.isEmpty()) {
-            String lockedVariantPreview = lockedVariants.stream()
-                    .map(variant -> {
-                        String sku = variant.getSku();
-                        if (sku != null && !sku.isBlank()) {
-                            return sku;
-                        }
-                        return variant.getVariantName();
-                    })
-                    .collect(Collectors.joining(", "));
-            throw new ConflictException(
-                    "Không thể xóa phân loại đã phát sinh đơn hàng: " + lockedVariantPreview)
-                    .withMessageKey("error.variant_used_in_orders_delete_blocked", lockedVariantPreview);
+            lockedVariants.forEach(variant -> variant.setActive(false));
+            flashSaleItemRepository.deleteByVariantIdIn(lockedVariantIds);
         }
 
         List<UUID> variantIdsToDelete = variantsToDelete.stream()
+                .filter(existing -> !lockedVariantIds.contains(existing.getId()))
                 .map(ProductVariant::getId)
                 .collect(Collectors.toList());
 
-        cartRepository.deleteByVariantIdIn(variantIdsToDelete);
-        flashSaleItemRepository.deleteByVariantIdIn(variantIdsToDelete);
-        product.getVariants().removeIf(existing -> variantIdsToDelete.contains(existing.getId()));
+        if (!variantIdsToDelete.isEmpty()) {
+            cartRepository.deleteByVariantIdIn(variantIdsToDelete);
+            flashSaleItemRepository.deleteByVariantIdIn(variantIdsToDelete);
+            product.getVariants().removeIf(existing -> variantIdsToDelete.contains(existing.getId()));
+        }
     }
 
     private ProductVariant resolveVariantEntity(ProductVariantRequest request, Map<UUID, ProductVariant> existingById, Map<String, ProductVariant> existingBySku) {
@@ -723,17 +721,31 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public void deleteProduct(UUID id) {
+    public AdminProductDeleteResultResponse deleteProduct(UUID id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found"));
 
         if (orderItemRepository.countByProductId(id) > 0) {
-            throw new ConflictException("Sản phẩm này đã phát sinh đơn hàng, không thể xoá cứng. Vui lòng chuyển trạng thái thành Bản Nháp hoặc Đã Ẩn!");
+            if (product.getStatus() != ProductStatus.INACTIVE) {
+                product.setStatus(ProductStatus.INACTIVE);
+                Product saved = productRepository.save(product);
+                adminNotificationService.createShared(AdminNotificationTemplates.productUpdated(saved), true);
+            }
+
+            return AdminProductDeleteResultResponse.builder()
+                    .id(product.getId())
+                    .action("HIDDEN")
+                    .status(ProductStatus.INACTIVE.name())
+                    .build();
         }
 
         cartRepository.deleteAllByProductId(id);
         wishlistRepository.deleteAllByProductId(id);
         productRepository.delete(product);
+        return AdminProductDeleteResultResponse.builder()
+                .id(product.getId())
+                .action("DELETED")
+                .build();
     }
 
     @Override

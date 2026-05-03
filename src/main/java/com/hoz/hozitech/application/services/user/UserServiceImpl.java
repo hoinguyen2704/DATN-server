@@ -80,8 +80,6 @@ public class UserServiceImpl implements UserService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final Set<String> ALLOWED_GENDERS = Set.of("MALE", "FEMALE", "OTHER");
     private static final int MIN_PASSWORD_LENGTH = 6;
-    private static final int MAX_USERNAME_LENGTH = 50;
-    private static final int GENERATED_USERNAME_BASE_MAX_LENGTH = 40;
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -94,6 +92,8 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final AdminNotificationService adminNotificationService;
     private final ObjectMapper objectMapper;
+    private final UsernameAllocator usernameAllocator;
+
 
     @Override
     public User getCurrentUserEntity() {
@@ -199,7 +199,9 @@ public class UserServiceImpl implements UserService {
         }
 
         String oldEmail = user.getEmail();
+        String nextUserName = usernameAllocator.generateUniqueUsername(newEmail, user.getId());
         user.setEmail(newEmail);
+        user.setUserName(nextUserName);
         User savedUser = userRepository.save(user);
 
         otp.setIsUsed(true);
@@ -292,7 +294,7 @@ public class UserServiceImpl implements UserService {
 
         User createdUser = userRepository.save(User.builder()
                 .fullName(normalizedFullName)
-                .userName(generateUniqueUsername(normalizedEmail))
+                .userName(usernameAllocator.generateUniqueUsername(normalizedEmail))
                 .email(normalizedEmail)
                 .phoneNumber(normalizedPhone)
                 .password(passwordEncoder.encode(normalizedPassword))
@@ -657,35 +659,6 @@ public class UserServiceImpl implements UserService {
         if (target.getRole().getId() == RoleType.ADMIN && !target.getId().equals(actor.getId())) {
             throw new InvalidParamException("Cannot edit another admin account");
         }
-    }
-
-    private String generateUniqueUsername(String email) {
-        String emailLocalPart = email.contains("@") ? email.substring(0, email.indexOf('@')) : email;
-        String sanitizedBase = emailLocalPart.toLowerCase(Locale.ROOT)
-                .replaceAll("[^a-z0-9._-]", "")
-                .replaceAll("^[._-]+|[._-]+$", "");
-
-        if (sanitizedBase.isBlank()) {
-            sanitizedBase = "customer";
-        }
-        if (sanitizedBase.length() < 3) {
-            sanitizedBase = "user-" + sanitizedBase;
-        }
-        if (sanitizedBase.length() > GENERATED_USERNAME_BASE_MAX_LENGTH) {
-            sanitizedBase = sanitizedBase.substring(0, GENERATED_USERNAME_BASE_MAX_LENGTH);
-        }
-
-        String candidate = sanitizedBase;
-        int suffix = 1;
-        while (userRepository.existsByUserName(candidate)) {
-            String suffixText = "-" + suffix++;
-            int maxBaseLength = Math.max(3, MAX_USERNAME_LENGTH - suffixText.length());
-            String base = sanitizedBase.length() > maxBaseLength
-                    ? sanitizedBase.substring(0, maxBaseLength)
-                    : sanitizedBase;
-            candidate = base + suffixText;
-        }
-        return candidate;
     }
 
     private Map<String, Object> buildEditableProfileSnapshot(User user) {

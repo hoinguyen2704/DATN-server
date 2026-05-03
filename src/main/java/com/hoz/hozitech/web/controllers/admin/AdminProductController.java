@@ -12,6 +12,7 @@ import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.domain.dtos.request.ProductRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductBasicRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductVariantsUpdateRequest;
+import com.hoz.hozitech.domain.dtos.response.AdminProductDeleteResultResponse;
 import com.hoz.hozitech.domain.dtos.response.AdminProductListItemResponse;
 import com.hoz.hozitech.domain.dtos.response.AdminProductPickerItemResponse;
 import com.hoz.hozitech.domain.dtos.response.AdminProductVariantSummaryResponse;
@@ -144,9 +145,12 @@ public class AdminProductController {
         }
 
         @DeleteMapping("/{id}")
-        public ResponseEntity<ApiResponse<Void>> deleteProduct(@PathVariable UUID id) {
-                productService.deleteProduct(id);
-                return ResponseEntity.ok(responseFactory.success("response.admin_product.deleted"));
+        public ResponseEntity<ApiResponse<AdminProductDeleteResultResponse>> deleteProduct(@PathVariable UUID id) {
+                AdminProductDeleteResultResponse result = productService.deleteProduct(id);
+                String messageKey = "HIDDEN".equalsIgnoreCase(result.getAction())
+                                ? "response.admin_product.hidden_instead_of_deleted"
+                                : "response.admin_product.deleted";
+                return ResponseEntity.ok(responseFactory.success(messageKey, result));
         }
 
         @PatchMapping("/{id}/status")

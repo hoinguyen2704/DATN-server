@@ -37,6 +37,7 @@ import com.hoz.hozitech.application.repositories.TokenRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.repositories.UserSocialAccountRepository;
 import com.hoz.hozitech.application.services.email.EmailService;
+import com.hoz.hozitech.application.services.user.UsernameAllocator;
 import com.hoz.hozitech.security.CustomUserDetails;
 import com.hoz.hozitech.security.LoginIdentifierResolver;
 import com.hoz.hozitech.security.JwtTokenProvider;
@@ -80,6 +81,7 @@ public class AuthServiceImpl implements AuthService {
     private final LoginIdentifierResolver loginIdentifierResolver;
     private final GoogleLoginTicketService googleLoginTicketService;
     private final ObjectMapper objectMapper;
+    private final UsernameAllocator usernameAllocator;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
@@ -143,9 +145,6 @@ public class AuthServiceImpl implements AuthService {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new ConflictException("Email is already in use");
         }
-        if (userRepository.existsByUserName(request.getUserName())) {
-            throw new ConflictException("Username is already in use");
-        }
 
         String normalizedPhoneNumber = normalizeOptionalPhoneNumber(request.getPhoneNumber());
         ensurePhoneNumberAvailable(normalizedPhoneNumber, null);
@@ -155,7 +154,7 @@ public class AuthServiceImpl implements AuthService {
 
         User user = User.builder()
                 .fullName(request.getFullName())
-                .userName(request.getUserName())
+                .userName(usernameAllocator.generateUniqueUsername(request.getEmail()))
                 .email(request.getEmail())
                 .phoneNumber(normalizedPhoneNumber)
                 .password(passwordEncoder.encode(request.getPassword()))
@@ -397,7 +396,7 @@ public class AuthServiceImpl implements AuthService {
 
         User user = User.builder()
                 .fullName(googlePayload.name() == null || googlePayload.name().isBlank() ? emailPrefix : googlePayload.name())
-                .userName(emailPrefix + "_" + System.currentTimeMillis())
+                .userName(usernameAllocator.generateUniqueUsername(googlePayload.email()))
                 .email(googlePayload.email())
                 .avatarUrl(googlePayload.avatarUrl())
                 .password(passwordEncoder.encode(UUID.randomUUID().toString()))

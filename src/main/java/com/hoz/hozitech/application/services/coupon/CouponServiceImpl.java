@@ -294,7 +294,8 @@ public class CouponServiceImpl implements CouponService {
     public CouponResponse validateCoupon(String code, BigDecimal orderAmount) {
         promotionStatusSyncService.syncCouponStatuses();
         Coupon coupon = couponRepository.findByCode(code.toUpperCase())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid coupon code"));
+                .orElseThrow(() -> new InvalidParamException("Invalid coupon code")
+                        .withMessageKey("error.literal.coupon_not_found"));
 
         validateCouponAvailability(coupon);
         if (coupon.getMinOrderValue() != null && orderAmount.compareTo(coupon.getMinOrderValue()) < 0) {

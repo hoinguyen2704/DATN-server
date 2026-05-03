@@ -3,6 +3,7 @@ package com.hoz.hozitech.application.services.product;
 import com.hoz.hozitech.domain.dtos.request.ProductBasicRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductRequest;
 import com.hoz.hozitech.domain.dtos.request.ProductVariantsUpdateRequest;
+import com.hoz.hozitech.domain.dtos.response.AdminProductDeleteResultResponse;
 import com.hoz.hozitech.domain.dtos.response.AdminProductListItemResponse;
 import com.hoz.hozitech.domain.dtos.response.AdminProductPickerItemResponse;
 import com.hoz.hozitech.domain.dtos.response.AdminProductVariantSummaryResponse;
@@ -37,7 +38,7 @@ public interface ProductService {
 
     ProductResponse updateProductVariants(UUID id, ProductVariantsUpdateRequest request);
 
-    void deleteProduct(UUID id);
+    AdminProductDeleteResultResponse deleteProduct(UUID id);
 
     ProductResponse toggleProductStatus(UUID id);
 
