@@ -27,6 +27,7 @@ import com.hoz.hozitech.application.services.notification.AdminNotificationTempl
 import com.hoz.hozitech.application.services.promotion.PromotionStatusSyncService;
 import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
+import com.hoz.hozitech.config.exceptions.NotFoundException;
 import com.hoz.hozitech.domain.dtos.request.CouponRequest;
 import com.hoz.hozitech.domain.dtos.response.CouponResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
@@ -45,6 +46,9 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class CouponServiceImpl implements CouponService {
+
+    private static final String COUPON_NOT_FOUND_MESSAGE = "Coupon not found";
+    private static final String COUPON_NOT_FOUND_MESSAGE_KEY = "error.literal.coupon_not_found";
 
     private final CouponRepository couponRepository;
     private final OrderRepository orderRepository;
@@ -75,7 +79,7 @@ public class CouponServiceImpl implements CouponService {
     public CouponResponse getCouponById(UUID id) {
         promotionStatusSyncService.syncCouponStatuses();
         Coupon coupon = couponRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+                .orElseThrow(this::couponNotFound);
         return mapToResponse(coupon);
     }
 
@@ -83,8 +87,12 @@ public class CouponServiceImpl implements CouponService {
     @Transactional(readOnly = true)
     public CouponResponse getCouponByCode(String code) {
         promotionStatusSyncService.syncCouponStatuses();
-        Coupon coupon = couponRepository.findByCode(code.toUpperCase())
-                .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+        String normalizedCode = normalizeCouponCode(code);
+        if (normalizedCode == null) {
+            throw couponNotFound();
+        }
+        Coupon coupon = couponRepository.findByCode(normalizedCode)
+                .orElseThrow(this::couponNotFound);
         return mapToResponse(coupon);
     }
 
@@ -126,7 +134,7 @@ public class CouponServiceImpl implements CouponService {
     @Transactional
     public CouponResponse updateCoupon(UUID id, CouponRequest request) {
         Coupon coupon = couponRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+                .orElseThrow(this::couponNotFound);
 
         if (!coupon.getCode().equalsIgnoreCase(request.getCode())
                 && orderRepository.existsByCouponCodeInAnyOrder(coupon.getCode())) {
@@ -169,7 +177,7 @@ public class CouponServiceImpl implements CouponService {
     public CouponResponse toggleStatus(UUID id) {
         promotionStatusSyncService.syncCouponStatuses();
         Coupon coupon = couponRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+                .orElseThrow(this::couponNotFound);
 
         if (coupon.getStatus() == CouponStatus.EXPIRED) {
             return mapToResponse(coupon);
@@ -190,7 +198,7 @@ public class CouponServiceImpl implements CouponService {
     @Transactional
     public void deleteCoupon(UUID id) {
         Coupon coupon = couponRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+                .orElseThrow(this::couponNotFound);
 
         if (orderRepository.existsByCouponCodeInAnyOrder(coupon.getCode())) {
             throw new ConflictException(
@@ -247,11 +255,14 @@ public class CouponServiceImpl implements CouponService {
     @Override
     @Transactional
     public void saveCoupon(UUID userId, String code) {
-        String normalizedCode = code == null ? null : code.trim().toUpperCase();
+        String normalizedCode = normalizeCouponCode(code);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        if (normalizedCode == null) {
+            throw couponNotFound();
+        }
         Coupon coupon = couponRepository.findByCode(normalizedCode)
-                .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+                .orElseThrow(this::couponNotFound);
         if (userSavedCouponRepository.existsByUserIdAndCouponId(userId, coupon.getId())) {
             return;
         }
@@ -267,9 +278,12 @@ public class CouponServiceImpl implements CouponService {
     @Override
     @Transactional
     public void unsaveCoupon(UUID userId, String code) {
-        String normalizedCode = code == null ? null : code.trim().toUpperCase();
+        String normalizedCode = normalizeCouponCode(code);
+        if (normalizedCode == null) {
+            throw couponNotFound();
+        }
         Coupon coupon = couponRepository.findByCode(normalizedCode)
-                .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+                .orElseThrow(this::couponNotFound);
         userSavedCouponRepository.deleteByUserIdAndCouponId(userId, coupon.getId());
     }
 
@@ -293,9 +307,12 @@ public class CouponServiceImpl implements CouponService {
     @Override
     public CouponResponse validateCoupon(String code, BigDecimal orderAmount) {
         promotionStatusSyncService.syncCouponStatuses();
-        Coupon coupon = couponRepository.findByCode(code.toUpperCase())
-                .orElseThrow(() -> new InvalidParamException("Invalid coupon code")
-                        .withMessageKey("error.literal.coupon_not_found"));
+        String normalizedCode = normalizeCouponCode(code);
+        if (normalizedCode == null) {
+            throw invalidCouponCode();
+        }
+        Coupon coupon = couponRepository.findByCode(normalizedCode)
+                .orElseThrow(this::invalidCouponCode);
 
         validateCouponAvailability(coupon);
         if (coupon.getMinOrderValue() != null && orderAmount.compareTo(coupon.getMinOrderValue()) < 0) {
@@ -350,6 +367,24 @@ public class CouponServiceImpl implements CouponService {
         } else {
             coupon.getApplicableProducts().clear();
         }
+    }
+
+    private String normalizeCouponCode(String code) {
+        if (code == null) {
+            return null;
+        }
+        String normalizedCode = code.trim().toUpperCase();
+        return normalizedCode.isEmpty() ? null : normalizedCode;
+    }
+
+    private NotFoundException couponNotFound() {
+        return new NotFoundException(COUPON_NOT_FOUND_MESSAGE)
+                .withMessageKey(COUPON_NOT_FOUND_MESSAGE_KEY);
+    }
+
+    private InvalidParamException invalidCouponCode() {
+        return new InvalidParamException("Invalid coupon code")
+                .withMessageKey(COUPON_NOT_FOUND_MESSAGE_KEY);
     }
 
     private CouponResponse mapToResponse(Coupon coupon) {
