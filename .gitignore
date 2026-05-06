@@ -34,12 +34,6 @@ build/
 
 ### Environment ###
 .env*
-*/.DS_Store
-.DS_Store
-.DS_Store
-src/.DS_Store
-.DS_Store
-src/.DS_Store
 src/test/*
 !src/test/java/
 !src/test/java/**
