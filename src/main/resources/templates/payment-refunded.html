@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đơn hàng đã được hoàn tiền - HoziTech</title>
+</head>
+
+<body
+    style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+        style="background-color: #f1f5f9; padding: 24px 0;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0"
+                    style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06);">
+
+                    <tr>
+                        <td
+                            style="background: linear-gradient(135deg, #6366f1, #4f46e5); padding: 28px 32px; text-align: center;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                                <tr>
+                                    <td style="vertical-align: middle; padding-right: 12px;">
+                                        <div
+                                            style="width: 42px; height: 42px; background-color: rgba(255,255,255,0.2); border-radius: 12px; text-align: center; line-height: 42px;">
+                                            <img src="cid:logo" alt="HoziTech" width="26" height="26"
+                                                style="vertical-align: middle; display: inline-block;" />
+                                        </div>
+                                    </td>
+                                    <td style="vertical-align: middle;">
+                                        <span
+                                            style="font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">HoziTech</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 32px 32px 16px; text-align: center;">
+                            <div
+                                style="width: 64px; height: 64px; margin: 0 auto 16px; background-color: #ecfdf5; border-radius: 50%; line-height: 64px; text-align: center;">
+                                <span style="font-size: 32px; line-height: 64px;">💸</span>
+                            </div>
+                            <h2 style="margin: 0; font-size: 22px; font-weight: 700; color: #1e293b;">Hoàn tiền thành công</h2>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 0 32px 24px;">
+                            <p
+                                style="margin: 0; font-size: 15px; color: #475569; line-height: 1.6; text-align: center;">
+                                Xin chào <strong th:text="${CUSTOMER_NAME}" style="color: #1e293b;"></strong>,<br />
+                                Đơn hàng <strong th:text="${ORDER_NUMBER}" style="color: #6366f1;"></strong> của bạn đã được hoàn tiền thành công vào
+                                <strong th:text="${REFUNDED_DATE}" style="color: #1e293b;"></strong>.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 0 32px;">
+                            <div style="height: 1px; background-color: #e2e8f0;"></div>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 24px 32px 20px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                                style="background-color: #f8fafc; border-radius: 12px; overflow: hidden;">
+                                <tr>
+                                    <td style="padding: 12px 16px; font-size: 14px; color: #64748b;">Số tiền hoàn</td>
+                                    <td th:text="${REFUND_AMOUNT} + '₫'"
+                                        style="padding: 12px 16px; font-size: 14px; color: #059669; text-align: right; font-weight: 700;">
+                                    </td>
+                                </tr>
+                                <tr th:if="${PAYMENT_METHOD != null}">
+                                    <td style="padding: 12px 16px; font-size: 14px; color: #64748b;">Phương thức thanh toán</td>
+                                    <td th:text="${PAYMENT_METHOD}"
+                                        style="padding: 12px 16px; font-size: 14px; color: #1e293b; text-align: right; font-weight: 600;">
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 0 32px;">
+                            <div style="height: 1px; background-color: #e2e8f0;"></div>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 24px 32px;">
+                            <h3
+                                style="margin: 0 0 16px; font-size: 15px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.5px;">
+                                🛒 Sản phẩm trong đơn hàng
+                            </h3>
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                <tr th:each="item, stat : ${ORDER_ITEMS}" style="border-bottom: 1px solid #f1f5f9;">
+                                    <td style="width: 72px; padding: 12px 0; vertical-align: top;">
+                                        <img th:if="${item.imageUrl != null}" th:src="${item.imageUrl}"
+                                            style="width: 60px; height: 60px; object-fit: cover; border-radius: 10px; border: 1px solid #e2e8f0; display: block;"
+                                            alt="Product" />
+                                        <div th:unless="${item.imageUrl != null}"
+                                            style="width: 60px; height: 60px; background-color: #f1f5f9; border-radius: 10px; text-align: center; line-height: 60px; color: #94a3b8; font-size: 11px; border: 1px solid #e2e8f0;">
+                                            Ảnh minh họa</div>
+                                    </td>
+                                    <td style="padding: 12px 12px; vertical-align: top;">
+                                        <p style="margin: 0 0 4px; font-size: 14px; font-weight: 600; color: #1e293b;">
+                                            <span th:text="${stat.index + 1} + '. '"></span>
+                                            <span th:text="${item.productName}"></span>
+                                        </p>
+                                        <p th:if="${item.variantName != null}"
+                                            style="margin: 0 0 6px; font-size: 13px; color: #64748b;">
+                                            Phân loại: <span th:text="${item.variantName}"></span>
+                                        </p>
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                                            style="font-size: 13px;">
+                                            <tr>
+                                                <td style="color: #64748b;">Số lượng: <strong style="color: #334155;"
+                                                        th:text="'x' + ${item.quantity}"></strong></td>
+                                                <td style="color: #6366f1; font-weight: 700; text-align: right;"
+                                                    th:text="${#numbers.formatInteger(item.unitPrice, 0, 'POINT') + '₫'}">
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 0 32px 24px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                                style="background-color: #f8fafc; border-radius: 12px; overflow: hidden;">
+                                <tr>
+                                    <td style="padding: 14px 16px; font-size: 16px; font-weight: 700; color: #1e293b;">Tổng đơn hàng</td>
+                                    <td th:text="${ORDER_TOTAL} + '₫'"
+                                        style="padding: 14px 16px; font-size: 18px; font-weight: 700; color: #6366f1; text-align: right;">
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 0 32px 32px; text-align: center;">
+                            <a th:href="${ORDER_LINK}"
+                                style="display: inline-block; padding: 14px 36px; font-size: 15px; font-weight: 700; color: #ffffff; background: linear-gradient(135deg, #6366f1, #4f46e5); border-radius: 12px; text-decoration: none; letter-spacing: 0.3px; box-shadow: 0 4px 14px rgba(99,102,241,0.35);">
+                                Chi tiết đơn hàng →
+                            </a>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td
+                            style="background-color: #f8fafc; padding: 24px 32px; border-top: 1px solid #e2e8f0; text-align: center;">
+                            <p style="margin: 0 0 4px; font-size: 13px; color: #0d00ff;">Cảm ơn bạn đã mua sắm tại HoziTech!</p>
+                            <p style="margin: 0; font-size: 12px; color: #0d00ff;">132 Cầu Diễn, Hà Nội · 0828443833 ·
+                                hozinium@gmail.com</p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>

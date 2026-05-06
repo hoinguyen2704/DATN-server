@@ -47,6 +47,7 @@ class PaymentWebhookHandler {
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final NotificationService notificationService;
     private final AdminNotificationService adminNotificationService;
+    private final OrderEmailSender orderEmailSender;
     private final OrderResponseMapper responseMapper;
     private final OrderCheckoutHelper checkoutHelper;
     private final CouponApplier couponApplier;
@@ -157,6 +158,7 @@ class PaymentWebhookHandler {
             }
             notificationService.createForUser(order.getUser().getId(), UserNotificationTemplates.paymentRefunded(order));
             adminNotificationService.createShared(AdminNotificationTemplates.paymentRefunded(order), false);
+            orderEmailSender.sendPaymentRefundedEmail(order);
             return;
         }
 

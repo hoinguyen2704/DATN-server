@@ -7,6 +7,7 @@ import com.hoz.hozitech.application.services.payment.VnpayPaymentService;
 import com.hoz.hozitech.domain.dtos.response.OrderResponse;
 import com.hoz.hozitech.domain.dtos.response.OrderStatusHistoryResponse;
 import com.hoz.hozitech.domain.entities.Order;
+import com.hoz.hozitech.domain.entities.OrderItem;
 import com.hoz.hozitech.domain.entities.ProductImage;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.enums.PaymentMethod;
@@ -28,28 +29,13 @@ class OrderResponseMapper {
     OrderResponse mapToResponse(Order order) {
         List<OrderResponse.OrderItemResponse> items = order.getOrderItems().stream()
                 .map(item -> {
-                    String imageUrl = null;
+                    String imageUrl = resolveOrderItemImageUrl(item);
                     String sku = null;
                     String productSlug = null;
                     if (item.getVariant() != null) {
                         sku = item.getVariant().getSku();
                         if (item.getVariant().getProduct() != null) {
                             productSlug = item.getVariant().getProduct().getSlug();
-                        }
-                        if (item.getVariant().getImages() != null && !item.getVariant().getImages().isEmpty()) {
-                            imageUrl = item.getVariant().getImages().stream()
-                                    .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
-                                    .findFirst()
-                                    .map(ProductImage::getImageUrl)
-                                    .orElse(item.getVariant().getImages().get(0).getImageUrl());
-                        } else if (item.getVariant().getProduct() != null
-                                && item.getVariant().getProduct().getImages() != null
-                                && !item.getVariant().getProduct().getImages().isEmpty()) {
-                            imageUrl = item.getVariant().getProduct().getImages().stream()
-                                    .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
-                                    .findFirst()
-                                    .map(ProductImage::getImageUrl)
-                                    .orElse(item.getVariant().getProduct().getImages().get(0).getImageUrl());
                         }
                     }
                     return OrderResponse.OrderItemResponse.builder()
@@ -115,6 +101,32 @@ class OrderResponseMapper {
                 .items(items)
                 .statusHistories(historyResponses)
                 .build();
+    }
+
+    String resolveOrderItemImageUrl(OrderItem item) {
+        if (item == null || item.getVariant() == null) {
+            return null;
+        }
+
+        if (item.getVariant().getImages() != null && !item.getVariant().getImages().isEmpty()) {
+            return item.getVariant().getImages().stream()
+                    .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
+                    .findFirst()
+                    .map(ProductImage::getImageUrl)
+                    .orElse(item.getVariant().getImages().get(0).getImageUrl());
+        }
+
+        if (item.getVariant().getProduct() != null
+                && item.getVariant().getProduct().getImages() != null
+                && !item.getVariant().getProduct().getImages().isEmpty()) {
+            return item.getVariant().getProduct().getImages().stream()
+                    .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
+                    .findFirst()
+                    .map(ProductImage::getImageUrl)
+                    .orElse(item.getVariant().getProduct().getImages().get(0).getImageUrl());
+        }
+
+        return null;
     }
 
     OrderResponse buildCheckoutResponse(Order order, String ipAddress) {

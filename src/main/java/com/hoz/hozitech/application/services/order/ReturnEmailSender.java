@@ -27,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 class ReturnEmailSender {
 
     private final EmailService emailService;
+    private final OrderResponseMapper orderResponseMapper;
 
     @Value("${link.frontend}")
     private String frontendUrl;
@@ -78,6 +79,7 @@ class ReturnEmailSender {
             Map<String, Object> row = new HashMap<>();
             row.put("productName", item.getProductName());
             row.put("variantName", item.getVariantName());
+            row.put("imageUrl", orderResponseMapper.resolveOrderItemImageUrl(item.getOrderItem()));
             row.put("requestedQuantity", item.getRequestedQuantity());
             row.put("approvedQuantity", item.getApprovedQuantity());
             row.put("lineAmount", formatPrice(nz(item.getLineAmount())));

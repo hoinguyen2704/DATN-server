@@ -72,6 +72,25 @@ class OrderEmailSender {
         }
     }
 
+    void sendPaymentRefundedEmail(Order order) {
+        try {
+            User user = order.getUser();
+            String customerEmail = user.getEmail();
+            if (customerEmail == null || customerEmail.isBlank()) return;
+
+            Map<String, Object> variables = buildCommonEmailVariables(order, user);
+            variables.put("REFUNDED_DATE", LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+            variables.put("REFUND_AMOUNT", formatPrice(nz(order.getTotalAmount())));
+            variables.put("PAYMENT_METHOD", order.getPaymentMethod() != null ? order.getPaymentMethod().name() : null);
+
+            emailService.sendTemplateMail(customerEmail,
+                    "Đơn hàng " + order.getOrderNumber() + " đã được hoàn tiền - HoziTech",
+                    MailTemplate.PAYMENT_REFUNDED, variables);
+        } catch (Exception e) {
+            log.error("Failed to send payment refunded email for order {}", order.getOrderNumber(), e);
+        }
+    }
+
     private Map<String, Object> buildCommonEmailVariables(Order order, User user) {
         Map<String, Object> variables = new HashMap<>();
         variables.put("CUSTOMER_NAME", user.getFullName());
