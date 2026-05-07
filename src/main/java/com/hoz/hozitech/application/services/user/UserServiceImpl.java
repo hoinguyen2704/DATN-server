@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hoz.hozitech.application.constant.MailTemplate;
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.EmailChangeOtpRepository;
 import com.hoz.hozitech.application.repositories.RoleRepository;
@@ -559,7 +560,7 @@ public class UserServiceImpl implements UserService {
         emailService.sendTemplateMail(
                 newEmail,
                 "Mã xác thực đổi email - HoziTech",
-                "otp-email",
+                MailTemplate.OTP_VERIFICATION,
                 Map.of("otpCode", otpCode));
     }
 
