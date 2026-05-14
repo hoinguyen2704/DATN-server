@@ -51,7 +51,7 @@ public class TicketServiceImpl implements TicketService {
     @Transactional(readOnly = true)
     public PageResponse<TicketResponse> getMyTickets(UUID userId, int page, int size) {
         Pageable pageable = PaginationConstant.of(page, size);
-        Page<Ticket> tickets = ticketRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        Page<Ticket> tickets = ticketRepository.findByUserIdOrderByCreatedAtDescIdDesc(userId, pageable);
         return PageResponse.of(tickets.map(this::mapToResponse));
     }
 
@@ -155,7 +155,7 @@ public class TicketServiceImpl implements TicketService {
         Pageable pageable = PaginationConstant.of(page, size);
         Page<Ticket> tickets;
         if (status != null && !status.isBlank()) {
-            tickets = ticketRepository.findByStatusOrderByCreatedAtDesc(TicketStatus.valueOf(status.toUpperCase()), pageable);
+            tickets = ticketRepository.findByStatusOrderByCreatedAtDescIdDesc(TicketStatus.valueOf(status.toUpperCase()), pageable);
         } else {
             tickets = ticketRepository.findAll(pageable);
         }

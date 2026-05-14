@@ -28,6 +28,12 @@ public interface FlashSaleService {
 
     List<FlashSaleResponse> getActiveFlashSales();
 
+    PageResponse<FlashSaleResponse> getActiveFlashSales(int page, int size);
+
+    PageResponse<FlashSaleResponse.FlashSaleItemResponse> getActiveFlashSaleItems(UUID flashSaleId, int page, int size);
+
+    List<FlashSaleResponse.FlashSaleItemResponse> getActiveFlashSaleItemsByVariantIds(List<UUID> variantIds);
+
     BigDecimal getActiveFlashSalePrice(UUID variantId, int quantity);
 
     BigDecimal applyFlashSaleAndReduceStock(UUID variantId, int quantity);

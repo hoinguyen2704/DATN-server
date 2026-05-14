@@ -4,7 +4,9 @@ import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.AddressRepository;
 import com.hoz.hozitech.application.repositories.CartRepository;
 import com.hoz.hozitech.application.repositories.OrderRepository;
+import com.hoz.hozitech.application.repositories.OrderRepository.UserOrderListRow;
 import com.hoz.hozitech.application.repositories.OrderStatusHistoryRepository;
+import com.hoz.hozitech.application.repositories.ProductImageRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.services.notification.AdminNotificationService;
 import com.hoz.hozitech.application.services.notification.NotificationService;
@@ -42,10 +44,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static com.hoz.hozitech.application.services.order.OrderUtils.normalizeIdempotencyKey;
 import static com.hoz.hozitech.application.services.order.OrderUtils.trimToNull;
@@ -77,6 +82,7 @@ public class OrderServiceImpl implements OrderService {
     private final AddressRepository addressRepository;
     private final CartRepository cartRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
+    private final ProductImageRepository productImageRepository;
     private final SettingService settingService;
     private final NotificationService notificationService;
     private final AdminNotificationService adminNotificationService;
@@ -226,9 +232,16 @@ public class OrderServiceImpl implements OrderService {
     public PageResponse<OrderResponse> getMyOrders(UUID userId, String status, String keyword, int page, int size) {
         var pageable = PaginationConstant.of(page, size);
         OrderStatus orderStatus = parseNullableOrderStatus(status);
-        Specification<Order> spec = OrderSpecification.filter(userId, orderStatus, null, null, keyword);
-        Page<Order> orders = orderRepository.findAll(spec, pageable);
-        return PageResponse.of(orders.map(responseMapper::mapToResponse));
+        Page<UUID> orderIdsPage = fetchMyOrderIdPage(userId, orderStatus, keyword, pageable);
+        List<OrderResponse> content = buildMyOrderListResponses(orderIdsPage.getContent());
+
+        return PageResponse.<OrderResponse>builder()
+                .data(content)
+                .page(page)
+                .perPage(size)
+                .total(orderIdsPage.getTotalElements())
+                .lastPage(orderIdsPage.getTotalPages())
+                .build();
     }
 
     @Override
@@ -326,6 +339,95 @@ public class OrderServiceImpl implements OrderService {
                 .itemCount(order.getItemCount() != null ? order.getItemCount() : 0)
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
+                .build();
+    }
+
+    private Page<UUID> fetchMyOrderIdPage(UUID userId, OrderStatus orderStatus, String keyword, org.springframework.data.domain.Pageable pageable) {
+        String normalizedKeyword = trimToNull(keyword);
+        if (normalizedKeyword == null) {
+            return orderStatus == null
+                    ? orderRepository.findOrderIdsByUserIdOrderByCreatedAtDesc(userId, pageable)
+                    : orderRepository.findOrderIdsByUserIdAndOrderStatusOrderByCreatedAtDesc(userId, orderStatus, pageable);
+        }
+
+        String keywordLike = "%" + normalizedKeyword.toLowerCase(Locale.ROOT) + "%";
+        return orderStatus == null
+                ? orderRepository.findOrderIdsByUserIdAndOrderNumberLikeOrderByCreatedAtDesc(
+                        userId,
+                        keywordLike,
+                        pageable)
+                : orderRepository.findOrderIdsByUserIdAndOrderStatusAndOrderNumberLikeOrderByCreatedAtDesc(
+                        userId,
+                        orderStatus,
+                        keywordLike,
+                        pageable);
+    }
+
+    private List<OrderResponse> buildMyOrderListResponses(List<UUID> orderIds) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<UserOrderListRow> rows = orderRepository.findUserOrderListRowsByIds(orderIds);
+        Map<UUID, List<UserOrderListRow>> rowsByOrderId = rows.stream()
+                .collect(Collectors.groupingBy(
+                        UserOrderListRow::getOrderId,
+                        LinkedHashMap::new,
+                        Collectors.toCollection(ArrayList::new)));
+        Map<UUID, String> imageByProductId = buildMyOrderImageMap(rows);
+        return orderIds.stream()
+                .map(rowsByOrderId::get)
+                .filter(orderRows -> orderRows != null && !orderRows.isEmpty())
+                .map(orderRows -> mapMyOrderListResponse(orderRows.getFirst(), orderRows, imageByProductId))
+                .toList();
+    }
+
+    private Map<UUID, String> buildMyOrderImageMap(List<UserOrderListRow> rows) {
+        List<UUID> productIds = rows.stream()
+                .map(UserOrderListRow::getProductId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        if (productIds.isEmpty()) {
+            return Map.of();
+        }
+        return productImageRepository.findPreferredImageMapByProductIds(productIds);
+    }
+
+    private OrderResponse mapMyOrderListResponse(
+            UserOrderListRow orderRow,
+            List<UserOrderListRow> itemRows,
+            Map<UUID, String> imageByProductId) {
+        List<OrderResponse.OrderItemResponse> items = itemRows.stream()
+                .filter(row -> row.getItemId() != null)
+                .map(row -> OrderResponse.OrderItemResponse.builder()
+                        .id(row.getItemId())
+                        .variantId(row.getVariantId())
+                        .productId(row.getProductId())
+                        .productSlug(row.getProductSlug())
+                        .productName(row.getProductName())
+                        .variantName(row.getVariantName())
+                        .imageUrl(row.getProductId() == null ? null : imageByProductId.get(row.getProductId()))
+                        .sku(row.getSku())
+                        .unitPrice(row.getUnitPrice())
+                        .quantity(row.getQuantity())
+                        .subtotal(row.getItemSubtotal())
+                        .build())
+                .toList();
+
+        return OrderResponse.builder()
+                .id(orderRow.getOrderId())
+                .orderNumber(orderRow.getOrderNumber())
+                .orderStatus(orderRow.getOrderStatus().name())
+                .paymentMethod(orderRow.getPaymentMethod().name())
+                .paymentStatus(orderRow.getPaymentStatus().name())
+                .totalAmount(orderRow.getTotalAmount())
+                .customerName(orderRow.getCustomerName())
+                .customerEmail(orderRow.getCustomerEmail())
+                .customerPhone(orderRow.getCustomerPhone())
+                .createdAt(orderRow.getCreatedAt())
+                .updatedAt(orderRow.getUpdatedAt())
+                .items(items)
                 .build();
     }
 

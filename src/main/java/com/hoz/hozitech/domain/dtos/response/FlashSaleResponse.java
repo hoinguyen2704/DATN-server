@@ -19,6 +19,7 @@ public class FlashSaleResponse {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private String status;
+    private Integer itemCount;
     private List<FlashSaleItemResponse> items;
     private LocalDateTime createdAt;
 

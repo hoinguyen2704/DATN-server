@@ -37,14 +37,16 @@ public final class PaginationConstant {
     }
 
     /**
-     * Tạo Pageable với sort mặc định (createdAt DESC).
+     * Tạo Pageable với sort mặc định (createdAt DESC, id DESC).
      * page: 1-based (từ client), tự chuyển sang 0-based.
      */
     public static Pageable of(int page, int size) {
         return PageRequest.of(
                 Math.max(page - 1, 0),
                 validateSize(size),
-                Sort.by(DEFAULT_SORT_FIELD).descending());
+                Sort.by(
+                        Sort.Order.desc(DEFAULT_SORT_FIELD),
+                        Sort.Order.desc("id")));
     }
 
     /**

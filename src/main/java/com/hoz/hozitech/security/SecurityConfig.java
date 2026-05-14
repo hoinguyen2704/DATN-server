@@ -45,6 +45,7 @@ public class SecurityConfig {
             "/api/v1/auth/google/link/callback",
             "/api/v1/auth/google/exchange-ticket",
             "/api/v1/products/**",
+            "/api/v1/feedbacks/product/**",
             "/api/v1/categories/**",
             "/api/v1/brands/**",
             "/api/v1/coupons/**",

@@ -18,6 +18,7 @@ public class AdminProductVariantSummaryResponse {
     private String variantName;
     private String sku;
     private BigDecimal price;
+    private BigDecimal compareAtPrice;
     private Integer stockQuantity;
     private Long grossSoldQty;
     private Long returnedQty;

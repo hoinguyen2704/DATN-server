@@ -14,9 +14,9 @@ import java.util.UUID;
 @Repository
 public interface TicketRepository extends JpaRepository<Ticket, UUID> {
     
-    Page<Ticket> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+    Page<Ticket> findByUserIdOrderByCreatedAtDescIdDesc(UUID userId, Pageable pageable);
     
-    Page<Ticket> findByStatusOrderByCreatedAtDesc(TicketStatus status, Pageable pageable);
+    Page<Ticket> findByStatusOrderByCreatedAtDescIdDesc(TicketStatus status, Pageable pageable);
 
     @EntityGraph(attributePaths = { "user", "messages" })
     Optional<Ticket> findDetailById(UUID id);

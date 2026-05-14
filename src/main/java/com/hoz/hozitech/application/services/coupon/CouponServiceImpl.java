@@ -4,8 +4,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -33,7 +36,6 @@ import com.hoz.hozitech.domain.dtos.response.CouponResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
 import com.hoz.hozitech.domain.entities.Coupon;
 import com.hoz.hozitech.domain.entities.Product;
-import com.hoz.hozitech.domain.entities.ProductImage;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.entities.UserSavedCoupon;
 import com.hoz.hozitech.domain.enums.CouponApplyType;
@@ -70,8 +72,15 @@ public class CouponServiceImpl implements CouponService {
     public PageResponse<CouponResponse> getAllCoupons(String keyword, int page, int size) {
         promotionStatusSyncService.syncCouponStatuses();
         Pageable pageable = PaginationConstant.of(page, size);
-        Page<Coupon> coupons = couponRepository.findAll(pageable);
-        return PageResponse.of(coupons.map(this::mapToResponse));
+        Page<Coupon> coupons = keyword != null && !keyword.isBlank()
+                ? couponRepository.findByCodeContainingIgnoreCase(keyword.trim(), pageable)
+                : couponRepository.findAll(pageable);
+        Map<UUID, List<UUID>> applicableProductIdsByCouponId = buildApplicableProductIdsByCouponId(coupons.getContent().stream()
+                .map(Coupon::getId)
+                .toList());
+        return PageResponse.of(coupons.map(coupon -> mapToAdminListResponse(
+                coupon,
+                applicableProductIdsByCouponId.getOrDefault(coupon.getId(), List.of()))));
     }
 
     @Override
@@ -86,7 +95,6 @@ public class CouponServiceImpl implements CouponService {
     @Override
     @Transactional(readOnly = true)
     public CouponResponse getCouponByCode(String code) {
-        promotionStatusSyncService.syncCouponStatuses();
         String normalizedCode = normalizeCouponCode(code);
         if (normalizedCode == null) {
             throw couponNotFound();
@@ -218,16 +226,8 @@ public class CouponServiceImpl implements CouponService {
     @Override
     @Transactional(readOnly = true)
     public List<CouponResponse> getPublicCoupons(UUID userId) {
-        promotionStatusSyncService.syncCouponStatuses();
         LocalDateTime now = LocalDateTime.now(ZoneId.of(appTimezone));
-
-        // Fetch public + active vouchers (with or without end date)
-        List<Coupon> withEndDate = couponRepository.findByIsPublicTrueAndStatusAndEndDateAfter(CouponStatus.ACTIVE,
-                now);
-        List<Coupon> withoutEndDate = couponRepository.findByIsPublicTrueAndStatusAndEndDateIsNull(CouponStatus.ACTIVE);
-
-        List<Coupon> all = new ArrayList<>(withEndDate);
-        all.addAll(withoutEndDate);
+        List<Coupon> all = couponRepository.findVisiblePublicCoupons(CouponStatus.ACTIVE, now);
 
         // Check which ones user has saved
         Set<UUID> savedCouponIds = new HashSet<>();
@@ -238,10 +238,15 @@ public class CouponServiceImpl implements CouponService {
         }
 
         Set<UUID> finalSavedIds = savedCouponIds;
+        Map<UUID, List<UUID>> applicableProductIdsByCouponId = buildApplicableProductIdsByCouponId(all.stream()
+                .map(Coupon::getId)
+                .toList());
         return all.stream()
                 .filter(c -> c.getUsageLimit() == null || c.getUsedCount() < c.getUsageLimit()) // still available
                 .map(c -> {
-                    CouponResponse resp = mapToResponse(c);
+                    CouponResponse resp = mapToResponse(
+                            c,
+                            applicableProductIdsByCouponId.getOrDefault(c.getId(), List.of()));
                     resp.setSaved(finalSavedIds.contains(c.getId()));
                     return resp;
                 })
@@ -290,10 +295,15 @@ public class CouponServiceImpl implements CouponService {
     @Override
     @Transactional(readOnly = true)
     public List<CouponResponse> getMySavedCoupons(UUID userId) {
-        promotionStatusSyncService.syncCouponStatuses();
-        return userSavedCouponRepository.findByUserId(userId).stream()
+        List<UserSavedCoupon> savedCoupons = userSavedCouponRepository.findByUserId(userId);
+        Map<UUID, List<UUID>> applicableProductIdsByCouponId = buildApplicableProductIdsByCouponId(savedCoupons.stream()
+                .map(usc -> usc.getCoupon().getId())
+                .toList());
+        return savedCoupons.stream()
                 .map(usc -> {
-                    CouponResponse resp = mapToResponse(usc.getCoupon());
+                    CouponResponse resp = mapToResponse(
+                            usc.getCoupon(),
+                            applicableProductIdsByCouponId.getOrDefault(usc.getCoupon().getId(), List.of()));
                     resp.setSaved(true);
                     return resp;
                 })
@@ -306,7 +316,6 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     public CouponResponse validateCoupon(String code, BigDecimal orderAmount) {
-        promotionStatusSyncService.syncCouponStatuses();
         String normalizedCode = normalizeCouponCode(code);
         if (normalizedCode == null) {
             throw invalidCouponCode();
@@ -388,21 +397,20 @@ public class CouponServiceImpl implements CouponService {
     }
 
     private CouponResponse mapToResponse(Coupon coupon) {
-        List<CouponResponse.ApplicableProductInfo> productInfos = new ArrayList<>();
-        if (coupon.getApplicableProducts() != null) {
-            productInfos = coupon.getApplicableProducts().stream()
-                    .map(p -> CouponResponse.ApplicableProductInfo.builder()
-                            .id(p.getId())
-                            .name(p.getName())
-                            .slug(p.getSlug())
-                            .mainImageUrl(p.getImages().stream()
-                                    .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
-                                    .map(ProductImage::getImageUrl)
-                                    .findFirst()
-                                    .orElse(p.getImages().isEmpty() ? null : p.getImages().get(0).getImageUrl()))
-                            .build())
-                    .collect(Collectors.toList());
-        }
+        List<UUID> applicableProductIds = coupon.getApplicableProducts() == null
+                ? List.of()
+                : coupon.getApplicableProducts().stream()
+                        .map(Product::getId)
+                        .toList();
+        return mapToResponse(coupon, applicableProductIds);
+    }
+
+    private CouponResponse mapToResponse(Coupon coupon, List<UUID> applicableProductIds) {
+        List<CouponResponse.ApplicableProductInfo> productInfos = applicableProductIds.stream()
+                .map(productId -> CouponResponse.ApplicableProductInfo.builder()
+                        .id(productId)
+                        .build())
+                .toList();
 
         return CouponResponse.builder()
                 .id(coupon.getId())
@@ -421,5 +429,45 @@ public class CouponServiceImpl implements CouponService {
                 .applyType(coupon.getApplyType())
                 .applicableProducts(productInfos)
                 .build();
+    }
+
+    private CouponResponse mapToAdminListResponse(Coupon coupon, List<UUID> applicableProductIds) {
+        List<CouponResponse.ApplicableProductInfo> productInfos = applicableProductIds.stream()
+                .map(productId -> CouponResponse.ApplicableProductInfo.builder()
+                        .id(productId)
+                        .build())
+                .toList();
+
+        return CouponResponse.builder()
+                .id(coupon.getId())
+                .code(coupon.getCode())
+                .discountType(coupon.getDiscountType())
+                .couponCategory(coupon.getCouponCategory())
+                .discountValue(coupon.getDiscountValue())
+                .minOrderValue(coupon.getMinOrderValue())
+                .maxDiscountAmount(coupon.getMaxDiscountAmount())
+                .usageLimit(coupon.getUsageLimit())
+                .usedCount(coupon.getUsedCount())
+                .startDate(coupon.getStartDate())
+                .endDate(coupon.getEndDate())
+                .status(coupon.getStatus())
+                .isPublic(coupon.getIsPublic())
+                .applyType(coupon.getApplyType())
+                .applicableProducts(productInfos)
+                .build();
+    }
+
+    private Map<UUID, List<UUID>> buildApplicableProductIdsByCouponId(Collection<UUID> couponIds) {
+        if (couponIds == null || couponIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<UUID, List<UUID>> productIdsByCouponId = new LinkedHashMap<>();
+        for (Object[] row : couponRepository.findApplicableProductPairsByCouponIds(couponIds)) {
+            UUID couponId = (UUID) row[0];
+            UUID productId = (UUID) row[1];
+            productIdsByCouponId.computeIfAbsent(couponId, ignored -> new ArrayList<>()).add(productId);
+        }
+        return productIdsByCouponId;
     }
 }

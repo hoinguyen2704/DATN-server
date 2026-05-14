@@ -35,10 +35,12 @@ public interface ProductRepository extends JpaRepository<Product, UUID>, JpaSpec
 
     boolean existsByCategoryId(UUID categoryId);
 
-    @Query("SELECT AVG(f.rating) FROM Feedback f WHERE f.product.id = :productId")
+    boolean existsByBrandId(UUID brandId);
+
+    @Query("SELECT AVG(f.rating) FROM Feedback f WHERE f.product.id = :productId AND f.status = com.hoz.hozitech.domain.enums.FeedbackStatus.APPROVED")
     Double getAverageRating(@Param("productId") UUID productId);
 
-    @Query("SELECT COUNT(f) FROM Feedback f WHERE f.product.id = :productId")
+    @Query("SELECT COUNT(f) FROM Feedback f WHERE f.product.id = :productId AND f.status = com.hoz.hozitech.domain.enums.FeedbackStatus.APPROVED")
     Long countFeedbacks(@Param("productId") UUID productId);
 
     // Homepage queries
@@ -46,6 +48,13 @@ public interface ProductRepository extends JpaRepository<Product, UUID>, JpaSpec
 
     List<Product> findByStatusOrderByCreatedAtDesc(ProductStatus status, Pageable pageable);
 
-    @Query("SELECT p FROM Product p LEFT JOIN Feedback f ON f.product = p WHERE p.status = 'ACTIVE' GROUP BY p ORDER BY COALESCE(AVG(f.rating), 0) DESC, COUNT(f) DESC")
+    @Query("""
+            SELECT p
+            FROM Product p
+            LEFT JOIN Feedback f ON f.product = p AND f.status = com.hoz.hozitech.domain.enums.FeedbackStatus.APPROVED
+            WHERE p.status = 'ACTIVE'
+            GROUP BY p
+            ORDER BY COALESCE(AVG(f.rating), 0) DESC, COUNT(f) DESC
+            """)
     List<Product> findTopRatedProducts(Pageable pageable);
 }

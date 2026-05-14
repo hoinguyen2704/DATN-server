@@ -2,6 +2,7 @@ package com.hoz.hozitech.web.exceptions;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Locale;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -140,8 +141,32 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
+        if (isClientDisconnect(ex)) {
+            log.warn("Client disconnected while streaming response: {}", ex.getMessage());
+            return ResponseEntity.noContent().build();
+        }
         log.error("Unexpected error: ", ex);
         return localizedError(HttpStatus.INTERNAL_SERVER_ERROR, "error.internal_server_error");
+    }
+
+    private boolean isClientDisconnect(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            String simpleName = current.getClass().getSimpleName();
+            if ("ClientAbortException".equals(simpleName)
+                    || "AsyncRequestNotUsableException".equals(simpleName)) {
+                return true;
+            }
+            String message = current.getMessage();
+            if (message != null) {
+                String normalized = message.toLowerCase(Locale.ROOT);
+                if (normalized.contains("broken pipe") || normalized.contains("connection reset by peer")) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private ResponseEntity<ApiResponse<Void>> localizedRuntimeError(

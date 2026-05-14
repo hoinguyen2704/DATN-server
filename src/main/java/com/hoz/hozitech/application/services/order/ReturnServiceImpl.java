@@ -251,7 +251,7 @@ public class ReturnServiceImpl implements ReturnService {
 
         Specification<ReturnRequest> spec = ReturnRequestSpecification.filter(userId, parsedStatus, keyword);
         Page<ReturnRequest> result = returnRequestRepository.findAll(spec, pageable);
-        return PageResponse.of(result.map(this::mapToResponse));
+        return PageResponse.of(result.map(this::mapToSummaryResponse));
     }
 
     @Override
@@ -305,7 +305,7 @@ public class ReturnServiceImpl implements ReturnService {
 
         Specification<ReturnRequest> spec = ReturnRequestSpecification.filter(null, parsedStatus, keyword);
         Page<ReturnRequest> result = returnRequestRepository.findAll(spec, pageable);
-        return PageResponse.of(result.map(this::mapToResponse));
+        return PageResponse.of(result.map(this::mapToSummaryResponse));
     }
 
     @Override
@@ -610,6 +610,33 @@ public class ReturnServiceImpl implements ReturnService {
                 .items(itemResponses)
                 .refunds(refundResponses)
                 .statusHistories(historyResponses)
+                .build();
+    }
+
+    private ReturnRequestResponse mapToSummaryResponse(ReturnRequest rr) {
+        return ReturnRequestResponse.builder()
+                .id(rr.getId())
+                .returnNumber(rr.getReturnNumber())
+                .orderId(rr.getOrder() != null ? rr.getOrder().getId() : null)
+                .orderNumber(rr.getOrder() != null ? rr.getOrder().getOrderNumber() : null)
+                .userId(rr.getUser() != null ? rr.getUser().getId() : null)
+                .userName(rr.getUser() != null ? rr.getUser().getFullName() : null)
+                .userEmail(rr.getUser() != null ? rr.getUser().getEmail() : null)
+                .status(rr.getStatus().name())
+                .refundStatus(rr.getRefundStatus().name())
+                .reason(rr.getReason())
+                .evidenceNote(rr.getEvidenceNote())
+                .evidenceImageUrls(List.of())
+                .adminNote(rr.getAdminNote())
+                .requestedAmount(rr.getRequestedAmount())
+                .approvedAmount(rr.getApprovedAmount())
+                .refundAmount(rr.getRefundAmount())
+                .createdAt(rr.getCreatedAt())
+                .updatedAt(rr.getUpdatedAt())
+                .resolvedAt(rr.getResolvedAt())
+                .items(List.of())
+                .refunds(List.of())
+                .statusHistories(List.of())
                 .build();
     }
 

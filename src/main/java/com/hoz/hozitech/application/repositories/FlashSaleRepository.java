@@ -10,17 +10,58 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
 @Repository
 public interface FlashSaleRepository extends JpaRepository<FlashSale, UUID> {
 
-    @Query("SELECT fs FROM FlashSale fs WHERE fs.status = 'ACTIVE' " +
-            "AND fs.startTime <= CURRENT_TIMESTAMP AND fs.endTime >= CURRENT_TIMESTAMP ORDER BY fs.endTime ASC")
-    List<FlashSale> findActiveFlashSales();
+    @Query("""
+            select fs.id as id,
+                   fs.name as name,
+                   fs.description as description,
+                   fs.startTime as startTime,
+                   fs.endTime as endTime,
+                   fs.createdAt as createdAt
+            from FlashSale fs
+            where fs.startTime <= CURRENT_TIMESTAMP
+              and fs.endTime >= CURRENT_TIMESTAMP
+            order by fs.endTime asc
+            """)
+    List<ActiveStorefrontFlashSaleView> findActiveStorefrontFlashSales();
+
+    @Query(
+            value = """
+                    select fs.id as id,
+                           fs.name as name,
+                           fs.description as description,
+                           fs.startTime as startTime,
+                           fs.endTime as endTime,
+                           fs.createdAt as createdAt
+                    from FlashSale fs
+                    where fs.startTime <= CURRENT_TIMESTAMP
+                      and fs.endTime >= CURRENT_TIMESTAMP
+                    order by fs.endTime asc
+                    """,
+            countQuery = """
+                    select count(fs)
+                    from FlashSale fs
+                    where fs.startTime <= CURRENT_TIMESTAMP
+                      and fs.endTime >= CURRENT_TIMESTAMP
+                    """)
+    Page<ActiveStorefrontFlashSaleView> findActiveStorefrontFlashSales(Pageable pageable);
 
     Page<FlashSale> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    @Query("""
+            select fs.id, count(fsi.id)
+            from FlashSale fs
+            left join fs.items fsi
+            where fs.id in :flashSaleIds
+            group by fs.id
+            """)
+    List<Object[]> countItemsByFlashSaleIds(@Param("flashSaleIds") Collection<UUID> flashSaleIds);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE FlashSale fs SET fs.status = com.hoz.hozitech.domain.enums.FlashSaleStatus.SCHEDULED " +
@@ -39,4 +80,18 @@ public interface FlashSaleRepository extends JpaRepository<FlashSale, UUID> {
             "WHERE fs.endTime < :now " +
             "AND fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.ENDED")
     int markEndedFlashSales(@Param("now") LocalDateTime now);
+
+    interface ActiveStorefrontFlashSaleView {
+        UUID getId();
+
+        String getName();
+
+        String getDescription();
+
+        LocalDateTime getStartTime();
+
+        LocalDateTime getEndTime();
+
+        LocalDateTime getCreatedAt();
+    }
 }

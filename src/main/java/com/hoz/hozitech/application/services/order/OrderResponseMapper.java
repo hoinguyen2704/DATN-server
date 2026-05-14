@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
@@ -100,6 +102,49 @@ class OrderResponseMapper {
                 .updatedAt(order.getUpdatedAt())
                 .items(items)
                 .statusHistories(historyResponses)
+                .build();
+    }
+
+    OrderResponse mapToListResponse(Order order, Map<UUID, String> imageByProductId) {
+        List<OrderResponse.OrderItemResponse> items = order.getOrderItems().stream()
+                .map(item -> {
+                    UUID productId = item.getVariant() != null && item.getVariant().getProduct() != null
+                            ? item.getVariant().getProduct().getId()
+                            : null;
+                    String productSlug = item.getVariant() != null && item.getVariant().getProduct() != null
+                            ? item.getVariant().getProduct().getSlug()
+                            : null;
+                    String sku = item.getVariant() != null ? item.getVariant().getSku() : null;
+                    return OrderResponse.OrderItemResponse.builder()
+                            .id(item.getId())
+                            .variantId(item.getVariant() != null ? item.getVariant().getId() : null)
+                            .productId(productId)
+                            .productSlug(productSlug)
+                            .productName(item.getProductName())
+                            .variantName(item.getVariantName())
+                            .imageUrl(productId == null ? null : imageByProductId.get(productId))
+                            .sku(sku)
+                            .unitPrice(item.getUnitPrice())
+                            .quantity(item.getQuantity())
+                            .subtotal(item.getSubtotal())
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        User user = order.getUser();
+        return OrderResponse.builder()
+                .id(order.getId())
+                .orderNumber(order.getOrderNumber())
+                .orderStatus(order.getOrderStatus().name())
+                .paymentMethod(order.getPaymentMethod().name())
+                .paymentStatus(order.getPaymentStatus().name())
+                .totalAmount(order.getTotalAmount())
+                .customerName(user != null ? user.getFullName() : null)
+                .customerEmail(user != null ? user.getEmail() : null)
+                .customerPhone(user != null ? user.getPhoneNumber() : null)
+                .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
+                .items(items)
                 .build();
     }
 

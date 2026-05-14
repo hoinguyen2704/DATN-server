@@ -38,4 +38,37 @@ public class FeedbackResponse {
     private LocalDateTime repliedAt;
     
     private Integer editCount;
+
+    public FeedbackResponse(
+            UUID id,
+            Integer rating,
+            String content,
+            String imagesJson,
+            FeedbackStatus status,
+            LocalDateTime createdAt,
+            UUID productId,
+            String productSlug,
+            String productName,
+            UUID userId,
+            String userName,
+            String userAvatar,
+            String adminReply,
+            LocalDateTime repliedAt,
+            Integer editCount) {
+        this.id = id;
+        this.rating = rating;
+        this.content = content;
+        this.imagesJson = imagesJson;
+        this.status = status;
+        this.createdAt = createdAt;
+        this.productId = productId;
+        this.productSlug = productSlug;
+        this.productName = productName;
+        this.userId = userId;
+        this.userName = userName;
+        this.userAvatar = userAvatar;
+        this.adminReply = adminReply;
+        this.repliedAt = repliedAt;
+        this.editCount = editCount;
+    }
 }

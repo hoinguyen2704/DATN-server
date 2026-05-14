@@ -11,7 +11,6 @@ import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.services.notification.AdminNotificationService;
 import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
 import com.hoz.hozitech.application.services.storage.FileStorageService;
-import com.hoz.hozitech.application.specifications.FeedbackSpecification;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 import com.hoz.hozitech.domain.dtos.request.FeedbackRequest;
@@ -49,6 +48,8 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     private static final int MAX_FEEDBACK_SUBMISSIONS_PER_VARIANT = 2;
     private static final int MAX_FEEDBACK_IMAGES = 5;
+    private static final int PUBLIC_FEEDBACK_MAX_PAGE_SIZE = 10;
+    private static final int ADMIN_FEEDBACK_MAX_PAGE_SIZE = 10;
     private static final String FEEDBACK_IMAGE_FOLDER = "feedbacks";
 
     private final FeedbackRepository feedbackRepository;
@@ -64,7 +65,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Transactional(readOnly = true)
     public ProductFeedbackPageResponse getFeedbacksByProduct(String productSlug, Integer rating, Boolean hasComment, int page, int size) {
         Product product = resolveProductBySlug(productSlug);
-        Pageable pageable = PaginationConstant.of(page, size);
+        Pageable pageable = PaginationConstant.of(page, Math.min(size, PUBLIC_FEEDBACK_MAX_PAGE_SIZE));
         Page<Feedback> feedbacks = feedbackRepository.findPublicByProductWithFilters(
                 product.getId(),
                 FeedbackStatus.APPROVED,
@@ -161,9 +162,8 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<FeedbackResponse> getAllFeedbacks(String status, UUID productId, int page, int size) {
-        Pageable pageable = PaginationConstant.of(page, size);
-        Page<Feedback> feedbacks = feedbackRepository.findAll(FeedbackSpecification.filter(status, productId), pageable);
-        return PageResponse.of(feedbacks.map(this::mapToResponse));
+        Pageable pageable = PaginationConstant.of(page, Math.min(size, ADMIN_FEEDBACK_MAX_PAGE_SIZE));
+        return PageResponse.of(feedbackRepository.findAdminList(parseFeedbackStatus(status), productId, pageable));
     }
 
     @Override
@@ -231,6 +231,18 @@ public class FeedbackServiceImpl implements FeedbackService {
         }
         return orderRepository.findByOrderNumber(normalizedOrderNumber)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+    }
+
+    private FeedbackStatus parseFeedbackStatus(String status) {
+        String normalizedStatus = trimToNull(status);
+        if (normalizedStatus == null) {
+            return null;
+        }
+        try {
+            return FeedbackStatus.valueOf(normalizedStatus.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     private FeedbackResponse mapToResponse(Feedback feedback) {

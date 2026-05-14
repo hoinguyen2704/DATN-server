@@ -17,14 +17,9 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.BrandRepository;
 import com.hoz.hozitech.application.repositories.CartRepository;
 import com.hoz.hozitech.application.repositories.CategoryRepository;
@@ -32,12 +27,15 @@ import com.hoz.hozitech.application.repositories.FlashSaleItemRepository;
 import com.hoz.hozitech.application.repositories.OrderItemRepository;
 import com.hoz.hozitech.application.repositories.ProductImageRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
+import com.hoz.hozitech.application.repositories.ProductVariantAttributeValueRepository;
 import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.application.repositories.ReturnItemRepository;
 import com.hoz.hozitech.application.repositories.WishlistRepository;
+import com.hoz.hozitech.application.repositories.query.ProductSummaryQueryRepository;
+import com.hoz.hozitech.application.repositories.query.ProductSummaryQueryRepository.ProductAdminSummaryRow;
+import com.hoz.hozitech.application.repositories.query.ProductSummaryQueryRepository.PublicProductSummaryRow;
 import com.hoz.hozitech.application.services.notification.AdminNotificationService;
 import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
-import com.hoz.hozitech.application.specifications.ProductSpecification;
 import com.hoz.hozitech.config.exceptions.ConflictException;
 import com.hoz.hozitech.config.exceptions.InvalidParamException;
 import com.hoz.hozitech.domain.dtos.request.ProductBasicRequest;
@@ -76,6 +74,8 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final ProductImageRepository productImageRepository;
     private final ProductVariantRepository productVariantRepository;
+    private final ProductVariantAttributeValueRepository productVariantAttributeValueRepository;
+    private final ProductSummaryQueryRepository productSummaryQueryRepository;
     private final OrderItemRepository orderItemRepository;
     private final ReturnItemRepository returnItemRepository;
     private final CartRepository cartRepository;
@@ -92,31 +92,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<ProductResponse> searchProducts(String keyword, String categorySlug, String brand, int page, int size, String sortBy, String sortDir) {
-        Sort sort;
-        if ("popular".equalsIgnoreCase(sortBy)) {
-            sort = Sort.by(
-                    Sort.Order.desc("hasStock"),
-                    Sort.Order.desc("totalSold"),
-                    Sort.Order.desc("createdAt"));
-        } else {
-            Sort.Direction direction = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name()) ? Sort.Direction.ASC : Sort.Direction.DESC;
-            sort = Sort.by(
-                    Sort.Order.desc("hasStock"),
-                    new Sort.Order(direction, sortBy));
-        }
-
-        Pageable pageable = PaginationConstant.of(page, size, sort);
-
-        UUID categoryId = null;
-        if (categorySlug != null && !categorySlug.isBlank()) {
-            Category category = categoryRepository.findBySlug(categorySlug)
-                    .orElseThrow(() -> new IllegalArgumentException("Category not found"));
-            categoryId = category.getId();
-        }
-
-        Specification<Product> spec = ProductSpecification.filter(keyword, categoryId, brand, null, null, null, true);
-        Page<Product> products = productRepository.findAll(spec, pageable);
-        return PageResponse.of(products.map(this::mapToResponse));
+        return getPublicProductSummaryPage(keyword, categorySlug, brand, page, size, sortBy, sortDir);
     }
 
     @Override
@@ -133,6 +109,61 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
         return mapToDetailedResponse(product);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ProductResponse getProductVariantsEditor(UUID id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", id));
+        List<ProductVariant> variants = productVariantRepository.findByProductId(id);
+        List<UUID> variantIds = variants.stream()
+                .map(ProductVariant::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        Map<UUID, Long> soldByVariantId = buildVariantSoldMap(variantIds);
+        Map<UUID, Long> returnedByVariantId = buildVariantReturnedMap(variantIds);
+        Map<UUID, List<ProductImage>> imagesByVariantId = findVariantImagesByVariantId(variantIds);
+        Map<UUID, List<ProductVariantAttributeValue>> attributesByVariantId =
+                findVariantAttributesByVariantId(variantIds);
+        List<CategoryVariantAttribute> variantMappings = getVariantSchema(product.getCategory());
+        Map<UUID, Integer> variantSortOrderByAttributeId = variantMappings.stream()
+                .collect(Collectors.toMap(
+                        mapping -> mapping.getVariantAttribute().getId(),
+                        CategoryVariantAttribute::getSortOrder,
+                        (first, second) -> first));
+
+        List<ProductVariantResponse> variantResponses = variants.stream()
+                .sorted(Comparator
+                        .comparing(ProductVariant::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(ProductVariant::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(ProductVariant::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+                .map(variant -> mapToVariantEditorResponse(
+                        variant,
+                        soldByVariantId,
+                        returnedByVariantId,
+                        imagesByVariantId.getOrDefault(variant.getId(), List.of()),
+                        attributesByVariantId.getOrDefault(variant.getId(), List.of()),
+                        variantSortOrderByAttributeId))
+                .toList();
+
+        return ProductResponse.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .slug(product.getSlug())
+                .category(product.getCategory() != null ? CategoryResponse.builder()
+                        .id(product.getCategory().getId())
+                        .name(product.getCategory().getName())
+                        .slug(product.getCategory().getSlug())
+                        .build() : null)
+                .productCode(product.getProductCode())
+                .originPrice(product.getOriginPrice())
+                .status(product.getStatus())
+                .isFeatured(product.getIsFeatured())
+                .createdAt(product.getCreatedAt())
+                .variantSchema(buildFullVariantSchema(variantMappings))
+                .variants(variantResponses)
+                .build();
     }
 
     @Override
@@ -783,6 +814,9 @@ public class ProductServiceImpl implements ProductService {
                         .orElse(null));
 
         int totalStock = product.getTotalStock() != null ? product.getTotalStock() : 0;
+        Integer totalReviews = product.getId() == null
+                ? 0
+                : Math.toIntExact(productRepository.countFeedbacks(product.getId()));
 
         BigDecimal lowestPrice = product.getLowestPrice() != null ? product.getLowestPrice() : product.getOriginPrice();
 
@@ -805,7 +839,7 @@ public class ProductServiceImpl implements ProductService {
                 .originPrice(product.getOriginPrice())
                 .lowestPrice(lowestPrice)
                 .averageRating(product.getAverageRating() != null ? product.getAverageRating() : 0.0)
-                .totalReviews(product.getFeedbacks() != null ? product.getFeedbacks().size() : 0)
+                .totalReviews(totalReviews)
                 .status(product.getStatus())
                 .isFeatured(product.getIsFeatured())
                 .specs(specs)
@@ -816,60 +850,212 @@ public class ProductServiceImpl implements ProductService {
                 .build();
     }
 
-    private Map<UUID, String> buildListImageMap(List<Product> products) {
-        List<UUID> productIds = products.stream()
-                .map(Product::getId)
-                .filter(Objects::nonNull)
-                .toList();
+    private Map<UUID, String> buildListImageMapByProductIds(List<UUID> productIds) {
+        if (productIds == null || productIds.isEmpty()) {
+            return Map.of();
+        }
         return productImageRepository.findPreferredImageMapByProductIds(productIds);
     }
 
-    private AdminProductListItemResponse mapToAdminListItem(Product product, String mainImageUrl) {
-        Integer totalStock = product.getTotalStock() != null ? product.getTotalStock() : 0;
-        Integer totalSold = product.getTotalSold() != null ? product.getTotalSold() : 0;
+    private AdminProductListItemResponse mapToAdminListItem(ProductAdminSummaryRow row, String mainImageUrl) {
         return AdminProductListItemResponse.builder()
-                .id(product.getId())
-                .name(product.getName())
-                .slug(product.getSlug())
-                .brandId(product.getBrand() != null ? product.getBrand().getId() : null)
-                .brandName(product.getBrand() != null ? product.getBrand().getName() : null)
-                .categoryId(product.getCategory() != null ? product.getCategory().getId() : null)
-                .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
-                .categorySlug(product.getCategory() != null ? product.getCategory().getSlug() : null)
-                .productCode(product.getProductCode())
-                .originPrice(product.getOriginPrice())
-                .lowestPrice(product.getLowestPrice() != null ? product.getLowestPrice() : product.getOriginPrice())
-                .status(product.getStatus())
-                .isFeatured(product.getIsFeatured())
-                .totalSold(totalSold)
-                .totalStock(totalStock)
-                .outOfStock(totalStock <= 0)
+                .id(row.id())
+                .name(row.name())
+                .slug(row.slug())
+                .brandId(row.brandId())
+                .brandName(row.brandName())
+                .categoryId(row.categoryId())
+                .categoryName(row.categoryName())
+                .categorySlug(row.categorySlug())
+                .productCode(row.productCode())
+                .originPrice(row.originPrice())
+                .lowestPrice(row.lowestPrice())
+                .status(row.status())
+                .isFeatured(row.isFeatured())
+                .totalSold(row.totalSold())
+                .totalStock(row.totalStock())
+                .outOfStock(row.totalStock() <= 0)
                 .mainImageUrl(mainImageUrl)
-                .createdAt(product.getCreatedAt())
+                .createdAt(row.createdAt())
                 .build();
     }
 
-    private AdminProductPickerItemResponse mapToAdminPickerItem(Product product, String mainImageUrl) {
-        Integer totalStock = product.getTotalStock() != null ? product.getTotalStock() : 0;
-        Integer totalSold = product.getTotalSold() != null ? product.getTotalSold() : 0;
+    private AdminProductPickerItemResponse mapToAdminPickerItem(ProductAdminSummaryRow row, String mainImageUrl) {
         return AdminProductPickerItemResponse.builder()
-                .id(product.getId())
-                .name(product.getName())
-                .slug(product.getSlug())
-                .brandId(product.getBrand() != null ? product.getBrand().getId() : null)
-                .brandName(product.getBrand() != null ? product.getBrand().getName() : null)
-                .categoryId(product.getCategory() != null ? product.getCategory().getId() : null)
-                .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
-                .categorySlug(product.getCategory() != null ? product.getCategory().getSlug() : null)
-                .productCode(product.getProductCode())
-                .originPrice(product.getOriginPrice())
-                .lowestPrice(product.getLowestPrice() != null ? product.getLowestPrice() : product.getOriginPrice())
-                .status(product.getStatus())
-                .totalSold(totalSold)
-                .totalStock(totalStock)
-                .outOfStock(totalStock <= 0)
+                .id(row.id())
+                .name(row.name())
+                .slug(row.slug())
+                .brandId(row.brandId())
+                .brandName(row.brandName())
+                .categoryId(row.categoryId())
+                .categoryName(row.categoryName())
+                .categorySlug(row.categorySlug())
+                .productCode(row.productCode())
+                .originPrice(row.originPrice())
+                .lowestPrice(row.lowestPrice())
+                .status(row.status())
+                .totalSold(row.totalSold())
+                .totalStock(row.totalStock())
+                .outOfStock(row.totalStock() <= 0)
                 .mainImageUrl(mainImageUrl)
-                .createdAt(product.getCreatedAt())
+                .createdAt(row.createdAt())
+                .build();
+    }
+
+    private ProductResponse mapToPublicListItem(PublicProductSummaryRow row, String mainImageUrl) {
+        return ProductResponse.builder()
+                .id(row.id())
+                .name(row.name())
+                .slug(row.slug())
+                .description(row.description())
+                .brandId(row.brandId())
+                .brandName(row.brandName())
+                .category(row.categoryId() == null ? null : CategoryResponse.builder()
+                        .id(row.categoryId())
+                        .name(row.categoryName())
+                        .slug(row.categorySlug())
+                        .build())
+                .productCode(row.productCode())
+                .originPrice(row.originPrice())
+                .lowestPrice(row.lowestPrice())
+                .averageRating(row.averageRating())
+                .totalReviews(row.totalReviews())
+                .status(row.status())
+                .isFeatured(row.isFeatured())
+                .totalSold(row.totalSold())
+                .createdAt(row.createdAt())
+                .mainImageUrl(mainImageUrl)
+                .outOfStock(row.totalStock() <= 0)
+                .build();
+    }
+
+    private PageResponse<ProductResponse> getPublicProductSummaryPage(
+            String keyword,
+            String categorySlug,
+            String brandSlug,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
+        Page<PublicProductSummaryRow> rowsPage = productSummaryQueryRepository.findPublicProductSummaries(
+                keyword,
+                categorySlug,
+                brandSlug,
+                page,
+                size,
+                sortBy,
+                sortDir);
+        List<PublicProductSummaryRow> rows = rowsPage.getContent();
+        Map<UUID, String> imageByProductId = buildListImageMapByProductIds(rows.stream()
+                .map(PublicProductSummaryRow::id)
+                .toList());
+
+        List<ProductResponse> content = rows.stream()
+                .map(row -> mapToPublicListItem(row, imageByProductId.get(row.id())))
+                .toList();
+
+        return PageResponse.<ProductResponse>builder()
+                .data(content)
+                .page(rowsPage.getNumber() + 1)
+                .perPage(rowsPage.getSize())
+                .total(rowsPage.getTotalElements())
+                .lastPage(rowsPage.getTotalPages())
+                .build();
+    }
+
+    private List<ProductResponse> getPublicProductSummaryList(
+            String keyword,
+            String categorySlug,
+            String brandSlug,
+            boolean featuredOnly,
+            int limit,
+            boolean includeSoldMetrics,
+            String sortBy,
+            String sortDir) {
+        List<PublicProductSummaryRow> rows = productSummaryQueryRepository.findPublicProductSummaries(
+                keyword,
+                categorySlug,
+                brandSlug,
+                featuredOnly,
+                limit,
+                includeSoldMetrics,
+                sortBy,
+                sortDir);
+        Map<UUID, String> imageByProductId = buildListImageMapByProductIds(rows.stream()
+                .map(PublicProductSummaryRow::id)
+                .toList());
+
+        return rows.stream()
+                .map(row -> mapToPublicListItem(row, imageByProductId.get(row.id())))
+                .toList();
+    }
+
+    private PageResponse<AdminProductListItemResponse> getAdminProductSummaryPage(
+            String keyword,
+            UUID categoryId,
+            UUID brandId,
+            String status,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
+        Page<ProductAdminSummaryRow> rowsPage = productSummaryQueryRepository.findAdminProductSummaries(
+                keyword,
+                categoryId,
+                brandId,
+                status,
+                page,
+                size,
+                sortBy,
+                sortDir);
+        List<ProductAdminSummaryRow> rows = rowsPage.getContent();
+        Map<UUID, String> imageByProductId = buildListImageMapByProductIds(rows.stream()
+                .map(ProductAdminSummaryRow::id)
+                .toList());
+        List<AdminProductListItemResponse> content = rows.stream()
+                .map(row -> mapToAdminListItem(row, imageByProductId.get(row.id())))
+                .toList();
+
+        return PageResponse.<AdminProductListItemResponse>builder()
+                .data(content)
+                .page(rowsPage.getNumber() + 1)
+                .perPage(rowsPage.getSize())
+                .total(rowsPage.getTotalElements())
+                .lastPage(rowsPage.getTotalPages())
+                .build();
+    }
+
+    private PageResponse<AdminProductPickerItemResponse> getAdminProductPickerSummaryPage(
+            String keyword,
+            UUID categoryId,
+            UUID brandId,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
+        Page<ProductAdminSummaryRow> rowsPage = productSummaryQueryRepository.findAdminProductSummaries(
+                keyword,
+                categoryId,
+                brandId,
+                null,
+                page,
+                size,
+                sortBy,
+                sortDir);
+        List<ProductAdminSummaryRow> rows = rowsPage.getContent();
+        Map<UUID, String> imageByProductId = buildListImageMapByProductIds(rows.stream()
+                .map(ProductAdminSummaryRow::id)
+                .toList());
+        List<AdminProductPickerItemResponse> content = rows.stream()
+                .map(row -> mapToAdminPickerItem(row, imageByProductId.get(row.id())))
+                .toList();
+
+        return PageResponse.<AdminProductPickerItemResponse>builder()
+                .data(content)
+                .page(rowsPage.getNumber() + 1)
+                .perPage(rowsPage.getSize())
+                .total(rowsPage.getTotalElements())
+                .lastPage(rowsPage.getTotalPages())
                 .build();
     }
 
@@ -1061,6 +1247,122 @@ public class ProductServiceImpl implements ProductService {
         return response;
     }
 
+    private Map<UUID, List<ProductImage>> findVariantImagesByVariantId(List<UUID> variantIds) {
+        if (variantIds == null || variantIds.isEmpty()) {
+            return Map.of();
+        }
+        return productImageRepository.findByVariantIdInOrderByPreferred(variantIds).stream()
+                .filter(image -> image.getVariant() != null && image.getVariant().getId() != null)
+                .collect(Collectors.groupingBy(image -> image.getVariant().getId()));
+    }
+
+    private Map<UUID, List<ProductVariantAttributeValue>> findVariantAttributesByVariantId(List<UUID> variantIds) {
+        if (variantIds == null || variantIds.isEmpty()) {
+            return Map.of();
+        }
+        return productVariantAttributeValueRepository.findByProductVariantIdIn(variantIds).stream()
+                .filter(value -> value.getProductVariant() != null && value.getProductVariant().getId() != null)
+                .collect(Collectors.groupingBy(value -> value.getProductVariant().getId()));
+    }
+
+    private List<ProductResponse.VariantAttributeSchemaResponse> buildFullVariantSchema(
+            List<CategoryVariantAttribute> variantMappings) {
+        if (variantMappings == null || variantMappings.isEmpty()) {
+            return List.of();
+        }
+        return variantMappings.stream()
+                .map(mapping -> {
+                    List<ProductResponse.VariantOptionResponse> options =
+                            mapping.getVariantAttribute().getOptions() == null
+                                    ? List.of()
+                                    : mapping.getVariantAttribute().getOptions().stream()
+                                    .sorted(Comparator.comparing(option ->
+                                            option.getSortOrder() == null ? Integer.MAX_VALUE : option.getSortOrder()))
+                                    .map(option -> ProductResponse.VariantOptionResponse.builder()
+                                            .id(option.getId())
+                                            .label(option.getLabel())
+                                            .code(option.getCode())
+                                            .sortOrder(option.getSortOrder())
+                                            .active(option.getActive())
+                                            .build())
+                                    .toList();
+
+                    return ProductResponse.VariantAttributeSchemaResponse.builder()
+                            .id(mapping.getVariantAttribute().getId())
+                            .name(mapping.getVariantAttribute().getName())
+                            .code(mapping.getVariantAttribute().getCode())
+                            .sortOrder(mapping.getSortOrder())
+                            .options(options)
+                            .build();
+                })
+                .toList();
+    }
+
+    private ProductVariantResponse mapToVariantEditorResponse(
+            ProductVariant variant,
+            Map<UUID, Long> soldByVariantId,
+            Map<UUID, Long> returnedByVariantId,
+            List<ProductImage> variantImages,
+            List<ProductVariantAttributeValue> attributeValues,
+            Map<UUID, Integer> variantSortOrderByAttributeId) {
+        Comparator<ProductImage> imageComparator = Comparator
+                .comparing((ProductImage img) -> !Boolean.TRUE.equals(img.getIsPrimary()))
+                .thenComparing(img -> img.getSortOrder() == null ? Integer.MAX_VALUE : img.getSortOrder())
+                .thenComparing(img -> img.getId() == null ? "" : img.getId().toString());
+
+        List<ProductImageResponse> images = variantImages.stream()
+                .sorted(imageComparator)
+                .map(img -> ProductImageResponse.builder()
+                        .id(img.getId())
+                        .imageUrl(img.getImageUrl())
+                        .altText(img.getAltText())
+                        .sortOrder(img.getSortOrder())
+                        .isPrimary(img.getIsPrimary())
+                        .variantId(variant.getId())
+                        .build())
+                .toList();
+
+        List<ProductVariantResponse.VariantAttributeValueResponse> attributes = attributeValues.stream()
+                .sorted(Comparator.comparing(value ->
+                        variantSortOrderByAttributeId.getOrDefault(
+                                value.getVariantAttribute().getId(),
+                                Integer.MAX_VALUE)))
+                .map(value -> ProductVariantResponse.VariantAttributeValueResponse.builder()
+                        .variantAttributeId(value.getVariantAttribute().getId())
+                        .attributeName(value.getVariantAttribute().getName())
+                        .attributeCode(value.getVariantAttribute().getCode())
+                        .variantAttributeName(value.getVariantAttribute().getName())
+                        .variantAttributeCode(value.getVariantAttribute().getCode())
+                        .optionId(value.getOption().getId())
+                        .optionLabel(value.getOption().getLabel())
+                        .optionCode(value.getOption().getCode())
+                        .build())
+                .toList();
+
+        Long soldQty = soldByVariantId.getOrDefault(variant.getId(), 0L);
+        Long returnedQty = returnedByVariantId.getOrDefault(variant.getId(), 0L);
+
+        return ProductVariantResponse.builder()
+                .id(variant.getId())
+                .sku(variant.getSku())
+                .displayName(variant.getVariantName())
+                .variantName(variant.getVariantName())
+                .variantSignature(variant.getVariantSignature())
+                .createdAt(variant.getCreatedAt())
+                .updatedAt(variant.getUpdatedAt())
+                .price(variant.getPrice())
+                .compareAtPrice(variant.getCompareAtPrice())
+                .stockQuantity(variant.getStock())
+                .grossSoldQty(soldQty)
+                .returnedQty(returnedQty)
+                .netSoldQty(Math.max(soldQty - returnedQty, 0L))
+                .active(variant.getActive())
+                .selections(attributes)
+                .attributes(attributes)
+                .images(images)
+                .build();
+    }
+
     private List<ProductResponse.ProductSpecValueResponse> buildSpecResponses(
             Product product,
             List<CategorySpecAttribute> specMappings
@@ -1139,51 +1441,13 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<AdminProductListItemResponse> getAdminProducts(String keyword, UUID categoryId, String status, int page, int size, String sortBy, String sortDir) {
-        Sort sort = resolveAdminProductSort(sortBy, sortDir);
-        Pageable pageable = PaginationConstant.of(page, size, sort);
-
-        Specification<Product> spec = ProductSpecification.filter(keyword, categoryId, null, null, null, null, null, status, null);
-        Page<Product> products = productRepository.findAll(spec, pageable);
-        Map<UUID, String> imageByProductId = buildListImageMap(products.getContent());
-        return PageResponse.of(products.map(product -> mapToAdminListItem(product, imageByProductId.get(product.getId()))));
+        return getAdminProductSummaryPage(keyword, categoryId, null, status, page, size, sortBy, sortDir);
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<AdminProductPickerItemResponse> getAdminProductPickerItems(String keyword, UUID categoryId, UUID brandId, int page, int size, String sortBy, String sortDir) {
-        Sort sort = resolveAdminProductSort(sortBy, sortDir);
-        Pageable pageable = PaginationConstant.of(page, size, sort);
-        Specification<Product> spec = ProductSpecification.filter(keyword, categoryId, null, null, null, null, null, null, brandId);
-        Page<Product> products = productRepository.findAll(spec, pageable);
-        Map<UUID, String> imageByProductId = buildListImageMap(products.getContent());
-        return PageResponse.of(products.map(product -> mapToAdminPickerItem(product, imageByProductId.get(product.getId()))));
-    }
-
-    private Sort resolveAdminProductSort(String sortBy, String sortDir) {
-        Sort.Direction direction = Sort.Direction.ASC.name().equalsIgnoreCase(sortDir)
-                ? Sort.Direction.ASC
-                : Sort.Direction.DESC;
-
-        String resolvedField = switch (sortBy == null ? "" : sortBy) {
-            case "name" -> "name";
-            case "originPrice" -> "originPrice";
-            case "totalStock" -> "totalStock";
-            case "totalSold" -> "totalSold";
-            case "status" -> "status";
-            case "createdAt" -> "createdAt";
-            default -> "createdAt";
-        };
-
-        if ("createdAt".equals(resolvedField)) {
-            return Sort.by(
-                    new Sort.Order(direction, resolvedField),
-                    Sort.Order.desc("id"));
-        }
-
-        return Sort.by(
-                new Sort.Order(direction, resolvedField),
-                Sort.Order.desc("createdAt"),
-                Sort.Order.desc("id"));
+        return getAdminProductPickerSummaryPage(keyword, categoryId, brandId, page, size, sortBy, sortDir);
     }
 
     @Override
@@ -1217,6 +1481,7 @@ public class ProductServiceImpl implements ProductService {
                         .variantName(variant.getVariantName())
                         .sku(variant.getSku())
                         .price(variant.getPrice())
+                        .compareAtPrice(variant.getCompareAtPrice())
                         .stockQuantity(variant.getStock())
                         .grossSoldQty(soldByVariantId.getOrDefault(variant.getId(), 0L))
                         .returnedQty(returnedByVariantId.getOrDefault(variant.getId(), 0L))
@@ -1237,25 +1502,19 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public List<ProductResponse> getFeaturedProducts(int limit) {
-        Pageable pageable = PageRequest.of(0, limit);
-        return productRepository.findByStatusAndIsFeaturedTrue(ProductStatus.ACTIVE, pageable)
-                .stream().map(this::mapToResponse).collect(Collectors.toList());
+        return getPublicProductSummaryList(null, null, null, true, limit, false, "createdAt", "DESC");
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ProductResponse> getNewArrivals(int limit) {
-        Pageable pageable = PageRequest.of(0, limit);
-        return productRepository.findByStatusOrderByCreatedAtDesc(ProductStatus.ACTIVE, pageable)
-                .stream().map(this::mapToResponse).collect(Collectors.toList());
+        return getPublicProductSummaryList(null, null, null, false, limit, false, "createdAt", "DESC");
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ProductResponse> getTopRatedProducts(int limit) {
-        Pageable pageable = PageRequest.of(0, limit);
-        return productRepository.findTopRatedProducts(pageable)
-                .stream().map(this::mapToResponse).collect(Collectors.toList());
+        return getPublicProductSummaryList(null, null, null, false, limit, false, "averageRating", "DESC");
     }
 
     private record AttributeSelectionContext(UUID variantAttributeId, VariantAttributeOption option) {}
@@ -1265,14 +1524,5 @@ public class ProductServiceImpl implements ProductService {
             String displayName,
             String signature,
             List<AttributeSelectionContext> selections) {
-        List<ProductVariantAttributeValue> attributeValues(ProductVariant variant) {
-            return selections.stream()
-                    .map(selection -> ProductVariantAttributeValue.builder()
-                            .productVariant(variant)
-                            .variantAttribute(selection.option().getVariantAttribute())
-                            .option(selection.option())
-                            .build())
-                    .collect(Collectors.toList());
-        }
     }
 }

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,17 @@ public interface ProductImageRepository extends JpaRepository<ProductImage, UUID
 
     // Ảnh riêng của 1 variant
     List<ProductImage> findByVariantIdOrderBySortOrder(UUID variantId);
+
+    @Query("""
+            select pi
+            from ProductImage pi
+            where pi.variant.id in :variantIds
+            order by pi.variant.id asc,
+              case when pi.isPrimary = true then 0 else 1 end,
+              pi.sortOrder asc,
+              pi.id asc
+            """)
+    List<ProductImage> findByVariantIdInOrderByPreferred(@Param("variantIds") Collection<UUID> variantIds);
 
     @Query("""
             select pi

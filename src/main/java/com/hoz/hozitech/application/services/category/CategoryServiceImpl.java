@@ -2,6 +2,7 @@ package com.hoz.hozitech.application.services.category;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -21,6 +22,8 @@ import org.springframework.data.domain.Sort;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.CategoryRepository;
+import com.hoz.hozitech.application.repositories.CategorySpecAttributeRepository;
+import com.hoz.hozitech.application.repositories.CategoryVariantAttributeRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.repositories.SpecAttributeRepository;
 import com.hoz.hozitech.application.repositories.VariantAttributeRepository;
@@ -48,6 +51,8 @@ public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
+    private final CategoryVariantAttributeRepository categoryVariantAttributeRepository;
+    private final CategorySpecAttributeRepository categorySpecAttributeRepository;
     private final SpecAttributeRepository specAttributeRepository;
     private final VariantAttributeRepository variantAttributeRepository;
     private final VariantAttributeOptionRepository variantAttributeOptionRepository;
@@ -79,14 +84,27 @@ public class CategoryServiceImpl implements CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new InvalidParamException("Category not found with id: " + id)
                         .withMessageKey("error.category_not_found_with_id", id));
-        return mapToResponse(category);
+        List<CategoryVariantAttribute> variantMappings = categoryVariantAttributeRepository.findSchemaByCategoryId(id);
+        List<CategorySpecAttribute> specMappings = categorySpecAttributeRepository.findSchemaByCategoryId(id);
+        long productCount = loadProductCountByCategoryIds(List.of(id)).getOrDefault(id, 0L);
+        return mapToSchemaResponse(category, variantMappings, specMappings, productCount);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<CategoryResponse> getAllActiveCategories() {
-        return categoryRepository.findByStatusTrue().stream()
-                .map(this::mapToResponse)
+        List<Category> categories = categoryRepository.findByStatusTrue();
+        Map<UUID, Long> productCountByCategoryId = loadProductCountByCategoryIds(categories.stream()
+                .map(Category::getId)
+                .toList());
+        Map<UUID, Integer> specCountByCategoryId = loadSpecCountByCategoryIds(categories.stream()
+                .map(Category::getId)
+                .toList());
+        return categories.stream()
+                .map(category -> mapToAdminSummaryResponse(
+                        category,
+                        productCountByCategoryId.getOrDefault(category.getId(), 0L),
+                        specCountByCategoryId.getOrDefault(category.getId(), 0)))
                 .collect(Collectors.toList());
     }
 
@@ -105,9 +123,18 @@ public class CategoryServiceImpl implements CategoryService {
 
         Pageable pageable = PaginationConstant.of(page, size, resolveAdminCategorySort(sortBy, sortDir));
         Page<Category> categories = queryAdminCategories(keyword, brandId, pageable);
+        Map<UUID, Long> productCountByCategoryId = loadProductCountByCategoryIds(categories.getContent().stream()
+                .map(Category::getId)
+                .toList());
+        Map<UUID, Integer> specCountByCategoryId = loadSpecCountByCategoryIds(categories.getContent().stream()
+                .map(Category::getId)
+                .toList());
 
         List<CategoryResponse> content = categories.getContent().stream()
-                .map(this::mapToResponse)
+                .map(category -> mapToAdminSummaryResponse(
+                        category,
+                        productCountByCategoryId.getOrDefault(category.getId(), 0L),
+                        specCountByCategoryId.getOrDefault(category.getId(), 0)))
                 .collect(Collectors.toList());
 
         return PageResponse.<CategoryResponse>builder()
@@ -125,11 +152,24 @@ public class CategoryServiceImpl implements CategoryService {
                 : Sort.Direction.DESC;
 
         return switch (sortBy == null ? "" : sortBy) {
-            case "name" -> Sort.by(direction, "name");
-            case "slug" -> Sort.by(direction, "slug");
-            case "status" -> Sort.by(direction, "status");
-            case "createdAt" -> Sort.by(direction, "createdAt");
-            default -> Sort.by(Sort.Direction.DESC, "createdAt");
+            case "name" -> Sort.by(
+                    new Sort.Order(direction, "name"),
+                    Sort.Order.desc("createdAt"),
+                    Sort.Order.desc("id"));
+            case "slug" -> Sort.by(
+                    new Sort.Order(direction, "slug"),
+                    Sort.Order.desc("createdAt"),
+                    Sort.Order.desc("id"));
+            case "status" -> Sort.by(
+                    new Sort.Order(direction, "status"),
+                    Sort.Order.desc("createdAt"),
+                    Sort.Order.desc("id"));
+            case "createdAt" -> Sort.by(
+                    new Sort.Order(direction, "createdAt"),
+                    Sort.Order.desc("id"));
+            default -> Sort.by(
+                    Sort.Order.desc("createdAt"),
+                    Sort.Order.desc("id"));
         };
     }
 
@@ -159,8 +199,14 @@ public class CategoryServiceImpl implements CategoryService {
             String sortBy,
             String sortDir) {
         List<Category> categories = loadAllAdminCategories(keyword, brandId);
+        Map<UUID, Long> productCountByCategoryId = loadProductCountByCategoryIds(categories.stream()
+                .map(Category::getId)
+                .toList());
+        Map<UUID, Integer> specCountByCategoryId = loadSpecCountByCategoryIds(categories.stream()
+                .map(Category::getId)
+                .toList());
         List<Category> sortedCategories = new ArrayList<>(categories);
-        sortedCategories.sort(buildComputedCategoryComparator(sortBy, sortDir));
+        sortedCategories.sort(buildComputedCategoryComparator(sortBy, sortDir, productCountByCategoryId, specCountByCategoryId));
 
         int safePage = Math.max(page, 1);
         int safeSize = PaginationConstant.validateSize(size);
@@ -168,7 +214,10 @@ public class CategoryServiceImpl implements CategoryService {
         int toIndex = Math.min(fromIndex + safeSize, sortedCategories.size());
 
         List<CategoryResponse> content = sortedCategories.subList(fromIndex, toIndex).stream()
-                .map(this::mapToResponse)
+                .map(category -> mapToAdminSummaryResponse(
+                        category,
+                        productCountByCategoryId.getOrDefault(category.getId(), 0L),
+                        specCountByCategoryId.getOrDefault(category.getId(), 0)))
                 .collect(Collectors.toList());
 
         long total = sortedCategories.size();
@@ -192,7 +241,9 @@ public class CategoryServiceImpl implements CategoryService {
             Pageable pageable = PaginationConstant.of(
                     currentPage,
                     PaginationConstant.MAX_PAGE_SIZE,
-                    Sort.by(Sort.Direction.DESC, "createdAt"));
+                    Sort.by(
+                            Sort.Order.desc("createdAt"),
+                            Sort.Order.desc("id")));
             batch = queryAdminCategories(keyword, brandId, pageable);
             categories.addAll(batch.getContent());
             currentPage++;
@@ -201,10 +252,14 @@ public class CategoryServiceImpl implements CategoryService {
         return categories;
     }
 
-    private Comparator<Category> buildComputedCategoryComparator(String sortBy, String sortDir) {
+    private Comparator<Category> buildComputedCategoryComparator(
+            String sortBy,
+            String sortDir,
+            Map<UUID, Long> productCountByCategoryId,
+            Map<UUID, Integer> specCountByCategoryId) {
         Comparator<Category> comparator = switch (sortBy == null ? "" : sortBy) {
-            case "specCount" -> Comparator.comparingInt(this::getCategorySpecCount);
-            case "productCount" -> Comparator.comparingLong(this::getCategoryProductCount);
+            case "specCount" -> Comparator.comparingInt(category -> specCountByCategoryId.getOrDefault(category.getId(), 0));
+            case "productCount" -> Comparator.comparingLong(category -> productCountByCategoryId.getOrDefault(category.getId(), 0L));
             default -> Comparator.comparing(Category::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()));
         };
 
@@ -212,15 +267,9 @@ public class CategoryServiceImpl implements CategoryService {
             comparator = comparator.reversed();
         }
 
-        return comparator.thenComparing(Category::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()));
-    }
-
-    private int getCategorySpecCount(Category category) {
-        return category.getCategorySpecAttributes() != null ? category.getCategorySpecAttributes().size() : 0;
-    }
-
-    private long getCategoryProductCount(Category category) {
-        return category.getProducts() != null ? category.getProducts().size() : 0L;
+        return comparator
+                .thenComparing(Category::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(Category::getId, Comparator.nullsLast(Comparator.reverseOrder()));
     }
 
     @Override
@@ -420,15 +469,24 @@ public class CategoryServiceImpl implements CategoryService {
                 .sorted(Comparator.comparing(CategoryVariantAttribute::getSortOrder))
                 .toList();
 
-        List<CategoryResponse.VariantAttributeSchemaResponse> variantAttributes = variantMappings.stream()
-                .map(this::mapToVariantAttributeSchemaResponse)
-                .collect(Collectors.toList());
-
         List<CategorySpecAttribute> specMappings = category.getCategorySpecAttributes() == null
                 ? List.of()
                 : category.getCategorySpecAttributes().stream()
                 .sorted(Comparator.comparing(CategorySpecAttribute::getSortOrder))
                 .toList();
+
+        long productCount = category.getProducts() != null ? (long) category.getProducts().size() : 0L;
+        return mapToSchemaResponse(category, variantMappings, specMappings, productCount);
+    }
+
+    private CategoryResponse mapToSchemaResponse(
+            Category category,
+            List<CategoryVariantAttribute> variantMappings,
+            List<CategorySpecAttribute> specMappings,
+            long productCount) {
+        List<CategoryResponse.VariantAttributeSchemaResponse> variantAttributes = variantMappings.stream()
+                .map(this::mapToVariantAttributeSchemaResponse)
+                .collect(Collectors.toList());
 
         List<CategoryResponse.SpecSchemaResponse> specAttributes = specMappings.stream()
                 .map(mapping -> CategoryResponse.SpecSchemaResponse.builder()
@@ -445,11 +503,44 @@ public class CategoryServiceImpl implements CategoryService {
                 .name(category.getName())
                 .slug(category.getSlug())
                 .active(category.getStatus())
-                .productCount(category.getProducts() != null ? (long) category.getProducts().size() : 0L)
+                .productCount(productCount)
+                .specCount(specAttributes.size())
                 .createdAt(category.getCreatedAt())
                 .variantAttributes(variantAttributes)
                 .specAttributes(specAttributes)
                 .build();
+    }
+
+    private CategoryResponse mapToAdminSummaryResponse(Category category, long productCount, int specCount) {
+        return CategoryResponse.builder()
+                .id(category.getId())
+                .name(category.getName())
+                .slug(category.getSlug())
+                .active(category.getStatus())
+                .productCount(productCount)
+                .specCount(specCount)
+                .createdAt(category.getCreatedAt())
+                .build();
+    }
+
+    private Map<UUID, Long> loadProductCountByCategoryIds(Collection<UUID> categoryIds) {
+        if (categoryIds == null || categoryIds.isEmpty()) {
+            return Map.of();
+        }
+        return categoryRepository.countProductsByCategoryIds(categoryIds).stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> ((Number) row[1]).longValue()));
+    }
+
+    private Map<UUID, Integer> loadSpecCountByCategoryIds(Collection<UUID> categoryIds) {
+        if (categoryIds == null || categoryIds.isEmpty()) {
+            return Map.of();
+        }
+        return categoryRepository.countSpecAttributesByCategoryIds(categoryIds).stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> ((Number) row[1]).intValue()));
     }
 
     private CategoryResponse.VariantOptionResponse mapToVariantOptionResponse(VariantAttributeOption option) {

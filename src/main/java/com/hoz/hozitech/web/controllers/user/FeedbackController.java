@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.UUID;
 
 @RestAPI("${api.prefix-client}/feedbacks")
-@Authenticated
 @RequiredArgsConstructor
 public class FeedbackController {
 
@@ -42,6 +41,7 @@ public class FeedbackController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    @Authenticated
     public ResponseEntity<ApiResponse<FeedbackResponse>> submitFeedback(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody FeedbackRequest request) {
@@ -51,6 +51,7 @@ public class FeedbackController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Authenticated
     public ResponseEntity<ApiResponse<FeedbackResponse>> submitFeedbackMultipart(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestPart("payload") FeedbackRequest request,
@@ -61,6 +62,7 @@ public class FeedbackController {
     }
 
     @DeleteMapping("/{feedbackId}")
+    @Authenticated
     public ResponseEntity<ApiResponse<Void>> deleteFeedback(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable UUID feedbackId) {
@@ -69,6 +71,7 @@ public class FeedbackController {
     }
 
     @GetMapping("/check/{productSlug}")
+    @Authenticated
     public ResponseEntity<ApiResponse<Boolean>> hasUserReviewedProduct(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String productSlug) {
@@ -78,6 +81,7 @@ public class FeedbackController {
     }
 
     @GetMapping("/my-feedback")
+    @Authenticated
     public ResponseEntity<ApiResponse<List<FeedbackResponse>>> getMyFeedbacks(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam String productSlug,

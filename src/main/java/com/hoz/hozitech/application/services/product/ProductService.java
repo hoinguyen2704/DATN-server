@@ -23,10 +23,12 @@ public interface ProductService {
 
     ProductResponse getProductById(UUID id);
 
-    // Admin API
-    PageResponse<AdminProductListItemResponse> getAdminProducts(String keyword, java.util.UUID categoryId, String status, int page, int size, String sortBy, String sortDir);
+    ProductResponse getProductVariantsEditor(UUID id);
 
-    PageResponse<AdminProductPickerItemResponse> getAdminProductPickerItems(String keyword, java.util.UUID categoryId, java.util.UUID brandId, int page, int size, String sortBy, String sortDir);
+    // Admin API
+    PageResponse<AdminProductListItemResponse> getAdminProducts(String keyword, UUID categoryId, String status, int page, int size, String sortBy, String sortDir);
+
+    PageResponse<AdminProductPickerItemResponse> getAdminProductPickerItems(String keyword, UUID categoryId, UUID brandId, int page, int size, String sortBy, String sortDir);
 
     List<AdminProductVariantSummaryResponse> getAdminProductVariantSummaries(UUID productId);
 
@@ -43,9 +45,9 @@ public interface ProductService {
     ProductResponse toggleProductStatus(UUID id);
 
     // Homepage API
-    java.util.List<ProductResponse> getFeaturedProducts(int limit);
+    List<ProductResponse> getFeaturedProducts(int limit);
 
-    java.util.List<ProductResponse> getNewArrivals(int limit);
+    List<ProductResponse> getNewArrivals(int limit);
 
-    java.util.List<ProductResponse> getTopRatedProducts(int limit);
+    List<ProductResponse> getTopRatedProducts(int limit);
 }

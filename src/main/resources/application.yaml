@@ -54,6 +54,12 @@ server:
 
 app:
   timezone: ${APP_TIMEZONE:Asia/Ho_Chi_Minh}
+  export:
+    storage-dir: ${EXPORT_STORAGE_DIR:storage/exports}
+    rows-per-file: ${EXPORT_ROWS_PER_FILE:50000}
+    batch-size: ${EXPORT_BATCH_SIZE:1000}
+    ttl-days: ${EXPORT_TTL_DAYS:7}
+    cleanup-interval-ms: ${EXPORT_CLEANUP_INTERVAL_MS:3600000}
 
 api:
   #public api

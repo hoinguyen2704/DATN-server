@@ -320,18 +320,37 @@ public class UserServiceImpl implements UserService {
     }
 
     private Sort resolveAdminUserSort(String sortBy, String sortDir) {
-        Sort.Direction direction = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name())
+        Sort.Direction direction = Sort.Direction.ASC.name().equalsIgnoreCase(sortDir)
                 ? Sort.Direction.ASC
                 : Sort.Direction.DESC;
 
         return switch (sortBy == null ? "" : sortBy) {
-            case "fullName" -> Sort.by(direction, "fullName");
-            case "email" -> Sort.by(direction, "email");
-            case "phoneNumber" -> Sort.by(direction, "phoneNumber");
-            case "role" -> Sort.by(direction, "role.id");
-            case "status" -> Sort.by(direction, "status");
-            case "createdAt" -> Sort.by(direction, "createdAt");
-            default -> Sort.by(Sort.Direction.DESC, "createdAt");
+            case "fullName" -> Sort.by(
+                    new Sort.Order(direction, "fullName"),
+                    Sort.Order.desc("createdAt"),
+                    Sort.Order.desc("id"));
+            case "email" -> Sort.by(
+                    new Sort.Order(direction, "email"),
+                    Sort.Order.desc("createdAt"),
+                    Sort.Order.desc("id"));
+            case "phoneNumber" -> Sort.by(
+                    new Sort.Order(direction, "phoneNumber"),
+                    Sort.Order.desc("createdAt"),
+                    Sort.Order.desc("id"));
+            case "role" -> Sort.by(
+                    new Sort.Order(direction, "role.id"),
+                    Sort.Order.desc("createdAt"),
+                    Sort.Order.desc("id"));
+            case "status" -> Sort.by(
+                    new Sort.Order(direction, "status"),
+                    Sort.Order.desc("createdAt"),
+                    Sort.Order.desc("id"));
+            case "createdAt" -> Sort.by(
+                    new Sort.Order(direction, "createdAt"),
+                    Sort.Order.desc("id"));
+            default -> Sort.by(
+                    Sort.Order.desc("createdAt"),
+                    Sort.Order.desc("id"));
         };
     }
 

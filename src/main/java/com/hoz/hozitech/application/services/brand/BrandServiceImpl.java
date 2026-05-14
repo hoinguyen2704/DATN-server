@@ -1,8 +1,10 @@
 package com.hoz.hozitech.application.services.brand;
 
 import java.text.Normalizer;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.BrandRepository;
+import com.hoz.hozitech.application.repositories.ProductRepository;
 import com.hoz.hozitech.application.services.notification.AdminNotificationService;
 import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
 import com.hoz.hozitech.config.exceptions.ConflictException;
@@ -30,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 public class BrandServiceImpl implements BrandService {
 
     private final BrandRepository brandRepository;
+    private final ProductRepository productRepository;
     private final AdminNotificationService adminNotificationService;
 
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
@@ -37,8 +41,12 @@ public class BrandServiceImpl implements BrandService {
 
     @Override
     public List<BrandResponse> getAllBrands() {
-        return brandRepository.findAll().stream()
-                .map(this::mapToResponse)
+        List<Brand> brands = brandRepository.findAll();
+        Map<UUID, Long> productCountByBrandId = loadProductCountByBrandIds(brands.stream()
+                .map(Brand::getId)
+                .toList());
+        return brands.stream()
+                .map(brand -> mapToResponse(brand, productCountByBrandId.getOrDefault(brand.getId(), 0L)))
                 .collect(Collectors.toList());
     }
 
@@ -46,7 +54,7 @@ public class BrandServiceImpl implements BrandService {
     public BrandResponse getBrandBySlug(String slug) {
         Brand brand = brandRepository.findBySlug(slug)
                 .orElseThrow(() -> new IllegalArgumentException("Brand not found"));
-        return mapToResponse(brand);
+        return mapToResponse(brand, loadProductCountByBrandIds(List.of(brand.getId())).getOrDefault(brand.getId(), 0L));
     }
 
     @Override
@@ -54,7 +62,7 @@ public class BrandServiceImpl implements BrandService {
         Brand brand = brandRepository.findById(id)
                 .orElseThrow(() -> new InvalidParamException("Brand not found with id: " + id)
                         .withMessageKey("error.brand_not_found_with_id", id));
-        return mapToResponse(brand);
+        return mapToResponse(brand, loadProductCountByBrandIds(List.of(brand.getId())).getOrDefault(brand.getId(), 0L));
     }
 
     @Override
@@ -74,7 +82,10 @@ public class BrandServiceImpl implements BrandService {
         } else {
             brands = brandRepository.findAll(pageable);
         }
-        return PageResponse.of(brands.map(this::mapToResponse));
+        Map<UUID, Long> productCountByBrandId = loadProductCountByBrandIds(brands.getContent().stream()
+                .map(Brand::getId)
+                .toList());
+        return PageResponse.of(brands.map(brand -> mapToResponse(brand, productCountByBrandId.getOrDefault(brand.getId(), 0L))));
     }
 
     @Override
@@ -93,7 +104,7 @@ public class BrandServiceImpl implements BrandService {
 
         Brand saved = brandRepository.save(brand);
         adminNotificationService.createShared(AdminNotificationTemplates.brandCreated(saved), true);
-        return mapToResponse(saved);
+        return mapToResponse(saved, 0L);
     }
 
     @Override
@@ -110,7 +121,7 @@ public class BrandServiceImpl implements BrandService {
 
         Brand saved = brandRepository.save(brand);
         adminNotificationService.createShared(AdminNotificationTemplates.brandUpdated(saved), true);
-        return mapToResponse(saved);
+        return mapToResponse(saved, loadProductCountByBrandIds(List.of(saved.getId())).getOrDefault(saved.getId(), 0L));
     }
 
     @Override
@@ -119,21 +130,31 @@ public class BrandServiceImpl implements BrandService {
         Brand brand = brandRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Brand not found"));
 
-        if (brand.getProducts() != null && !brand.getProducts().isEmpty()) {
+        if (productRepository.existsByBrandId(id)) {
             throw new InvalidParamException("Cannot delete brand with associated products");
         }
 
         brandRepository.delete(brand);
     }
 
-    private BrandResponse mapToResponse(Brand brand) {
+    private BrandResponse mapToResponse(Brand brand, long productCount) {
         return BrandResponse.builder()
                 .id(brand.getId())
                 .name(brand.getName())
                 .slug(brand.getSlug())
                 .logoUrl(brand.getLogoUrl())
-                .productCount(brand.getProducts() != null ? brand.getProducts().size() : 0)
+                .productCount(productCount)
                 .build();
+    }
+
+    private Map<UUID, Long> loadProductCountByBrandIds(Collection<UUID> brandIds) {
+        if (brandIds == null || brandIds.isEmpty()) {
+            return Map.of();
+        }
+        return brandRepository.countProductsByBrandIds(brandIds).stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> ((Number) row[1]).longValue()));
     }
 
     private String toSlug(String input) {

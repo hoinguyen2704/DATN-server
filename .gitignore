@@ -41,3 +41,8 @@ src/test/*
 !src/test/resources/**
 .agent/
 .agents/
+.DS_Store
+*/.DS_Store
+
+### Local export jobs ###
+storage/exports/

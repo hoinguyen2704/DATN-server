@@ -86,6 +86,6 @@ public class Product extends AbstractAuditingEntity {
     @Formula("(SELECT COALESCE(MIN(v.price), origin_price) FROM product_variants v WHERE v.product_id = id AND v.status = true)")
     private BigDecimal lowestPrice;
 
-    @Formula("(SELECT COALESCE(AVG(f.rating), 0) FROM feedbacks f WHERE f.product_id = id)")
+    @Formula("(SELECT COALESCE(AVG(f.rating), 0) FROM feedbacks f WHERE f.product_id = id AND f.status = 'APPROVED')")
     private Double averageRating;
 }

@@ -110,6 +110,12 @@ public class AdminProductController {
                                 productService.getAdminProductVariantSummaries(id)));
         }
 
+        @GetMapping("/{id}/variants")
+        public ResponseEntity<ApiResponse<ProductResponse>> getProductVariantsEditor(@PathVariable UUID id) {
+                return ResponseEntity.ok(responseFactory.success("response.admin_product.variants_fetched",
+                                productService.getProductVariantsEditor(id)));
+        }
+
         @PostMapping
         public ResponseEntity<ApiResponse<ProductResponse>> createProduct(@Valid @RequestBody ProductRequest request) {
                 return ResponseEntity

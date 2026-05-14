@@ -19,6 +19,7 @@ public class CategoryResponse {
     private String slug;
     private Boolean active;
     private Long productCount;
+    private Integer specCount;
     private LocalDateTime createdAt;
 
     // New schema for dynamic variant/spec rendering.
