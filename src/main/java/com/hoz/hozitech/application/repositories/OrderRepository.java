@@ -208,7 +208,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
     List<Object[]> findRevenueGroupedByMonth(@Param("year") int year);
 
     @Query("SELECT COUNT(o) FROM Order o WHERE o.paymentStatus = :payStatus AND o.createdAt >= :from AND o.createdAt <= :to")
-    long countOrdersByPaymentStatusAndDateRange(@Param("payStatus") com.hoz.hozitech.domain.enums.PaymentStatus payStatus, @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+    long countOrdersByPaymentStatusAndDateRange(@Param("payStatus") PaymentStatus payStatus, @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
     @Query("SELECT o FROM Order o JOIN FETCH o.user ORDER BY o.createdAt DESC, o.id DESC")
     List<Order> findRecentOrders(Pageable pageable);

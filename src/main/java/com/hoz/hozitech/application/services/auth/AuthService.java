@@ -2,6 +2,7 @@ package com.hoz.hozitech.application.services.auth;
 
 import com.hoz.hozitech.domain.dtos.request.LoginRequest;
 import com.hoz.hozitech.domain.dtos.request.RegisterRequest;
+import com.hoz.hozitech.domain.dtos.request.SocialLoginRequest;
 import com.hoz.hozitech.domain.dtos.response.AuthResponse;
 import com.hoz.hozitech.domain.dtos.response.GoogleLoginExchangeResponse;
 
@@ -18,7 +19,7 @@ public interface AuthService {
 
     void resetPassword(String email, String otpCode, String newPassword);
 
-    AuthResponse socialLogin(com.hoz.hozitech.domain.dtos.request.SocialLoginRequest request);
+    AuthResponse socialLogin(SocialLoginRequest request);
 
     String buildGoogleAuthorizationUrl(String state);
 

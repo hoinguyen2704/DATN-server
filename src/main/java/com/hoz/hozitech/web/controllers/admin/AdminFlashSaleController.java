@@ -9,6 +9,7 @@ import com.hoz.hozitech.domain.dtos.request.FlashSaleRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.FlashSaleResponse;
 import com.hoz.hozitech.domain.dtos.response.PageResponse;
+import com.hoz.hozitech.domain.enums.FlashSaleStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -52,7 +53,7 @@ public class AdminFlashSaleController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<FlashSaleResponse>> updateStatus(
             @PathVariable UUID id, 
-            @RequestParam com.hoz.hozitech.domain.enums.FlashSaleStatus status) {
+            @RequestParam FlashSaleStatus status) {
         return ResponseEntity.ok(responseFactory.success("response.admin_flash_sale.status_updated",
                 flashSaleService.updateFlashSaleStatus(id, status)));
     }

@@ -1,5 +1,6 @@
 package com.hoz.hozitech.web.controllers.pub;
 
+import com.hoz.hozitech.security.CustomUserDetails;
 import com.hoz.hozitech.web.base.RestAPI;
 import com.hoz.hozitech.application.services.auth.AuthService;
 import com.hoz.hozitech.application.services.auth.GoogleLinkIntentTicketService;
@@ -12,6 +13,10 @@ import com.hoz.hozitech.config.utils.LocalizationUtils;
 import com.hoz.hozitech.domain.dtos.request.LoginRequest;
 import com.hoz.hozitech.domain.dtos.request.GoogleTicketExchangeRequest;
 import com.hoz.hozitech.domain.dtos.request.RegisterRequest;
+import com.hoz.hozitech.domain.dtos.request.ForgotPasswordRequest;
+import com.hoz.hozitech.domain.dtos.request.VerifyOtpRequest;
+import com.hoz.hozitech.domain.dtos.request.ResetPasswordRequest;
+import com.hoz.hozitech.domain.dtos.request.SocialLoginRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.AuthResponse;
 import com.hoz.hozitech.domain.dtos.response.GoogleLoginExchangeResponse;
@@ -26,7 +31,7 @@ import org.springframework.http.ResponseEntity;
 import com.hoz.hozitech.web.base.Authenticated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
-
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import java.util.Map;
 import java.util.UUID;
 
@@ -76,25 +81,25 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<ApiResponse<Void>> forgotPassword(@RequestBody @Valid com.hoz.hozitech.domain.dtos.request.ForgotPasswordRequest request) {
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@RequestBody @Valid ForgotPasswordRequest request) {
         authService.forgotPassword(request.getEmail());
         return ResponseEntity.ok(responseFactory.success("response.auth.reset_password_otp_sent"));
     }
 
     @PostMapping("/verify-otp")
-    public ResponseEntity<ApiResponse<Boolean>> verifyOtp(@RequestBody @Valid com.hoz.hozitech.domain.dtos.request.VerifyOtpRequest request) {
+    public ResponseEntity<ApiResponse<Boolean>> verifyOtp(@RequestBody @Valid VerifyOtpRequest request) {
         boolean isValid = authService.verifyOtp(request.getEmail(), request.getOtpCode());
         return ResponseEntity.ok(responseFactory.success("response.auth.otp_verified", isValid));
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<ApiResponse<Void>> resetPassword(@RequestBody @Valid com.hoz.hozitech.domain.dtos.request.ResetPasswordRequest request) {
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@RequestBody @Valid ResetPasswordRequest request) {
         authService.resetPassword(request.getEmail(), request.getOtpCode(), request.getNewPassword());
         return ResponseEntity.ok(responseFactory.success("response.auth.password_reset"));
     }
 
     @PostMapping("/social-login")
-    public ResponseEntity<ApiResponse<AuthResponse>> socialLogin(@RequestBody @Valid com.hoz.hozitech.domain.dtos.request.SocialLoginRequest request) {
+    public ResponseEntity<ApiResponse<AuthResponse>> socialLogin(@RequestBody @Valid SocialLoginRequest request) {
         AuthResponse response = authService.socialLogin(request);
         return ResponseEntity.ok(responseFactory.success("response.auth.social_login_success", response));
     }
@@ -314,9 +319,7 @@ public class AuthController {
 
     @PostMapping("/logout")
     @Authenticated
-    public ResponseEntity<ApiResponse<Void>> logout(
-            @org.springframework.security.core.annotation.AuthenticationPrincipal
-            com.hoz.hozitech.security.CustomUserDetails userDetails) {
+    public ResponseEntity<ApiResponse<Void>> logout(@AuthenticationPrincipal CustomUserDetails userDetails) {
         authService.logout(userDetails.getUser().getId());
         return ResponseEntity.ok(responseFactory.success("response.auth.logout_success"));
     }
