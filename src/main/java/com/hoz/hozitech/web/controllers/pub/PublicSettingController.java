@@ -45,6 +45,19 @@ public class PublicSettingController {
         return ResponseEntity.ok(responseFactory.success("response.setting.payment_methods_fetched", methods));
     }
 
+    /** Thông tin tài khoản nhận chuyển khoản — dùng cho màn hướng dẫn thanh toán */
+    @GetMapping("/bank-transfer")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getBankTransferConfig() {
+        Map<String, Object> config = new LinkedHashMap<>();
+        config.put("enabled", bool("BANK_TRANSFER_ENABLED", false));
+        config.put("bankName", val("BANK_TRANSFER_BANK_NAME"));
+        config.put("accountNumber", val("BANK_TRANSFER_ACCOUNT_NUMBER"));
+        config.put("accountName", val("BANK_TRANSFER_ACCOUNT_NAME"));
+        config.put("qrImageUrl", val("BANK_TRANSFER_QR_IMAGE_URL"));
+        config.put("instructions", val("BANK_TRANSFER_INSTRUCTIONS"));
+        return ResponseEntity.ok(responseFactory.success("response.setting.bank_transfer_fetched", config));
+    }
+
     /** Cấu hình vận chuyển — dùng cho Checkout tính phí ship */
     @GetMapping("/shipping")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getShippingConfig() {

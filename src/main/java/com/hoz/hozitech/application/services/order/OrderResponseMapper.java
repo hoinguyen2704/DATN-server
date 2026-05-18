@@ -3,6 +3,7 @@ package com.hoz.hozitech.application.services.order;
 import static com.hoz.hozitech.application.services.order.OrderUtils.nz;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hoz.hozitech.application.services.payment.MomoPaymentService;
 import com.hoz.hozitech.application.services.payment.VnpayPaymentService;
 import com.hoz.hozitech.domain.dtos.response.OrderResponse;
 import com.hoz.hozitech.domain.dtos.response.OrderStatusHistoryResponse;
@@ -27,6 +28,7 @@ class OrderResponseMapper {
 
     private final ObjectMapper objectMapper;
     private final VnpayPaymentService vnpayPaymentService;
+    private final MomoPaymentService momoPaymentService;
 
     OrderResponse mapToResponse(Order order) {
         List<OrderResponse.OrderItemResponse> items = order.getOrderItems().stream()
@@ -183,6 +185,10 @@ class OrderResponseMapper {
             } else {
                 response.setPaymentUrl("https://payment.hozitech.com/pay/vnpay/" + order.getOrderNumber());
             }
+        } else if (order.getPaymentMethod() == PaymentMethod.MOMO) {
+            response.setPaymentUrl(momoPaymentService.createPaymentUrl(order));
+        } else if (order.getPaymentMethod() == PaymentMethod.BANK_TRANSFER) {
+            response.setPaymentUrl("/payment/bank-transfer/" + order.getOrderNumber());
         } else if (order.getPaymentMethod() != PaymentMethod.COD) {
             response.setPaymentUrl("https://payment.hozitech.com/pay/" + order.getOrderNumber());
         }

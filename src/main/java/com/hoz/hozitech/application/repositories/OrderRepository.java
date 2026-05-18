@@ -219,15 +219,17 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
     List<Object[]> findTopCustomers(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to, Pageable pageable);
 
     /**
-     * Finds PENDING orders with online payment methods (not COD) created before the cutoff time.
-     * These are "zombie" orders where the customer abandoned checkout.
+     * Finds unpaid PENDING orders with selected payment methods created before the cutoff time.
+     * These are "zombie" orders where the customer abandoned checkout or never completed manual payment.
      */
     @Query("SELECT o FROM Order o WHERE o.orderStatus = :status " +
-            "AND o.paymentMethod <> :excludedPaymentMethod " +
+            "AND o.paymentStatus = :paymentStatus " +
+            "AND o.paymentMethod IN :paymentMethods " +
             "AND o.createdAt < :cutoff")
     List<Order> findStalePendingOrders(
             @Param("status") OrderStatus status,
-            @Param("excludedPaymentMethod") com.hoz.hozitech.domain.enums.PaymentMethod excludedPaymentMethod,
+            @Param("paymentStatus") PaymentStatus paymentStatus,
+            @Param("paymentMethods") Collection<PaymentMethod> paymentMethods,
             @Param("cutoff") LocalDateTime cutoff);
 
     interface UserOrderListRow {

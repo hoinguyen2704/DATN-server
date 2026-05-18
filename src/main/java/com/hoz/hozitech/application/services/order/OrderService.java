@@ -20,10 +20,14 @@ public interface OrderService {
 
     OrderResponse cancelOrder(UUID userId, String orderNumber);
 
+    OrderResponse retryPayment(UUID userId, String orderNumber, String ipAddress);
+
     // Admin
     PageResponse<AdminOrderListItemResponse> getAllOrders(String status, String keyword, int page, int size, String sortBy, String sortDir);
 
     OrderResponse updateOrderStatus(UUID orderId, String status);
+
+    OrderResponse markPaymentCompleted(UUID orderId);
 
     // Public payment webhook
     OrderResponse handlePaymentWebhook(PaymentWebhookRequest request, String idempotencyKey);

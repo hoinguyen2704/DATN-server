@@ -1,5 +1,6 @@
 package com.hoz.hozitech.web.controllers.user;
 
+import com.hoz.hozitech.application.services.storage.FileStorageService;
 import com.hoz.hozitech.application.services.user.UserService;
 import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
 import com.hoz.hozitech.web.base.RestAPI;
@@ -29,7 +30,7 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
-    private final com.hoz.hozitech.application.services.storage.FileStorageService fileStorageService;
+    private final FileStorageService fileStorageService;
     private final LocalizedApiResponseFactory responseFactory;
 
     @GetMapping("/me")

@@ -66,6 +66,17 @@ public class OrderController {
                 orderService.cancelOrder(userDetails.getUser().getId(), orderNumber)));
     }
 
+    @PostMapping("/{orderNumber}/payment/retry")
+    public ResponseEntity<ApiResponse<OrderResponse>> retryPayment(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable String orderNumber,
+            HttpServletRequest httpServletRequest) {
+        String ipAddress = getClientIp(httpServletRequest);
+        return ResponseEntity.ok(responseFactory.success(
+                "response.order.payment_retry_created",
+                orderService.retryPayment(userDetails.getUser().getId(), orderNumber, ipAddress)));
+    }
+
     private String getClientIp(HttpServletRequest request) {
         String ipAddress = request.getHeader("X-Forwarded-For");
         if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {

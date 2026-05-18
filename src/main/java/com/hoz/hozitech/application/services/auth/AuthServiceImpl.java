@@ -48,6 +48,7 @@ import com.hoz.hozitech.domain.dtos.response.AuthResponse;
 import com.hoz.hozitech.domain.dtos.response.GoogleLoginExchangeResponse;
 import com.hoz.hozitech.domain.entities.Role;
 import com.hoz.hozitech.domain.entities.Token;
+import com.hoz.hozitech.domain.entities.OtpToken;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.entities.UserSocialAccount;
 import com.hoz.hozitech.domain.enums.RoleType;
@@ -246,7 +247,7 @@ public class AuthServiceImpl implements AuthService {
         // Invalidate all previous unused OTPs for this email
         otpTokenRepository.invalidateAllByEmail(email);
         
-        com.hoz.hozitech.domain.entities.OtpToken otpToken = com.hoz.hozitech.domain.entities.OtpToken.builder()
+        OtpToken otpToken = OtpToken.builder()
                 .email(email)
                 .otpCode(otpCode)
                 .expiresAt(LocalDateTime.now().plusMinutes(5)) // OTP expires in 5 minutes
@@ -259,7 +260,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public boolean verifyOtp(String email, String otpCode) {
-        com.hoz.hozitech.domain.entities.OtpToken otpToken = otpTokenRepository.findByEmailAndOtpCodeAndIsUsedFalse(email, otpCode)
+        OtpToken otpToken = otpTokenRepository.findByEmailAndOtpCodeAndIsUsedFalse(email, otpCode)
                 .orElseThrow(() -> new InvalidParamException("Invalid OTP Code"));
 
         if (otpToken.getExpiresAt().isBefore(LocalDateTime.now())) {
@@ -272,7 +273,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void resetPassword(String email, String otpCode, String newPassword) {
-        com.hoz.hozitech.domain.entities.OtpToken otpToken = otpTokenRepository.findByEmailAndOtpCodeAndIsUsedFalse(email, otpCode)
+        OtpToken otpToken = otpTokenRepository.findByEmailAndOtpCodeAndIsUsedFalse(email, otpCode)
                 .orElseThrow(() -> new InvalidParamException("Invalid OTP Code"));
 
         if (otpToken.getExpiresAt().isBefore(LocalDateTime.now())) {

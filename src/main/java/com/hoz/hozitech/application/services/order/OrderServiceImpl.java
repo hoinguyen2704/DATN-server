@@ -257,6 +257,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         order.setOrderStatus(OrderStatus.CANCELLED);
+        order.setPaymentStatus(PaymentStatus.FAILED);
         checkoutHelper.restoreStock(order);
         couponApplier.restoreCouponUsage(order.getCouponCode(), order.getShippingCouponCode());
 
@@ -266,6 +267,28 @@ public class OrderServiceImpl implements OrderService {
         notificationService.createForUser(userId, UserNotificationTemplates.orderCancelled(savedOrder));
 
         return responseMapper.mapToResponse(savedOrder);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse retryPayment(UUID userId, String orderNumber, String ipAddress) {
+        Order order = orderRepository.findByOrderNumberForUpdate(orderNumber == null ? null : orderNumber.trim())
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.ORDER_NOT_FOUND, "Order not found"));
+        if (!order.getUser().getId().equals(userId)) {
+            throw new UnauthorizedException("Order does not belong to user");
+        }
+        if (order.getOrderStatus() != OrderStatus.PENDING || order.getPaymentStatus() != PaymentStatus.PENDING) {
+            throw new BusinessException(
+                    BusinessErrorCode.PAYMENT_RETRY_NOT_ALLOWED,
+                    "Only pending online payments can be retried");
+        }
+        if (order.getPaymentMethod() == PaymentMethod.COD || order.getPaymentMethod() == PaymentMethod.BANK_TRANSFER) {
+            throw new BusinessException(
+                    BusinessErrorCode.PAYMENT_RETRY_NOT_ALLOWED,
+                    "Payment retry is only available for online payment methods");
+        }
+
+        return responseMapper.buildCheckoutResponse(order, ipAddress);
     }
 
     @Override
@@ -313,6 +336,47 @@ public class OrderServiceImpl implements OrderService {
         if (newStatus == OrderStatus.SHIPPED) {
             emailSender.sendOrderShippedEmail(updatedOrder);
         }
+
+        return responseMapper.mapToResponse(updatedOrder);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse markPaymentCompleted(UUID orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.ORDER_NOT_FOUND, "Order not found"));
+
+        if (order.getPaymentStatus() == PaymentStatus.COMPLETED) {
+            return responseMapper.mapToResponse(order);
+        }
+
+        if (order.getPaymentMethod() != PaymentMethod.BANK_TRANSFER) {
+            throw new BusinessException(
+                    BusinessErrorCode.PAYMENT_CONFIRM_NOT_ALLOWED,
+                    "Manual payment confirmation is only allowed for bank transfer orders");
+        }
+
+        if (order.getOrderStatus() == OrderStatus.CANCELLED || order.getOrderStatus() == OrderStatus.RETURNED) {
+            throw new BusinessException(
+                    BusinessErrorCode.PAYMENT_CONFIRM_NOT_ALLOWED,
+                    "Cannot confirm payment for a closed order");
+        }
+
+        OrderStatus oldStatus = order.getOrderStatus();
+        order.setPaymentStatus(PaymentStatus.COMPLETED);
+        if (oldStatus == OrderStatus.PENDING) {
+            order.setOrderStatus(OrderStatus.CONFIRMED);
+        }
+
+        Order updatedOrder = orderRepository.save(order);
+        orderStatusHistoryRepository.save(OrderStatusHistory.builder()
+                .order(updatedOrder)
+                .status(updatedOrder.getOrderStatus())
+                .description("Admin xác nhận đã nhận chuyển khoản")
+                .build());
+
+        notificationService.createForUser(updatedOrder.getUser().getId(), UserNotificationTemplates.paymentSuccess(updatedOrder));
+        adminNotificationService.createShared(AdminNotificationTemplates.paymentSuccess(updatedOrder), false);
 
         return responseMapper.mapToResponse(updatedOrder);
     }

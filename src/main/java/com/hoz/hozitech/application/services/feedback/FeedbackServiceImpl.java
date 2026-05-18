@@ -1,5 +1,20 @@
 package com.hoz.hozitech.application.services.feedback;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -7,6 +22,7 @@ import com.hoz.hozitech.application.constant.PaginationConstant;
 import com.hoz.hozitech.application.repositories.FeedbackRepository;
 import com.hoz.hozitech.application.repositories.OrderRepository;
 import com.hoz.hozitech.application.repositories.ProductRepository;
+import com.hoz.hozitech.application.repositories.ProductVariantRepository;
 import com.hoz.hozitech.application.repositories.UserRepository;
 import com.hoz.hozitech.application.services.notification.AdminNotificationService;
 import com.hoz.hozitech.application.services.notification.AdminNotificationTemplates;
@@ -24,22 +40,9 @@ import com.hoz.hozitech.domain.entities.Product;
 import com.hoz.hozitech.domain.entities.ProductVariant;
 import com.hoz.hozitech.domain.entities.User;
 import com.hoz.hozitech.domain.enums.FeedbackStatus;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 @Service
 @Slf4j
@@ -54,7 +57,7 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     private final FeedbackRepository feedbackRepository;
     private final ProductRepository productRepository;
-    private final com.hoz.hozitech.application.repositories.ProductVariantRepository productVariantRepository;
+    private final ProductVariantRepository productVariantRepository;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final AdminNotificationService adminNotificationService;
@@ -63,7 +66,8 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     @Transactional(readOnly = true)
-    public ProductFeedbackPageResponse getFeedbacksByProduct(String productSlug, Integer rating, Boolean hasComment, int page, int size) {
+    public ProductFeedbackPageResponse getFeedbacksByProduct(String productSlug, Integer rating, Boolean hasComment,
+            int page, int size) {
         Product product = resolveProductBySlug(productSlug);
         Pageable pageable = PaginationConstant.of(page, Math.min(size, PUBLIC_FEEDBACK_MAX_PAGE_SIZE));
         Page<Feedback> feedbacks = feedbackRepository.findPublicByProductWithFilters(
@@ -137,7 +141,8 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<FeedbackResponse> getMyFeedbacks(UUID userId, String productSlug, String variantSku, String orderNumber) {
+    public List<FeedbackResponse> getMyFeedbacks(UUID userId, String productSlug, String variantSku,
+            String orderNumber) {
         Product product = resolveProductBySlug(productSlug);
         ProductVariant variant = resolveVariantBySku(variantSku);
         if (variant != null && !variant.getProduct().getId().equals(product.getId())) {
@@ -150,10 +155,10 @@ public class FeedbackServiceImpl implements FeedbackService {
         }
 
         return feedbackRepository.findAllByUserIdAndProductIdWithOptionalVariantIdAndOrderIdOrderByCreatedAtAsc(
-                        userId,
-                        product.getId(),
-                        variant != null ? variant.getId() : null,
-                        order != null ? order.getId() : null)
+                userId,
+                product.getId(),
+                variant != null ? variant.getId() : null,
+                order != null ? order.getId() : null)
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -260,7 +265,8 @@ public class FeedbackServiceImpl implements FeedbackService {
                 .variantSku(feedback.getVariant() != null ? feedback.getVariant().getSku() : null)
                 .variantName(feedback.getVariant() != null ? feedback.getVariant().getVariantName() : null)
                 .userId(feedback.getUser().getId())
-                .userName(feedback.getUser().getFullName() != null ? feedback.getUser().getFullName() : feedback.getUser().getUserName())
+                .userName(feedback.getUser().getFullName() != null ? feedback.getUser().getFullName()
+                        : feedback.getUser().getUserName())
                 .userAvatar(feedback.getUser().getAvatarUrl())
                 .orderId(feedback.getOrder() != null ? feedback.getOrder().getId() : null)
                 .orderNumber(feedback.getOrder() != null ? feedback.getOrder().getOrderNumber() : null)
@@ -284,7 +290,8 @@ public class FeedbackServiceImpl implements FeedbackService {
 
         return FeedbackFilterSummaryResponse.builder()
                 .total(feedbackRepository.countByProductIdAndStatus(productId, FeedbackStatus.APPROVED))
-                .withContent(feedbackRepository.countWithContentByProductIdAndStatus(productId, FeedbackStatus.APPROVED))
+                .withContent(
+                        feedbackRepository.countWithContentByProductIdAndStatus(productId, FeedbackStatus.APPROVED))
                 .ratingCounts(ratingCounts)
                 .build();
     }
@@ -371,7 +378,8 @@ public class FeedbackServiceImpl implements FeedbackService {
         }
 
         try {
-            List<String> parsedUrls = objectMapper.readValue(normalizedImagesJson, new TypeReference<List<String>>() {});
+            List<String> parsedUrls = objectMapper.readValue(normalizedImagesJson, new TypeReference<List<String>>() {
+            });
             if (parsedUrls == null || parsedUrls.isEmpty()) {
                 return List.of();
             }

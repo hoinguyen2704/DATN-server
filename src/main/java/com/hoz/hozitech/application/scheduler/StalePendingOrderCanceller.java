@@ -7,6 +7,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.hoz.hozitech.application.config.payment.BankTransferProperties;
+import com.hoz.hozitech.application.config.payment.MomoProperties;
+import com.hoz.hozitech.application.config.payment.VnpayProperties;
 import com.hoz.hozitech.application.repositories.OrderRepository;
 import com.hoz.hozitech.application.repositories.OrderStatusHistoryRepository;
 import com.hoz.hozitech.application.services.notification.AdminNotificationService;
@@ -27,19 +30,18 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Scheduled job that auto-cancels "zombie" PENDING orders.
  * <p>
- * When a customer clicks "Pay" and gets redirected to the VNPAY/MoMo payment page
- * but abandons the payment (closes tab, presses back), the order remains PENDING
- * while inventory is locked and coupon usage is consumed.
+ * When a customer clicks "Pay" and abandons the online payment, or chooses
+ * bank transfer but never completes it, the order remains PENDING while
+ * inventory is locked and coupon usage is consumed.
  * <p>
- * This scheduler runs every 5 minutes and cancels any PENDING online-payment order
- * older than 30 minutes, restoring inventory and coupon counts.
+ * This scheduler runs on the configured interval and cancels any unpaid PENDING
+ * order older than that payment method's configured timeout, restoring inventory
+ * and coupon counts.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class StalePendingOrderCanceller {
-
-    private static final int STALE_THRESHOLD_MINUTES = 30;
 
     private final OrderRepository orderRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
@@ -47,28 +49,38 @@ public class StalePendingOrderCanceller {
     private final CouponApplier couponApplier;
     private final NotificationService notificationService;
     private final AdminNotificationService adminNotificationService;
+    private final VnpayProperties vnpayProperties;
+    private final MomoProperties momoProperties;
+    private final BankTransferProperties bankTransferProperties;
 
     /**
-     * Runs every 5 minutes. Finds PENDING orders with online payment methods
-     * (excluding COD) that have been PENDING for more than 30 minutes.
+     * Finds unpaid PENDING VNPAY/MoMo/bank-transfer orders beyond the configured timeout.
      */
-    @Scheduled(fixedRate = 5 * 60 * 1000) // every 5 minutes
+    @Scheduled(fixedRateString = "${payment.pending-order.scan-rate-ms:300000}")
     @Transactional
     public void cancelStaleOrders() {
-        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(STALE_THRESHOLD_MINUTES);
+        cancelStaleOrdersForMethod(PaymentMethod.VNPAY, vnpayProperties.getPendingTimeoutMinutes());
+        cancelStaleOrdersForMethod(PaymentMethod.MOMO, momoProperties.getPendingTimeoutMinutes());
+        cancelStaleOrdersForMethod(PaymentMethod.BANK_TRANSFER, bankTransferProperties.getPendingTimeoutMinutes());
+    }
+
+    private void cancelStaleOrdersForMethod(PaymentMethod paymentMethod, int timeoutMinutes) {
+        int safeTimeoutMinutes = Math.max(1, timeoutMinutes);
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(safeTimeoutMinutes);
 
         List<Order> staleOrders = orderRepository.findStalePendingOrders(
-                OrderStatus.PENDING, PaymentMethod.COD, cutoff);
+                OrderStatus.PENDING, PaymentStatus.PENDING, List.of(paymentMethod), cutoff);
 
         if (staleOrders.isEmpty()) {
             return;
         }
 
-        log.info("[StalePendingOrderCanceller] Found {} stale PENDING orders to cancel", staleOrders.size());
+        log.info("[StalePendingOrderCanceller] Found {} stale PENDING {} orders older than {} minutes to cancel",
+                staleOrders.size(), paymentMethod, safeTimeoutMinutes);
 
         for (Order order : staleOrders) {
             try {
-                cancelOrder(order);
+                cancelOrder(order, safeTimeoutMinutes);
                 log.info("[StalePendingOrderCanceller] Auto-cancelled order {} (created: {}, payment: {})",
                         order.getOrderNumber(), order.getCreatedAt(), order.getPaymentMethod());
             } catch (Exception e) {
@@ -78,7 +90,7 @@ public class StalePendingOrderCanceller {
         }
     }
 
-    private void cancelOrder(Order order) {
+    private void cancelOrder(Order order, int timeoutMinutes) {
         order.setOrderStatus(OrderStatus.CANCELLED);
         order.setPaymentStatus(PaymentStatus.FAILED);
 
@@ -94,7 +106,7 @@ public class StalePendingOrderCanceller {
         orderStatusHistoryRepository.save(OrderStatusHistory.builder()
                 .order(order)
                 .status(OrderStatus.CANCELLED)
-                .description("Đơn hàng tự động hủy do chưa thanh toán sau " + STALE_THRESHOLD_MINUTES + " phút")
+                .description("Đơn hàng tự động hủy do chưa thanh toán sau " + timeoutMinutes + " phút")
                 .build());
 
         // Notify user

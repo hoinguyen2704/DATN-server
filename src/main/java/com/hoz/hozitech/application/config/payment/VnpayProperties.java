@@ -16,4 +16,5 @@ public class VnpayProperties {
     private String version = "2.1.0";
     private String command = "pay";
     private int expireMinutes = 15;
+    private int pendingTimeoutMinutes = 30;
 }

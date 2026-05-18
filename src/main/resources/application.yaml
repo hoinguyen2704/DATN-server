@@ -100,6 +100,8 @@ spring.mail:
           required: true
 
 payment:
+  pending-order:
+    scan-rate-ms: ${PAYMENT_PENDING_ORDER_SCAN_RATE_MS:300000}
   webhook:
     # Set true only for local testing when provider signatures are not available
     allow-unsigned: ${PAYMENT_WEBHOOK_ALLOW_UNSIGNED:false}
@@ -119,7 +121,23 @@ vnpay:
   api-url: ${VNPAY_API_URL:https://sandbox.vnpayment.vn/merchant_webapi/api/transaction}
   version: "2.1.0"
   command: pay
-  expire-minutes: 15
+  expire-minutes: ${VNPAY_EXPIRE_MINUTES:15}
+  pending-timeout-minutes: ${VNPAY_PENDING_TIMEOUT_MINUTES:${VNPAY_EXPIRE_MINUTES:15}}
+
+momo:
+  partner-code: ${MOMO_PARTNER_CODE:}
+  access-key: ${MOMO_ACCESS_KEY:}
+  secret-key: ${MOMO_SECRET_KEY:}
+  endpoint: ${MOMO_ENDPOINT:https://test-payment.momo.vn/v2/gateway/api}
+  create-path: ${MOMO_CREATE_PATH:/create}
+  redirect-url: ${MOMO_REDIRECT_URL:http://localhost:3000/payment/momo-return}
+  ipn-url: ${MOMO_IPN_URL:http://localhost:8080/api/v1/public/payments/momo/ipn}
+  request-type: ${MOMO_REQUEST_TYPE:captureWallet}
+  auto-capture: ${MOMO_AUTO_CAPTURE:true}
+  pending-timeout-minutes: ${MOMO_PENDING_TIMEOUT_MINUTES:15}
+
+bank-transfer:
+  pending-timeout-minutes: ${BANK_TRANSFER_PENDING_TIMEOUT_MINUTES:1440}
 
 social:
   google:

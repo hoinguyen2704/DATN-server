@@ -1,6 +1,6 @@
-# Hozitech Server
+#  Server
 
-Backend API cho Hozitech, xây bằng Spring Boot, JPA, Security, WebSocket và PostgreSQL.
+Backend API cho , xây bằng Spring Boot, JPA, Security, WebSocket và PostgreSQL.
 
 ## Tổng Quan
 

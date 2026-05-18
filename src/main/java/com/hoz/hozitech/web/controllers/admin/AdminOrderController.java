@@ -53,6 +53,12 @@ public class AdminOrderController {
                 orderService.updateOrderStatus(orderId, body.get("status"))));
     }
 
+    @PatchMapping("/{orderId}/payment/complete")
+    public ResponseEntity<ApiResponse<OrderResponse>> markPaymentCompleted(@PathVariable UUID orderId) {
+        return ResponseEntity.ok(responseFactory.success("response.admin_order.payment_completed",
+                orderService.markPaymentCompleted(orderId)));
+    }
+
     @GetMapping("/{orderNumber}")
     public ResponseEntity<ApiResponse<OrderResponse>> getOrderByNumber(@PathVariable String orderNumber) {
         return ResponseEntity.ok(responseFactory.success("response.admin_order.fetched",

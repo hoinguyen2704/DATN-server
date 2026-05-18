@@ -2,10 +2,15 @@ package com.hoz.hozitech.web.controllers.pub;
 
 import com.hoz.hozitech.application.services.order.OrderService;
 import com.hoz.hozitech.application.services.order.PaymentWebhookSignatureVerifier;
+import com.hoz.hozitech.application.services.payment.MomoPaymentService;
+import com.hoz.hozitech.application.services.payment.VnpayPaymentService;
+import com.hoz.hozitech.config.exceptions.UnauthorizedException;
 import com.hoz.hozitech.config.utils.LocalizedApiResponseFactory;
+import com.hoz.hozitech.domain.dtos.request.MomoIpnRequest;
 import com.hoz.hozitech.domain.dtos.request.PaymentWebhookRequest;
 import com.hoz.hozitech.domain.dtos.response.ApiResponse;
 import com.hoz.hozitech.domain.dtos.response.OrderResponse;
+import com.hoz.hozitech.domain.enums.PaymentStatus;
 import com.hoz.hozitech.web.base.RestAPI;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,9 +20,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
-
-import com.hoz.hozitech.application.services.payment.VnpayPaymentService;
-import com.hoz.hozitech.domain.enums.PaymentStatus;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -32,6 +34,7 @@ public class PublicPaymentController {
     private final OrderService orderService;
     private final PaymentWebhookSignatureVerifier webhookSignatureVerifier;
     private final VnpayPaymentService vnpayPaymentService;
+    private final MomoPaymentService momoPaymentService;
     private final ObjectMapper objectMapper;
     private final LocalizedApiResponseFactory responseFactory;
 
@@ -43,6 +46,24 @@ public class PublicPaymentController {
             @Valid @RequestBody PaymentWebhookRequest request) {
         webhookSignatureVerifier.verifyOrThrow(request, webhookSignature, webhookTimestamp);
         OrderResponse response = orderService.handlePaymentWebhook(request, webhookId);
+        return ResponseEntity.ok(responseFactory.success("response.payment.webhook_processed", response));
+    }
+
+    @PostMapping("/momo/ipn")
+    public ResponseEntity<Void> momoIpn(@RequestBody MomoIpnRequest request) {
+        handleMomoResult(request, "momo_ipn");
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/momo/return")
+    public ResponseEntity<ApiResponse<OrderResponse>> momoReturn(@RequestBody MomoIpnRequest request) {
+        OrderResponse response = handleMomoResult(request, "momo_return");
+        return ResponseEntity.ok(responseFactory.success("response.payment.webhook_processed", response));
+    }
+
+    @PostMapping("/vnpay/return")
+    public ResponseEntity<ApiResponse<OrderResponse>> vnpayReturn(@RequestBody Map<String, String> params) {
+        OrderResponse response = handleVnpayResult(params, "vnpay_return");
         return ResponseEntity.ok(responseFactory.success("response.payment.webhook_processed", response));
     }
 
@@ -109,5 +130,70 @@ public class PublicPaymentController {
         } catch (Exception e) {
             return ResponseEntity.ok(Map.of("RspCode", "99", "Message", "Unknown error"));
         }
+    }
+
+    private OrderResponse handleVnpayResult(Map<String, String> params, String idempotencyPrefix) {
+        boolean isValid = vnpayPaymentService.verifyIpnSignature(params);
+        if (!isValid) {
+            throw new UnauthorizedException("Invalid VNPAY signature");
+        }
+
+        String orderNumber = params.get("vnp_TxnRef");
+        String vnpAmount = params.get("vnp_Amount");
+        String responseCode = params.get("vnp_ResponseCode");
+        String transactionNo = params.get("vnp_TransactionNo");
+        long amount = Long.parseLong(vnpAmount) / 100;
+        String status = "00".equals(responseCode) ? PaymentStatus.COMPLETED.name() : PaymentStatus.FAILED.name();
+
+        PaymentWebhookRequest webhookRequest = PaymentWebhookRequest.builder()
+                .provider("VNPAY")
+                .orderNumber(orderNumber)
+                .paymentStatus(status)
+                .eventId(params.getOrDefault("vnp_BankTranNo", transactionNo))
+                .transactionId(transactionNo)
+                .responseCode(responseCode)
+                .amount(BigDecimal.valueOf(amount))
+                .currency(params.getOrDefault("vnp_CurrCode", "VND"))
+                .rawPayload(writeRawPayload(params))
+                .build();
+
+        String idempotencyKey = idempotencyPrefix
+                + "_" + orderNumber
+                + "_" + (transactionNo != null ? transactionNo : responseCode);
+        return orderService.handlePaymentWebhook(webhookRequest, idempotencyKey);
+    }
+
+    private String writeRawPayload(Object payload) {
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException ignored) {
+            return "";
+        }
+    }
+
+    private OrderResponse handleMomoResult(MomoIpnRequest request, String idempotencyPrefix) {
+        momoPaymentService.verifyIpnSignatureOrThrow(request);
+
+        String transactionId = request.getTransId() != null
+                ? String.valueOf(request.getTransId())
+                : request.getRequestId();
+        String status = Integer.valueOf(0).equals(request.getResultCode())
+                ? PaymentStatus.COMPLETED.name()
+                : PaymentStatus.FAILED.name();
+
+        PaymentWebhookRequest webhookRequest = PaymentWebhookRequest.builder()
+                .provider("MOMO")
+                .orderNumber(request.getOrderId())
+                .paymentStatus(status)
+                .eventId(request.getRequestId())
+                .transactionId(transactionId)
+                .responseCode(request.getResultCode() != null ? String.valueOf(request.getResultCode()) : null)
+                .amount(request.getAmount() != null ? BigDecimal.valueOf(request.getAmount()) : null)
+                .currency("VND")
+                .rawPayload(writeRawPayload(request))
+                .build();
+
+        String idempotencyKey = idempotencyPrefix + "_" + request.getOrderId() + "_" + transactionId;
+        return orderService.handlePaymentWebhook(webhookRequest, idempotencyKey);
     }
 }
