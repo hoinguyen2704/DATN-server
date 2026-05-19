@@ -8,10 +8,14 @@ import java.util.UUID;
 
 public interface ArticleService {
     PageResponse<ArticleResponse> getPublicArticles(int page, int size);
+
     ArticleResponse getPublicArticleBySlug(String slug);
-    
+
     PageResponse<ArticleResponse> getAdminArticles(int page, int size);
+
     ArticleResponse createArticle(ArticleRequest request, UUID authorId);
+
     ArticleResponse updateArticle(UUID id, ArticleRequest request);
+
     void deleteArticle(UUID id);
 }

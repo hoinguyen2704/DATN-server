@@ -8,7 +8,8 @@ import lombok.RequiredArgsConstructor;
 public enum FlashSaleStatus {
     SCHEDULED("Sắp diễn ra"),
     ACTIVE("Đang diễn ra"),
-    ENDED("Đã kết thúc");
+    ENDED("Đã kết thúc"),
+    HIDDEN("Đã ẩn");
 
     private final String description;
 }

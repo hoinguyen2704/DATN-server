@@ -46,3 +46,6 @@ src/test/*
 
 ### Local export jobs ###
 storage/exports/
+AGENTS.md
+CLAUDE.md
+.claude/*

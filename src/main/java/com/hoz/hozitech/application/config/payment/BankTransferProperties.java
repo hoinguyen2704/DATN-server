@@ -8,5 +8,5 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties(prefix = "bank-transfer")
 public class BankTransferProperties {
-    private int pendingTimeoutMinutes = 1440;
+    private int pendingTimeoutMinutes = 1440; // 1 day
 }

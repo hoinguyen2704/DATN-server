@@ -241,22 +241,46 @@ public class ProductSummaryQueryRepository {
                 + soldSelectClause
                 + """
                     COALESCE(price.lowest_price, p.origin_price) AS lowest_price,
+                    COALESCE(flash.flash_price, price.lowest_price, p.origin_price) AS effective_price,
+                    CASE
+                        WHEN flash.flash_price IS NOT NULL THEN flash.original_price
+                        ELSE price.compare_at_price
+                    END AS compare_at_price,
                     COALESCE(review_stats.average_rating, 0) AS average_rating,
                     COALESCE(review_stats.total_reviews, 0) AS total_reviews
                 FROM products p
                 JOIN categories c ON c.id = p.category_id
                 LEFT JOIN brands b ON b.id = p.brand_id
-                LEFT JOIN (
-                    SELECT pv.product_id, COALESCE(SUM(pv.stock_quantity), 0) AS total_stock
+                LEFT JOIN LATERAL (
+                    SELECT COALESCE(SUM(pv.stock_quantity), 0) AS total_stock
                     FROM product_variants pv
-                    GROUP BY pv.product_id
-                ) stock ON stock.product_id = p.id
-                LEFT JOIN (
-                    SELECT pv.product_id, MIN(pv.price) AS lowest_price
+                    WHERE pv.product_id = p.id
+                ) stock ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT pv.price AS lowest_price,
+                           COALESCE(pv.compare_at_price, p.origin_price, pv.price) AS compare_at_price
                     FROM product_variants pv
-                    WHERE pv.status = TRUE
-                    GROUP BY pv.product_id
-                ) price ON price.product_id = p.id
+                    WHERE pv.product_id = p.id
+                      AND pv.status = TRUE
+                    ORDER BY pv.price ASC, pv.id ASC
+                    LIMIT 1
+                ) price ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT fsi.flash_price,
+                           COALESCE(pv.compare_at_price, p.origin_price, pv.price) AS original_price
+                    FROM product_variants pv
+                    JOIN flash_sale_items fsi ON fsi.variant_id = pv.id
+                    JOIN flash_sales fs ON fs.id = fsi.flash_sale_id
+                    WHERE pv.product_id = p.id
+                      AND fs.status <> 'HIDDEN'
+                      AND fs.start_time <= CURRENT_TIMESTAMP
+                      AND fs.end_time >= CURRENT_TIMESTAMP
+                      AND fsi.sold_count < fsi.flash_stock
+                      AND pv.status = TRUE
+                      AND pv.stock_quantity > 0
+                    ORDER BY fsi.flash_price ASC, fs.end_time ASC, fsi.created_at ASC, fsi.id ASC
+                    LIMIT 1
+                ) flash ON TRUE
                 """
                 + soldJoinClause
                 + """
@@ -284,7 +308,7 @@ public class ProductSummaryQueryRepository {
             case "popular" -> includeSoldMetrics
                     ? stockPriority + ", COALESCE(sold.total_sold, 0) DESC, p.created_at DESC, p.id DESC"
                     : stockPriority + ", p.created_at DESC, p.id DESC";
-            case "originPrice" -> stockPriority + ", p.origin_price " + direction + ", p.created_at DESC, p.id DESC";
+            case "originPrice", "price" -> stockPriority + ", COALESCE(flash.flash_price, price.lowest_price, p.origin_price) " + direction + ", p.created_at DESC, p.id DESC";
             case "averageRating" -> stockPriority + ", COALESCE(review_stats.average_rating, 0) " + direction + ", p.created_at DESC, p.id DESC";
             case "createdAt" -> stockPriority + ", p.created_at " + direction + ", p.id DESC";
             default -> stockPriority + ", p.created_at DESC, p.id DESC";
@@ -305,6 +329,8 @@ public class ProductSummaryQueryRepository {
                 rs.getString("product_code"),
                 rs.getBigDecimal("origin_price"),
                 rs.getBigDecimal("lowest_price"),
+                rs.getBigDecimal("effective_price"),
+                rs.getBigDecimal("compare_at_price"),
                 rs.getDouble("average_rating"),
                 rs.getInt("total_reviews"),
                 ProductStatus.valueOf(rs.getString("status")),
@@ -503,6 +529,8 @@ public class ProductSummaryQueryRepository {
             String productCode,
             BigDecimal originPrice,
             BigDecimal lowestPrice,
+            BigDecimal price,
+            BigDecimal compareAtPrice,
             Double averageRating,
             Integer totalReviews,
             ProductStatus status,

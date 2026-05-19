@@ -23,6 +23,8 @@ public interface FlashSaleItemRepository extends JpaRepository<FlashSaleItem, UU
 
     List<FlashSaleItem> findByFlashSaleId(UUID flashSaleId);
 
+    boolean existsByFlashSaleIdAndSoldCountGreaterThan(UUID flashSaleId, Integer soldCount);
+
     void deleteByVariantIdIn(Collection<UUID> variantIds);
 
     @Query("""
@@ -67,6 +69,7 @@ public interface FlashSaleItemRepository extends JpaRepository<FlashSaleItem, UU
                     join fsi.variant pv
                     join pv.product p
                     where fs.id = :flashSaleId
+                      and fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.HIDDEN
                       and fs.startTime <= CURRENT_TIMESTAMP
                       and fs.endTime >= CURRENT_TIMESTAMP
                     order by fsi.createdAt asc, fsi.id asc
@@ -76,6 +79,7 @@ public interface FlashSaleItemRepository extends JpaRepository<FlashSaleItem, UU
                     from FlashSaleItem fsi
                     join fsi.flashSale fs
                     where fs.id = :flashSaleId
+                      and fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.HIDDEN
                       and fs.startTime <= CURRENT_TIMESTAMP
                       and fs.endTime >= CURRENT_TIMESTAMP
                     """)
@@ -101,6 +105,7 @@ public interface FlashSaleItemRepository extends JpaRepository<FlashSaleItem, UU
             join fsi.variant pv
             join pv.product p
             where pv.id in :variantIds
+              and fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.HIDDEN
               and fs.startTime <= CURRENT_TIMESTAMP
               and fs.endTime >= CURRENT_TIMESTAMP
               and fsi.soldCount < fsi.flashStock
@@ -112,6 +117,7 @@ public interface FlashSaleItemRepository extends JpaRepository<FlashSaleItem, UU
     @Query("SELECT fsi FROM FlashSaleItem fsi " +
             "JOIN fsi.flashSale fs " +
             "WHERE fsi.variant.id = :variantId " +
+            "AND fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.HIDDEN " +
             "AND fs.startTime <= CURRENT_TIMESTAMP AND fs.endTime >= CURRENT_TIMESTAMP " +
             "AND fsi.soldCount < fsi.flashStock " +
             "ORDER BY fsi.flashPrice ASC")
@@ -121,6 +127,7 @@ public interface FlashSaleItemRepository extends JpaRepository<FlashSaleItem, UU
     @Query("SELECT fsi FROM FlashSaleItem fsi " +
             "JOIN fsi.flashSale fs " +
             "WHERE fsi.variant.id = :variantId " +
+            "AND fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.HIDDEN " +
             "AND fs.startTime <= CURRENT_TIMESTAMP AND fs.endTime >= CURRENT_TIMESTAMP " +
             "AND fsi.soldCount < fsi.flashStock " +
             "ORDER BY fsi.flashPrice ASC")

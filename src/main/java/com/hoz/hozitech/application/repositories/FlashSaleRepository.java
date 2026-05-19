@@ -25,7 +25,8 @@ public interface FlashSaleRepository extends JpaRepository<FlashSale, UUID> {
                    fs.endTime as endTime,
                    fs.createdAt as createdAt
             from FlashSale fs
-            where fs.startTime <= CURRENT_TIMESTAMP
+            where fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.HIDDEN
+              and fs.startTime <= CURRENT_TIMESTAMP
               and fs.endTime >= CURRENT_TIMESTAMP
             order by fs.endTime asc
             """)
@@ -40,14 +41,16 @@ public interface FlashSaleRepository extends JpaRepository<FlashSale, UUID> {
                            fs.endTime as endTime,
                            fs.createdAt as createdAt
                     from FlashSale fs
-                    where fs.startTime <= CURRENT_TIMESTAMP
+                    where fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.HIDDEN
+                      and fs.startTime <= CURRENT_TIMESTAMP
                       and fs.endTime >= CURRENT_TIMESTAMP
                     order by fs.endTime asc
                     """,
             countQuery = """
                     select count(fs)
                     from FlashSale fs
-                    where fs.startTime <= CURRENT_TIMESTAMP
+                    where fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.HIDDEN
+                      and fs.startTime <= CURRENT_TIMESTAMP
                       and fs.endTime >= CURRENT_TIMESTAMP
                     """)
     Page<ActiveStorefrontFlashSaleView> findActiveStorefrontFlashSales(Pageable pageable);
@@ -66,18 +69,21 @@ public interface FlashSaleRepository extends JpaRepository<FlashSale, UUID> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE FlashSale fs SET fs.status = com.hoz.hozitech.domain.enums.FlashSaleStatus.SCHEDULED " +
             "WHERE fs.startTime > :now " +
+            "AND fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.HIDDEN " +
             "AND fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.SCHEDULED")
     int markScheduledFlashSales(@Param("now") LocalDateTime now);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE FlashSale fs SET fs.status = com.hoz.hozitech.domain.enums.FlashSaleStatus.ACTIVE " +
             "WHERE fs.startTime <= :now AND fs.endTime >= :now " +
+            "AND fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.HIDDEN " +
             "AND fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.ACTIVE")
     int markActiveFlashSales(@Param("now") LocalDateTime now);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE FlashSale fs SET fs.status = com.hoz.hozitech.domain.enums.FlashSaleStatus.ENDED " +
             "WHERE fs.endTime < :now " +
+            "AND fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.HIDDEN " +
             "AND fs.status <> com.hoz.hozitech.domain.enums.FlashSaleStatus.ENDED")
     int markEndedFlashSales(@Param("now") LocalDateTime now);
 

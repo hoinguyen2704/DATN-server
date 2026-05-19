@@ -68,16 +68,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
 
         if (request.getItems() != null) {
             for (FlashSaleRequest.FlashSaleItemRequest itemReq : request.getItems()) {
-                ProductVariant variant = productVariantRepository.findById(itemReq.getVariantId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Variant", itemReq.getVariantId()));
-
-                FlashSaleItem item = FlashSaleItem.builder()
-                        .flashSale(flashSale)
-                        .variant(variant)
-                        .flashPrice(itemReq.getFlashPrice())
-                        .flashStock(itemReq.getFlashStock())
-                        .soldCount(0)
-                        .build();
+                FlashSaleItem item = buildValidatedFlashSaleItem(flashSale, itemReq);
                 flashSaleItemRepository.save(item);
                 flashSale.getItems().add(item);
             }
@@ -97,22 +88,16 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         flashSale.setDescription(request.getDescription());
         flashSale.setStartTime(request.getStartTime());
         flashSale.setEndTime(request.getEndTime());
-        flashSale.setStatus(resolveStatus(request.getStartTime(), request.getEndTime()));
+        flashSale.setStatus(resolveStatusForExistingFlashSale(
+                flashSale.getStatus(),
+                request.getStartTime(),
+                request.getEndTime()));
         flashSale.getItems().clear();
         flashSaleRepository.flush();
         
         if (request.getItems() != null) {
             for (FlashSaleRequest.FlashSaleItemRequest itemReq : request.getItems()) {
-                ProductVariant variant = productVariantRepository.findById(itemReq.getVariantId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Variant", itemReq.getVariantId()));
-
-                FlashSaleItem item = FlashSaleItem.builder()
-                        .flashSale(flashSale)
-                        .variant(variant)
-                        .flashPrice(itemReq.getFlashPrice())
-                        .flashStock(itemReq.getFlashStock())
-                        .soldCount(0)
-                        .build();
+                FlashSaleItem item = buildValidatedFlashSaleItem(flashSale, itemReq);
                 flashSale.getItems().add(item);
             }
         }
@@ -127,7 +112,9 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     public FlashSaleResponse updateFlashSaleStatus(UUID id, FlashSaleStatus status) {
         FlashSale flashSale = flashSaleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Flash sale", id));
-        flashSale.setStatus(resolveStatus(flashSale.getStartTime(), flashSale.getEndTime()));
+        flashSale.setStatus(status == FlashSaleStatus.HIDDEN
+                ? FlashSaleStatus.HIDDEN
+                : resolveStatus(flashSale.getStartTime(), flashSale.getEndTime()));
         flashSale = flashSaleRepository.save(flashSale);
         adminNotificationService.createShared(AdminNotificationTemplates.flashSaleStatusChanged(flashSale), true);
         return toResponse(flashSale);
@@ -136,7 +123,95 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     @Override
     @Transactional
     public void deleteFlashSale(UUID id) {
-        flashSaleRepository.deleteById(id);
+        FlashSale flashSale = flashSaleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Flash sale", id));
+        boolean hasOrders = flashSaleItemRepository.existsByFlashSaleIdAndSoldCountGreaterThan(id, 0);
+        if (hasOrders) {
+            flashSale.setStatus(FlashSaleStatus.HIDDEN);
+            flashSaleRepository.save(flashSale);
+            adminNotificationService.createShared(AdminNotificationTemplates.flashSaleStatusChanged(flashSale), true);
+            return;
+        }
+
+        flashSaleRepository.delete(flashSale);
+    }
+
+    private FlashSaleItem buildValidatedFlashSaleItem(
+            FlashSale flashSale,
+            FlashSaleRequest.FlashSaleItemRequest itemReq
+    ) {
+        ProductVariant variant = productVariantRepository.findById(itemReq.getVariantId())
+                .orElseThrow(() -> new ResourceNotFoundException("Variant", itemReq.getVariantId()));
+        validateFlashSaleItemRequest(itemReq, variant);
+
+        return FlashSaleItem.builder()
+                .flashSale(flashSale)
+                .variant(variant)
+                .flashPrice(itemReq.getFlashPrice())
+                .flashStock(itemReq.getFlashStock())
+                .soldCount(0)
+                .build();
+    }
+
+    private void validateFlashSaleItemRequest(
+            FlashSaleRequest.FlashSaleItemRequest itemReq,
+            ProductVariant variant
+    ) {
+        String variantLabel = resolveVariantLabel(variant);
+        BigDecimal flashPrice = itemReq.getFlashPrice();
+        BigDecimal originalPrice = resolveOriginalPrice(variant);
+        Integer flashStock = itemReq.getFlashStock();
+        int stockQuantity = variant.getStock() != null ? Math.max(0, variant.getStock()) : 0;
+
+        if (!Boolean.TRUE.equals(variant.getActive())) {
+            throw new IllegalArgumentException("Variant " + variantLabel + " is not active.");
+        }
+
+        if (originalPrice == null || originalPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Variant " + variantLabel + " has an invalid original price.");
+        }
+
+        if (flashPrice == null || flashPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Flash Sale price for variant " + variantLabel + " must be greater than 0.");
+        }
+
+        if (flashPrice.compareTo(originalPrice) > 0) {
+            throw new IllegalArgumentException(
+                    "Flash Sale price for variant " + variantLabel
+                            + " must not exceed original price " + originalPrice + ".");
+        }
+
+        if (flashStock == null || flashStock <= 0) {
+            throw new IllegalArgumentException("Flash Sale stock for variant " + variantLabel + " must be greater than 0.");
+        }
+
+        if (flashStock > stockQuantity) {
+            throw new IllegalArgumentException(
+                    "Flash Sale stock for variant " + variantLabel
+                            + " must not exceed current stock " + stockQuantity + ".");
+        }
+    }
+
+    private BigDecimal resolveOriginalPrice(ProductVariant variant) {
+        if (variant.getCompareAtPrice() != null && variant.getCompareAtPrice().compareTo(BigDecimal.ZERO) > 0) {
+            return variant.getCompareAtPrice();
+        }
+        if (variant.getProduct() != null
+                && variant.getProduct().getOriginPrice() != null
+                && variant.getProduct().getOriginPrice().compareTo(BigDecimal.ZERO) > 0) {
+            return variant.getProduct().getOriginPrice();
+        }
+        return variant.getPrice();
+    }
+
+    private String resolveVariantLabel(ProductVariant variant) {
+        if (variant.getSku() != null && !variant.getSku().isBlank()) {
+            return variant.getSku();
+        }
+        if (variant.getVariantName() != null && !variant.getVariantName().isBlank()) {
+            return variant.getVariantName();
+        }
+        return variant.getId() != null ? variant.getId().toString() : "unknown";
     }
 
     @Override
@@ -257,7 +332,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         }
 
         return flashSaleItemRepository.findActiveFlashSaleItemByVariantId(variantId).stream()
-                .filter(item -> item.getFlashStock() - item.getSoldCount() >= quantity)
+                .filter(item -> resolveAvailableFlashSaleStock(item) >= quantity)
                 .map(FlashSaleItem::getFlashPrice)
                 .findFirst()
                 .orElse(null);
@@ -268,7 +343,7 @@ public class FlashSaleServiceImpl implements FlashSaleService {
     public BigDecimal applyFlashSaleAndReduceStock(UUID variantId, int quantity) {
         promotionStatusSyncService.syncFlashSaleStatuses();
         return flashSaleItemRepository.findActiveFlashSaleItemByVariantIdForUpdate(variantId).stream()
-                .filter(item -> item.getFlashStock() - item.getSoldCount() >= quantity)
+                .filter(item -> resolveAvailableFlashSaleStock(item) >= quantity)
                 .findFirst()
                 .map(item -> {
                     item.setSoldCount(item.getSoldCount() + quantity);
@@ -294,6 +369,16 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                     item.setSoldCount(restored);
                     flashSaleItemRepository.save(item);
                 });
+    }
+
+    private int resolveAvailableFlashSaleStock(FlashSaleItem item) {
+        int flashStock = item.getFlashStock() != null ? item.getFlashStock() : 0;
+        int soldCount = item.getSoldCount() != null ? item.getSoldCount() : 0;
+        int flashRemaining = Math.max(0, flashStock - soldCount);
+        if (item.getVariant() == null || item.getVariant().getStock() == null) {
+            return flashRemaining;
+        }
+        return Math.min(flashRemaining, Math.max(0, item.getVariant().getStock()));
     }
 
     // --- Mapper ---
@@ -424,6 +509,8 @@ public class FlashSaleServiceImpl implements FlashSaleService {
         UUID productUuid = item.getProductId();
         int flashStock = item.getFlashStock() != null ? item.getFlashStock() : 0;
         int soldCount = item.getSoldCount() != null ? item.getSoldCount() : 0;
+        int stockQuantity = item.getStockQuantity() != null ? Math.max(0, item.getStockQuantity()) : 0;
+        int remainingStock = Math.min(Math.max(0, flashStock - soldCount), stockQuantity);
 
         return FlashSaleItemResponse.builder()
                 .id(item.getId() != null ? item.getId().toString() : "")
@@ -437,8 +524,8 @@ public class FlashSaleServiceImpl implements FlashSaleService {
                 .flashPrice(item.getFlashPrice())
                 .flashStock(flashStock)
                 .soldCount(soldCount)
-                .remainingStock(flashStock - soldCount)
-                .stockQuantity(item.getStockQuantity())
+                .remainingStock(remainingStock)
+                .stockQuantity(stockQuantity)
                 .build();
     }
 
@@ -560,5 +647,16 @@ public class FlashSaleServiceImpl implements FlashSaleService {
             return FlashSaleStatus.ACTIVE;
         }
         return FlashSaleStatus.SCHEDULED;
+    }
+
+    private FlashSaleStatus resolveStatusForExistingFlashSale(
+            FlashSaleStatus currentStatus,
+            LocalDateTime startTime,
+            LocalDateTime endTime
+    ) {
+        if (currentStatus == FlashSaleStatus.HIDDEN) {
+            return FlashSaleStatus.HIDDEN;
+        }
+        return resolveStatus(startTime, endTime);
     }
 }

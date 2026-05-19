@@ -26,6 +26,8 @@ public class ProductResponse {
     private String productCode;
     private BigDecimal originPrice;
     private BigDecimal lowestPrice;
+    private BigDecimal price;
+    private BigDecimal compareAtPrice;
     private Double averageRating;
     private Integer totalReviews;
     private ProductStatus status;

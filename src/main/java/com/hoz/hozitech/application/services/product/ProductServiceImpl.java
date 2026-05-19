@@ -918,6 +918,8 @@ public class ProductServiceImpl implements ProductService {
                 .productCode(row.productCode())
                 .originPrice(row.originPrice())
                 .lowestPrice(row.lowestPrice())
+                .price(row.price())
+                .compareAtPrice(row.compareAtPrice())
                 .averageRating(row.averageRating())
                 .totalReviews(row.totalReviews())
                 .status(row.status())
